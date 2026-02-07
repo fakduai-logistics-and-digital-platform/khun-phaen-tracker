@@ -1,37 +1,38 @@
 # Khu Phaen
 
-ระบบจัดการงานแบบออฟไลน์ (Offline Task Management) - ติดตามงานได้แม้ไม่มีอินเทอร์เน็ต
+Offline Task Management System - Track your tasks even without internet
 
-## ฟีเจอร์หลัก
+## Key Features
 
-- ✅ จัดการงาน (Task) - เพิ่ม แก้ไข ลบ
-- 👥 จัดการทีมงาน (Worker) - มอบหมายงานให้สมาชิก
-- 📁 จัดการโปรเจค (Project) - จัดหมวดหมู่งาน
-- 📅 ดูงานในรูปแบบปฏิทิน (Calendar)
-- 🎯 ดูงานแบบ Kanban Board
-- 📊 สถิติงาน
-- 📤 ส่งออก/นำเข้า CSV และ PDF
-- 💾 เก็บข้อมูลในเครื่อง (Local Storage)
+- ✅ Task Management - Add, edit, delete tasks
+- 👥 Team Management (Worker) - Assign tasks to team members
+- 📁 Project Management - Organize tasks by project
+- 📅 Calendar View - View tasks in calendar format
+- 🎯 Kanban Board - Visual task management with drag-and-drop
+- 📊 Task Statistics
+- 📤 Export/Import CSV and PDF
+- 💾 Local Storage - Data stored in your browser
+- 🌙 Dark Mode Support
 
-## เริ่มต้นใช้งาน
+## Getting Started
 
 ```sh
-# ติดตั้ง dependencies
+# Install dependencies
 npm install
 
-# รัน dev server
+# Run dev server
 npm run dev
 
-# หรือเปิด browser อัตโนมัติ
+# Or open browser automatically
 npm run dev -- --open
 ```
 
-## Build สำหรับ Production
+## Build for Production
 
 ```sh
 npm run build
 ```
 
-## เกี่ยวกับชื่อ
+## About the Name
 
-**Khu Phaen** (ขุนแผน) - ชื่อจากวรรณคดีไทย สื่อถึงผู้วางแผน มีกลยุทธ์ ในการจัดการงานต่างๆ
+**Khu Phaen** (ขุนแผน) - Named from Thai literature, referring to a master strategist who excels in planning and managing various tasks.
