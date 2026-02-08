@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import type { Task, Project, Assignee, ViewMode, FilterOptions } from '$lib/types';
-	import { getTasks, addTask, updateTask, deleteTask, getStats, exportToCSV, importFromCSV, getCategories, getAssignees, getProjects, getProjectsList, addProject, updateProject, deleteProject, getProjectStats, addAssignee as addAssigneeDB, getAssigneeStats, updateAssignee, deleteAssignee } from '$lib/db';
+	import { getTasks, addTask, updateTask, deleteTask, getStats, exportToCSV, importFromCSV, mergeTasksFromCSV, getCategories, getAssignees, getProjects, getProjectsList, addProject, updateProject, deleteProject, getProjectStats, addAssignee as addAssigneeDB, getAssigneeStats, updateAssignee, deleteAssignee } from '$lib/db';
 	import TaskForm from '$lib/components/TaskForm.svelte';
 	import TaskList from '$lib/components/TaskList.svelte';
 	import CalendarView from '$lib/components/CalendarView.svelte';
@@ -14,10 +14,11 @@
 	import { List, CalendarDays, Columns3, Table, Filter, Search, Plus, Users, Folder, Sparkles } from 'lucide-svelte';
 	import { initWasmSearch, indexTasks, performSearch, clearSearch, searchQuery, wasmReady, wasmLoading } from '$lib/stores/search';
 	import { compressionReady, compressionStats, getStorageInfo } from '$lib/stores/storage';
-	import { enableAutoImport, syncDocumentToServer, serverRoomCode } from '$lib/stores/server-sync';
+	import { enableAutoImport, syncDocumentToServer, serverRoomCode, setMergeCallback } from '$lib/stores/server-sync';
 	import { get } from 'svelte/store';
 	import { Zap } from 'lucide-svelte';
 	import ServerSyncPanel from '$lib/components/ServerSyncPanel.svelte';
+	import SyncButton from '$lib/components/SyncButton.svelte';
 	
 	let tasks: Task[] = [];
 	let filteredTasks: Task[] = [];
@@ -52,6 +53,21 @@
 	onMount(() => {
 		// Enable auto-import for server sync (before any connection)
 		enableAutoImport();
+		
+		// Set merge callback for manual sync
+		setMergeCallback(async (csvData: string) => {
+			console.log('🔄 Merging data from server...');
+			const result = await mergeTasksFromCSV(csvData);
+			console.log('✅ Merge result:', result);
+			
+			// Reload data to show merged results
+			await loadData();
+			
+			// Show message
+			showMessage(`Merge สำเร็จ: เพิ่ม ${result.added}, อัพเดท ${result.updated}`);
+			
+			return result;
+		});
 		
 		// Load data (SQL.js only, WASM search/compression disabled for memory)
 		loadData().then(() => {
@@ -541,6 +557,9 @@
 					showMessage('ซิงค์ล้มเหลว: ' + e.detail.message);
 				}}
 			/>
+			
+			<!-- Manual Sync Button with Merge -->
+			<SyncButton />
 		</div>
 	</div>
 	

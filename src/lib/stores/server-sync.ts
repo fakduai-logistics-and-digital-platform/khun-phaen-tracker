@@ -54,6 +54,7 @@ export const syncMessage = writable<string>('');
 // Callbacks for sync operations
 let onDocumentReceived: ((data: string) => Promise<void>) | null = null;
 let onSyncRequest: (() => Promise<string>) | null = null;
+let onDocumentMerge: ((data: string) => Promise<{ added: number; updated: number; unchanged: number }>) | null = null;
 
 let ws: WebSocket | null = null;
 let reconnectInterval: ReturnType<typeof setInterval> | null = null;
@@ -165,11 +166,24 @@ export function updateServerUrl(url: string) {
 // Set callbacks
 export function setSyncCallbacks(
     onReceive: (data: string) => Promise<void>,
-    onRequest: () => Promise<string>
+    onRequest: () => Promise<string>,
+    onMerge?: (data: string) => Promise<{ added: number; updated: number; unchanged: number }>
 ) {
     console.log('🔄 Sync callbacks registered');
     onDocumentReceived = onReceive;
     onSyncRequest = onRequest;
+    if (onMerge) {
+        onDocumentMerge = onMerge;
+        console.log('🔄 Merge callback registered');
+    }
+}
+
+// Set merge callback separately
+export function setMergeCallback(
+    onMerge: (data: string) => Promise<{ added: number; updated: number; unchanged: number }>
+) {
+    onDocumentMerge = onMerge;
+    console.log('🔄 Merge callback set');
 }
 
 // Initialize server connection
@@ -457,6 +471,57 @@ export function requestSyncFromServer() {
             setTimeout(() => syncMessage.set(''), 2000);
         }
     }, 5000);
+}
+
+// Request merge from server (uses onDocumentMerge callback)
+export function requestMergeFromServer(): Promise<{ added: number; updated: number; unchanged: number }> {
+    return new Promise((resolve, reject) => {
+        if (!get(serverRoomCode)) {
+            reject(new Error('ไม่ได้เชื่อมต่อห้อง'));
+            return;
+        }
+        
+        if (!onDocumentMerge) {
+            reject(new Error('ไม่ได้ตั้งค่า merge callback'));
+            return;
+        }
+        
+        syncMessage.set('กำลังขอข้อมูลสำหรับ Merge...');
+        
+        // Store the resolve function temporarily
+        const originalOnDocumentReceived = onDocumentReceived;
+        
+        // Override temporarily to capture the merge result
+        onDocumentReceived = async (data: string) => {
+            try {
+                const result = await onDocumentMerge!(data);
+                syncMessage.set(`Merge สำเร็จ: +${result.added} ~${result.updated}`);
+                setTimeout(() => syncMessage.set(''), 3000);
+                
+                // Restore original callback
+                onDocumentReceived = originalOnDocumentReceived;
+                
+                resolve(result);
+            } catch (error) {
+                // Restore original callback
+                onDocumentReceived = originalOnDocumentReceived;
+                reject(error);
+            }
+        };
+        
+        console.log('📤 Sending request_sync for merge');
+        sendMessage({ action: 'request_sync' });
+        
+        // Timeout
+        setTimeout(() => {
+            onDocumentReceived = originalOnDocumentReceived;
+            if (get(syncMessage) === 'กำลังขอข้อมูลสำหรับ Merge...') {
+                syncMessage.set('ไม่ได้รับการตอบสนอง');
+                setTimeout(() => syncMessage.set(''), 2000);
+            }
+            reject(new Error('Timeout'));
+        }, 10000);
+    });
 }
 
 // Helper functions

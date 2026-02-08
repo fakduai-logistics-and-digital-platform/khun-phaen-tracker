@@ -1,17 +1,6 @@
 version: '3.8'
 
 services:
-  # Frontend - Static files served by nginx
-  frontend:
-    build:
-      context: .
-      dockerfile: Dockerfile.frontend
-    ports:
-      - "8080:80"
-    restart: unless-stopped
-    depends_on:
-      - sync-server
-
   # Sync Server - WebSocket server for real-time sync
   sync-server:
     build:

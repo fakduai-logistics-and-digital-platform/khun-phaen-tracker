@@ -102,7 +102,11 @@ cargo build --release
 # Binary จะอยู่ที่ target/release/sync-server
 ```
 
-## 🐳 Docker Deployment
+## 🐳 Docker Deployment (Sync Server Only)
+
+> **Frontend** ใช้ Static Files จาก `npm run build` แล้วนำไป host บน nginx/apache ได้เลย
+> 
+> **Sync Server** รันผ่าน Docker ตามด้านล่าง
 
 ### Option 1: Docker Compose (แนะนำ)
 
@@ -110,16 +114,6 @@ cargo build --release
 version: '3.8'
 
 services:
-  # Frontend - Static files served by nginx
-  frontend:
-    build:
-      context: .
-      dockerfile: Dockerfile.frontend
-    ports:
-      - "8080:80"
-    restart: unless-stopped
-
-  # Sync Server - WebSocket server
   sync-server:
     build:
       context: ./sync-server
@@ -138,19 +132,9 @@ services:
 docker-compose up -d
 ```
 
-### Option 2: Build แยก
+Sync Server จะรันที่ `ws://YOUR_PUBLIC_IP:3001`
 
-#### Frontend Only
-
-```sh
-# Build image
-docker build -f Dockerfile.frontend -t khu-phaen-frontend .
-
-# Run
-docker run -p 8080:80 khu-phaen-frontend
-```
-
-#### Sync Server Only
+### Option 2: Docker Build เอง
 
 ```sh
 cd sync-server
@@ -161,6 +145,43 @@ docker build -t khu-phaen-sync .
 # Run
 docker run -p 3001:3001 -e PORT=3001 khu-phaen-sync
 ```
+
+## 🌐 Public IP / Server Deployment
+
+### 1. Build Frontend
+
+```sh
+npm run build
+```
+
+นำโฟลเดอร์ `build/` ไปวางบน Web Server (nginx, Apache, etc.)
+
+### 2. รัน Sync Server บน Server
+
+```sh
+cd sync-server
+docker build -t khu-phaen-sync .
+docker run -d -p 3001:3001 --name sync-server khu-phaen-sync
+```
+
+หรือใช้ docker-compose:
+
+```sh
+docker-compose up -d
+```
+
+### 3. แก้ไข Sync Server URL ใน Frontend
+
+แก้ไขไฟล์ที่ใช้เชื่อมต่อ WebSocket (มักอยู่ใน `src/lib/stores/server-sync.ts`):
+
+```typescript
+// แก้จาก localhost เป็น Public IP หรือ Domain ของคุณ
+const WS_URL = 'ws://YOUR_SERVER_IP:3001';  // HTTP
+// หรือ
+const WS_URL = 'wss://your-domain.com';      // HTTPS (ผ่าน reverse proxy)
+```
+
+แล้ว build ใหม่
 
 ## ⚙️ Configuration
 
