@@ -74,15 +74,22 @@
     let isEditingUrl = false;
     let editedUrl = '';
     
+    // Function to load saved URL
+    function loadSavedUrl() {
+        try {
+            const savedUrl = localStorage.getItem('sync-server-url');
+            if (savedUrl) {
+                hostUrl = savedUrl;
+                console.log('📂 Loaded saved URL:', hostUrl);
+            }
+        } catch (e) {
+            console.error('Failed to load URL:', e);
+        }
+    }
+    
     // Load saved URL on mount
     onMount(() => {
-        const saved = loadSavedConnection();
-        if (saved) {
-            hostUrl = saved.url;
-            console.log('📂 Loaded saved URL:', hostUrl);
-        }
-        
-        // Check for URL params (shared link)
+        // Check for URL params (shared link) first
         const urlParams = new URLSearchParams(window.location.search);
         const sharedServer = urlParams.get('sync_server');
         const sharedRoom = urlParams.get('room');
@@ -90,9 +97,13 @@
         if (sharedServer) {
             hostUrl = sharedServer;
             console.log('🔗 Using shared server URL:', hostUrl);
+        } else {
+            // Otherwise load from localStorage
+            loadSavedUrl();
         }
         
         // Auto-connect if we have saved connection (silent, don't show panel)
+        const saved = loadSavedConnection();
         if (saved && !sharedRoom) {
             console.log('🔄 Auto-connecting to saved room:', saved.roomCode);
             autoReconnect(); // Silent reconnect, no need to show panel
@@ -102,6 +113,11 @@
             console.log('🔗 Joining shared room:', sharedRoom);
         }
     });
+    
+    // Reactively load URL when panel opens
+    $: if (showPanel) {
+        loadSavedUrl();
+    }
     
     function startEditUrl() {
         editedUrl = hostUrl;
@@ -113,6 +129,14 @@
             hostUrl = editedUrl.trim();
             updateServerUrl(hostUrl);
             console.log('💾 Saved new URL:', hostUrl);
+            
+            // Force save to localStorage immediately even if not connected
+            try {
+                localStorage.setItem('sync-server-url', hostUrl);
+                console.log('💾 Force saved URL to localStorage');
+            } catch (e) {
+                console.error('Failed to save URL:', e);
+            }
         }
         isEditingUrl = false;
     }
@@ -265,6 +289,19 @@
                             placeholder="http://localhost:3001"
                             class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-700 dark:text-white"
                         />
+                        <button
+                            on:click={() => {
+                                if (hostUrl.trim()) {
+                                    updateServerUrl(hostUrl.trim());
+                                    syncMessage.set('บันทึก URL แล้ว');
+                                    setTimeout(() => syncMessage.set(''), 2000);
+                                }
+                            }}
+                            class="px-3 py-2 bg-green-100 hover:bg-green-200 dark:bg-green-900/20 dark:hover:bg-green-900/40 text-green-600 rounded-lg transition-colors"
+                            title="บันทึก URL"
+                        >
+                            <Save size={16} />
+                        </button>
                     {/if}
                 </div>
                 {#if $serverStatus === 'connected'}

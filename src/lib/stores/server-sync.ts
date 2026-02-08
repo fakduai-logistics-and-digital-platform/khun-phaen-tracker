@@ -76,14 +76,15 @@ function saveConnectionSettings(url: string, roomCode: string, isHost: boolean, 
     }
 }
 
-// Clear connection settings
+// Clear connection settings (keep URL for reuse)
 function clearConnectionSettings() {
     try {
-        localStorage.removeItem(STORAGE_KEY_URL);
+        // Keep URL so user can reconnect with same server
+        // localStorage.removeItem(STORAGE_KEY_URL);
         localStorage.removeItem(STORAGE_KEY_ROOM);
         localStorage.removeItem(STORAGE_KEY_IS_HOST);
         localStorage.removeItem(STORAGE_KEY_PEER_ID);
-        console.log('🗑️ Cleared sync settings');
+        console.log('🗑️ Cleared room settings (kept URL)');
     } catch (e) {
         console.error('Failed to clear sync settings:', e);
     }
@@ -155,7 +156,15 @@ export async function autoReconnect(): Promise<boolean> {
 // Update server URL
 export function updateServerUrl(url: string) {
     serverUrl.set(url);
-    // Save if already connected
+    // Always save URL to localStorage immediately
+    try {
+        localStorage.setItem(STORAGE_KEY_URL, url);
+        console.log('💾 URL saved to localStorage:', url);
+    } catch (e) {
+        console.error('Failed to save URL:', e);
+    }
+    
+    // Also update full settings if already connected
     const currentRoom = get(serverRoomCode);
     const host = get(isServerHost);
     if (currentRoom && currentPeerId) {
