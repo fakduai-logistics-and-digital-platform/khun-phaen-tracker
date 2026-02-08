@@ -538,6 +538,17 @@ async fn handle_client_message(
                             .send(Message::Text(serde_json::to_string(&sync).unwrap()))
                             .await
                             .map_err(|e| e.to_string())?;
+                        info!("📄 Sent document to peer upon request in room {}", room_code);
+                    } else {
+                        // No document yet, send empty response
+                        let sync = ServerMessage::DocumentSync {
+                            document: String::new(),
+                        };
+                        socket
+                            .send(Message::Text(serde_json::to_string(&sync).unwrap()))
+                            .await
+                            .map_err(|e| e.to_string())?;
+                        info!("📄 Sent empty document (no data yet) in room {}", room_code);
                     }
                 }
             }

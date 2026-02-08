@@ -783,9 +783,15 @@ function parseCSVLine(line: string): string[] {
 export async function mergeTasksFromCSV(csvContent: string): Promise<{ added: number; updated: number; unchanged: number }> {
 	if (!db) throw new Error('DB not initialized');
 	
-	const lines = csvContent.trim().split('\n');
+	const trimmed = csvContent.trim();
+	if (!trimmed) {
+		console.log('Empty CSV, nothing to merge');
+		return { added: 0, updated: 0, unchanged: 0 };
+	}
+	
+	const lines = trimmed.split('\n');
 	if (lines.length < 2) {
-		console.warn('CSV has less than 2 lines');
+		console.warn('CSV has less than 2 lines (only headers or empty)');
 		return { added: 0, updated: 0, unchanged: 0 };
 	}
 	

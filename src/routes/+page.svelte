@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import type { Task, Project, Assignee, ViewMode, FilterOptions } from '$lib/types';
-	import { getTasks, addTask, updateTask, deleteTask, getStats, exportToCSV, importFromCSV, mergeTasksFromCSV, getCategories, getAssignees, getProjects, getProjectsList, addProject, updateProject, deleteProject, getProjectStats, addAssignee as addAssigneeDB, getAssigneeStats, updateAssignee, deleteAssignee } from '$lib/db';
+	import { getTasks, addTask, updateTask, deleteTask, getStats, exportToCSV, importFromCSV, getCategories, getAssignees, getProjects, getProjectsList, addProject, updateProject, deleteProject, getProjectStats, addAssignee as addAssigneeDB, getAssigneeStats, updateAssignee, deleteAssignee } from '$lib/db';
 	import TaskForm from '$lib/components/TaskForm.svelte';
 	import TaskList from '$lib/components/TaskList.svelte';
 	import CalendarView from '$lib/components/CalendarView.svelte';
@@ -14,11 +14,9 @@
 	import { List, CalendarDays, Columns3, Table, Filter, Search, Plus, Users, Folder, Sparkles } from 'lucide-svelte';
 	import { initWasmSearch, indexTasks, performSearch, clearSearch, searchQuery, wasmReady, wasmLoading } from '$lib/stores/search';
 	import { compressionReady, compressionStats, getStorageInfo } from '$lib/stores/storage';
-	import { enableAutoImport, syncDocumentToServer, serverRoomCode, setMergeCallback } from '$lib/stores/server-sync';
-	import { get } from 'svelte/store';
+	import { enableAutoImport, setMergeCallback } from '$lib/stores/server-sync';
 	import { Zap } from 'lucide-svelte';
 	import ServerSyncPanel from '$lib/components/ServerSyncPanel.svelte';
-	import SyncButton from '$lib/components/SyncButton.svelte';
 	
 	let tasks: Task[] = [];
 	let filteredTasks: Task[] = [];
@@ -193,18 +191,6 @@
 		setTimeout(() => message = '', 3000);
 	}
 	
-	// Auto-sync to server when connected
-	async function autoSync() {
-		if (get(serverRoomCode)) {
-			console.log('🔄 Auto-syncing to server...');
-			try {
-				await syncDocumentToServer();
-			} catch (e) {
-				console.error('Auto-sync failed:', e);
-			}
-		}
-	}
-	
 	async function handleAddTask(event: CustomEvent<Omit<Task, 'id' | 'created_at'>>) {
 		try {
 			if (editingTask) {
@@ -217,8 +203,6 @@
 			}
 			await loadData();
 			showForm = false;
-			// Auto-sync to server if connected
-			await autoSync();
 		} catch (e) {
 			showMessage('เกิดข้อผิดพลาด', 'error');
 		}
@@ -241,8 +225,6 @@
 			await deleteTask(id);
 			await loadData();
 			showMessage('ลบงานสำเร็จ');
-			// Auto-sync to server if connected
-			await autoSync();
 		} catch (e) {
 			showMessage('เกิดข้อผิดพลาด', 'error');
 		}
@@ -262,8 +244,6 @@
 		try {
 			await updateTask(event.detail.id, { status: event.detail.status });
 			await loadData();
-			// Auto-sync to server if connected
-			await autoSync();
 		} catch (e) {
 			showMessage('เกิดข้อผิดพลาด', 'error');
 		}
@@ -544,7 +524,6 @@
 				on:importCSV={handleImportCSV}
 			/>
 			
-			<!-- Sync Panel -->
 			<!-- Server Sync Panel -->
 			<ServerSyncPanel 
 				on:dataImported={async (e) => {
@@ -557,9 +536,6 @@
 					showMessage('ซิงค์ล้มเหลว: ' + e.detail.message);
 				}}
 			/>
-			
-			<!-- Manual Sync Button with Merge -->
-			<SyncButton />
 		</div>
 	</div>
 	

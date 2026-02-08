@@ -490,10 +490,27 @@ export function requestMergeFromServer(): Promise<{ added: number; updated: numb
         
         // Store the resolve function temporarily
         const originalOnDocumentReceived = onDocumentReceived;
+        let resolved = false;
         
         // Override temporarily to capture the merge result
         onDocumentReceived = async (data: string) => {
+            if (resolved) return; // Prevent double resolve
+            resolved = true;
+            
             try {
+                // Handle empty document (no data on server yet)
+                if (!data || data.trim() === '') {
+                    console.log('ℹ️ No data on server yet');
+                    syncMessage.set('ยังไม่มีข้อมูลบน server');
+                    setTimeout(() => syncMessage.set(''), 2000);
+                    
+                    // Restore original callback
+                    onDocumentReceived = originalOnDocumentReceived;
+                    
+                    resolve({ added: 0, updated: 0, unchanged: 0 });
+                    return;
+                }
+                
                 const result = await onDocumentMerge!(data);
                 syncMessage.set(`Merge สำเร็จ: +${result.added} ~${result.updated}`);
                 setTimeout(() => syncMessage.set(''), 3000);
@@ -512,15 +529,17 @@ export function requestMergeFromServer(): Promise<{ added: number; updated: numb
         console.log('📤 Sending request_sync for merge');
         sendMessage({ action: 'request_sync' });
         
-        // Timeout
+        // Timeout - increased to 15 seconds
         setTimeout(() => {
-            onDocumentReceived = originalOnDocumentReceived;
-            if (get(syncMessage) === 'กำลังขอข้อมูลสำหรับ Merge...') {
-                syncMessage.set('ไม่ได้รับการตอบสนอง');
-                setTimeout(() => syncMessage.set(''), 2000);
+            if (!resolved) {
+                onDocumentReceived = originalOnDocumentReceived;
+                if (get(syncMessage) === 'กำลังขอข้อมูลสำหรับ Merge...') {
+                    syncMessage.set('ไม่ได้รับการตอบสนอง');
+                    setTimeout(() => syncMessage.set(''), 2000);
+                }
+                reject(new Error('Timeout'));
             }
-            reject(new Error('Timeout'));
-        }, 10000);
+        }, 15000);
     });
 }
 
