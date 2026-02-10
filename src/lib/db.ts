@@ -85,6 +85,9 @@ export async function initDB(): Promise<void> {
 		// Create tables
 		createTables();
 		
+		// Run migrations for existing databases
+		runMigrations();
+		
 		// Save initial state
 		saveDatabase();
 		
@@ -106,6 +109,36 @@ export async function initDB(): Promise<void> {
 		}
 	} finally {
 		isInitializing = false;
+	}
+}
+
+// Run migrations for existing databases
+function runMigrations() {
+	if (!db) return;
+	
+	console.log('🔄 Running migrations...');
+	
+	// Check if updated_at column exists
+	try {
+		const result = db.exec("PRAGMA table_info(tasks)");
+		const columns = result[0]?.values.map((row: any) => row[1]) || [];
+		
+		if (!columns.includes('updated_at')) {
+			console.log('🔄 Adding updated_at column...');
+			db.run(`ALTER TABLE tasks ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`);
+			console.log('✅ Added updated_at column');
+		} else {
+			console.log('✅ updated_at column already exists');
+		}
+	} catch (e: any) {
+		console.warn('⚠️ Migration check failed:', e?.message || e);
+		// Try to add column anyway
+		try {
+			db.run(`ALTER TABLE tasks ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`);
+			console.log('✅ Added updated_at column (fallback)');
+		} catch (e2) {
+			// Column might already exist
+		}
 	}
 }
 
@@ -166,6 +199,7 @@ function createTables() {
 			sprint_id INTEGER DEFAULT NULL,
 			is_archived INTEGER DEFAULT 0,
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 			FOREIGN KEY (assignee_id) REFERENCES assignees(id)
 		)
 	`);
@@ -187,6 +221,13 @@ function createTables() {
 	// Try to add is_archived column
 	try {
 		db.run(`ALTER TABLE tasks ADD COLUMN is_archived INTEGER DEFAULT 0`);
+	} catch (e) {
+		// Column already exists
+	}
+	
+	// Try to add updated_at column
+	try {
+		db.run(`ALTER TABLE tasks ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`);
 	} catch (e) {
 		// Column already exists
 	}
@@ -254,6 +295,8 @@ export async function addTask(task: Omit<Task, 'id' | 'created_at'>): Promise<vo
 export async function updateTask(id: number, updates: Partial<Task>): Promise<void> {
 	if (!db) throw new Error('DB not initialized');
 	
+	console.log('🔍 updateTask called:', { id, updates: Object.keys(updates) });
+	
 	const sets: string[] = [];
 	const values: any[] = [];
 	
@@ -298,12 +341,38 @@ export async function updateTask(id: number, updates: Partial<Task>): Promise<vo
 		values.push(updates.is_archived ? 1 : 0);
 	}
 	
-	if (sets.length === 0) return;
+	// Always update updated_at when task is modified
+	sets.push('updated_at = CURRENT_TIMESTAMP');
+	
+	if (sets.length === 1) {
+		// Only updated_at, no other changes - still update it
+		// But we need at least one field to update
+	}
 	
 	values.push(id);
 	
-	db.run(`UPDATE tasks SET ${sets.join(', ')} WHERE id = ?`, values);
-	saveDatabase();
+	console.log('🔍 updateTask SQL:', { sets, valuesCount: values.length, sql: `UPDATE tasks SET ${sets.join(', ')} WHERE id = ?` });
+	
+	try {
+		db.run(`UPDATE tasks SET ${sets.join(', ')} WHERE id = ?`, values);
+		saveDatabase();
+		console.log('✅ updateTask completed:', { id });
+	} catch (e: any) {
+		console.error('❌ updateTask failed:', e?.message || e);
+		// If updated_at column doesn't exist, try without it
+		if (e?.message?.includes('updated_at')) {
+			console.log('⚠️ Retrying without updated_at...');
+			const setsWithoutUpdatedAt = sets.filter(s => !s.includes('updated_at'));
+			if (setsWithoutUpdatedAt.length > 0) {
+				db.run(`UPDATE tasks SET ${setsWithoutUpdatedAt.join(', ')} WHERE id = ?`, 
+					values.filter((_, i) => !sets[i]?.includes('updated_at')));
+				saveDatabase();
+				console.log('✅ updateTask completed (without updated_at):', { id });
+			}
+		} else {
+			throw e;
+		}
+	}
 }
 
 export async function deleteTask(id: number): Promise<void> {
@@ -402,7 +471,8 @@ export async function getTasks(filter?: FilterOptions): Promise<Task[]> {
 				color: obj.a_color as string,
 				created_at: obj.a_created_at as string
 			} : null,
-			created_at: obj.created_at as string
+			created_at: obj.created_at as string,
+			updated_at: (obj.updated_at || obj.created_at) as string
 		};
 	});
 }
@@ -445,7 +515,8 @@ export async function getTaskById(id: number): Promise<Task | null> {
 			color: obj.a_color as string,
 			created_at: obj.a_created_at as string
 		} : null,
-		created_at: obj.created_at as string
+		created_at: obj.created_at as string,
+		updated_at: (obj.updated_at || obj.created_at) as string
 	};
 }
 
@@ -635,7 +706,8 @@ export async function getTasksBySprint(sprintId: number): Promise<Task[]> {
 				color: obj.a_color as string,
 				created_at: obj.a_created_at as string
 			} : null,
-			created_at: obj.created_at as string
+			created_at: obj.created_at as string,
+			updated_at: (obj.updated_at || obj.created_at) as string
 		};
 	});
 }
@@ -1080,7 +1152,7 @@ export async function exportAllData(): Promise<string> {
 	}
 	
 	// Build tasks CSV section with assignee_name, sprint_id, is_archived
-	const taskHeaders = ['id', 'title', 'project', 'duration_minutes', 'date', 'status', 'category', 'notes', 'assignee_id', 'assignee_name', 'sprint_id', 'is_archived', 'created_at'];
+	const taskHeaders = ['id', 'title', 'project', 'duration_minutes', 'date', 'status', 'category', 'notes', 'assignee_id', 'assignee_name', 'sprint_id', 'is_archived', 'created_at', 'updated_at'];
 	const csvRows: string[] = [];
 	
 	// Add tasks section
