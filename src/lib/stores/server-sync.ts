@@ -18,7 +18,7 @@ export function enableAutoImport() {
             try {
                 // Use useExistingIds: true for sync to preserve IDs from server
                 const result = await importAllData(csvData, { clearExisting: true, useExistingIds: true });
-                console.log(`✅ Auto-imported ${result.tasks} tasks, ${result.projects} projects, ${result.assignees} assignees`);
+                console.log(`✅ Auto-imported ${result.tasks} tasks, ${result.projects} projects, ${result.assignees} assignees, ${result.sprints} sprints`);
                 
                 // Reload page to refresh data
                 window.location.reload();

@@ -6,6 +6,7 @@ import {
     myPeerId, 
     hostPeerId,
     connectedPeersList,
+    incomingSyncData,
     initSignaling,
     createRoom as createWebRTCRoom,
     joinRoom as joinWebRTCRoom,
@@ -51,6 +52,9 @@ export async function initCrdt() {
             crdtDoc.import(savedDoc);
         }
         
+        // Subscribe to incoming sync data
+        incomingSyncData.subscribe(handleIncomingSyncData);
+        
         console.log('✅ CRDT initialized for node:', nodeId);
         
         return true;
@@ -58,6 +62,58 @@ export async function initCrdt() {
         console.error('❌ CRDT init failed:', error);
         syncError.set('ไม่สามารถโหลด CRDT ได้');
         return false;
+    }
+}
+
+// Handle incoming sync data from peers
+function handleIncomingSyncData(data: { type: string; document?: string; sprints?: any[] } | null) {
+    if (!data || !crdtDoc) return;
+    
+    if (data.type === 'full-sync' && data.document) {
+        try {
+            // Merge CRDT document
+            crdtDoc.merge(data.document);
+            saveDocument();
+            
+            // Import sprints if included
+            if (data.sprints && Array.isArray(data.sprints) && typeof window !== 'undefined') {
+                try {
+                    const existingData = localStorage.getItem('sprints-data-v1');
+                    let existingSprints: any[] = [];
+                    if (existingData) {
+                        existingSprints = JSON.parse(existingData);
+                    }
+                    
+                    // Merge sprints, avoid duplicates by id
+                    const sprintMap = new Map(existingSprints.map(s => [s.id, s]));
+                    for (const sprint of data.sprints) {
+                        if (!sprintMap.has(sprint.id)) {
+                            sprintMap.set(sprint.id, sprint);
+                        } else {
+                            // Use newer data based on created_at or id
+                            const existing = sprintMap.get(sprint.id);
+                            if (sprint.updated_at && existing.updated_at) {
+                                if (new Date(sprint.updated_at) > new Date(existing.updated_at)) {
+                                    sprintMap.set(sprint.id, sprint);
+                                }
+                            }
+                        }
+                    }
+                    
+                    localStorage.setItem('sprints-data-v1', JSON.stringify(Array.from(sprintMap.values())));
+                    console.log(`✅ Synced ${data.sprints.length} sprints from peer`);
+                } catch (e) {
+                    console.warn('Failed to sync sprints:', e);
+                }
+            }
+            
+            lastSyncTime.set(new Date());
+            pendingChanges.set(0);
+            console.log('✅ Full sync completed from peer');
+        } catch (error) {
+            console.error('Failed to handle full-sync:', error);
+            syncError.set('Sync ล้มเหลว');
+        }
     }
 }
 
@@ -114,10 +170,24 @@ function requestSyncFromHost() {
 export function exportSyncData(): string {
     if (!crdtDoc) return '';
     
+    // Get sprints from localStorage
+    let sprints: any[] = [];
+    if (typeof window !== 'undefined') {
+        try {
+            const saved = localStorage.getItem('sprints-data-v1');
+            if (saved) {
+                sprints = JSON.parse(saved);
+            }
+        } catch (e) {
+            console.warn('Failed to load sprints for sync export:', e);
+        }
+    }
+    
     const data = {
         node_id: nodeId,
         sync_code: get(syncCode),
         document: crdtDoc.export(),
+        sprints: sprints,
         timestamp: Date.now(),
     };
     
@@ -132,6 +202,39 @@ export function importSyncData(encodedData: string): boolean {
         if (crdtDoc && data.document) {
             crdtDoc.merge(data.document);
             saveDocument();
+            
+            // Import sprints if included
+            if (data.sprints && Array.isArray(data.sprints) && typeof window !== 'undefined') {
+                try {
+                    const existingData = localStorage.getItem('sprints-data-v1');
+                    let existingSprints: any[] = [];
+                    if (existingData) {
+                        existingSprints = JSON.parse(existingData);
+                    }
+                    
+                    // Merge sprints, avoid duplicates by id
+                    const sprintMap = new Map(existingSprints.map(s => [s.id, s]));
+                    for (const sprint of data.sprints) {
+                        if (!sprintMap.has(sprint.id)) {
+                            sprintMap.set(sprint.id, sprint);
+                        } else {
+                            // Use newer data based on created_at or id
+                            const existing = sprintMap.get(sprint.id);
+                            if (sprint.updated_at && existing.updated_at) {
+                                if (new Date(sprint.updated_at) > new Date(existing.updated_at)) {
+                                    sprintMap.set(sprint.id, sprint);
+                                }
+                            }
+                        }
+                    }
+                    
+                    localStorage.setItem('sprints-data-v1', JSON.stringify(Array.from(sprintMap.values())));
+                    console.log(`✅ Imported ${data.sprints.length} sprints from sync`);
+                } catch (e) {
+                    console.warn('Failed to import sprints from sync:', e);
+                }
+            }
+            
             lastSyncTime.set(new Date());
             pendingChanges.set(0);
             
@@ -161,11 +264,25 @@ export async function performSync(): Promise<boolean> {
     syncStatus.set('connecting');
     
     try {
+        // Get sprints from localStorage
+        let sprints: any[] = [];
+        if (typeof window !== 'undefined') {
+            try {
+                const saved = localStorage.getItem('sprints-data-v1');
+                if (saved) {
+                    sprints = JSON.parse(saved);
+                }
+            } catch (e) {
+                console.warn('Failed to load sprints for sync:', e);
+            }
+        }
+        
         // Broadcast document to all peers
         if (crdtDoc) {
             broadcastData({
                 type: 'full-sync',
-                document: crdtDoc.export()
+                document: crdtDoc.export(),
+                sprints: sprints
             });
         }
         

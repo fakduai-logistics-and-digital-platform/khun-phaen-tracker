@@ -1163,13 +1163,13 @@ export async function exportAllData(): Promise<string> {
 	return csvRows.join('\n');
 }
 
-export async function importAllData(csvContent: string, options: { clearExisting?: boolean; useExistingIds?: boolean } = {}): Promise<{ tasks: number; projects: number; assignees: number }> {
+export async function importAllData(csvContent: string, options: { clearExisting?: boolean; useExistingIds?: boolean } = {}): Promise<{ tasks: number; projects: number; assignees: number; sprints: number }> {
 	if (!db) throw new Error('DB not initialized');
 	
 	const lines = csvContent.trim().split('\n');
 	if (lines.length < 2) {
 		console.warn('CSV has less than 2 lines');
-		return { tasks: 0, projects: 0, assignees: 0 };
+		return { tasks: 0, projects: 0, assignees: 0, sprints: 0 };
 	}
 	
 	// Get existing task IDs to check for duplicates
@@ -1248,7 +1248,7 @@ export async function importAllData(csvContent: string, options: { clearExisting
 	if (taskRows.length === 0 && projectRows.length === 0 && assigneeRows.length === 0) {
 		// Try to import as old format (tasks only)
 		const tasksImported = await importFromCSV(csvContent, options);
-		return { tasks: tasksImported, projects: 0, assignees: 0 };
+		return { tasks: tasksImported, projects: 0, assignees: 0, sprints: 0 };
 	}
 	
 	// Start transaction
@@ -1465,7 +1465,7 @@ export async function importAllData(csvContent: string, options: { clearExisting
 		
 		console.log(`✅ Import complete: ${tasksImported} tasks, ${projectsImported} projects, ${assigneesImported} assignees, ${sprintRows.length} sprints`);
 		
-		return { tasks: tasksImported, projects: projectsImported, assignees: assigneesImported };
+		return { tasks: tasksImported, projects: projectsImported, assignees: assigneesImported, sprints: sprintRows.length };
 	} catch (e) {
 		console.error('❌ Import failed, rolling back:', e);
 		try {
@@ -1498,12 +1498,13 @@ export async function mergeAllData(csvContent: string): Promise<{
 	}
 	
 	// Parse sections
-	let currentSection: 'tasks' | 'projects' | 'assignees' | null = null;
+	let currentSection: 'tasks' | 'projects' | 'assignees' | 'sprints' | null = null;
 	let currentHeaders: string[] = [];
 	
 	const taskRows: Record<string, string>[] = [];
 	const projectRows: Record<string, string>[] = [];
 	const assigneeRows: Record<string, string>[] = [];
+	const sprintRows: Record<string, string>[] = [];
 	
 	const lines = trimmed.split('\n');
 	
@@ -1554,7 +1555,8 @@ export async function mergeAllData(csvContent: string): Promise<{
 		return {
 			tasks: result,
 			projects: { added: 0, updated: 0 },
-			assignees: { added: 0, updated: 0 }
+			assignees: { added: 0, updated: 0 },
+			sprints: { added: 0, updated: 0 }
 		};
 	}
 	

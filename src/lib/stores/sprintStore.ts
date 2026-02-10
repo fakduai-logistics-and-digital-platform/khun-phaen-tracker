@@ -7,6 +7,8 @@ export interface Sprint {
 	end_date: string;
 	status: 'active' | 'completed' | 'planned';
 	created_at?: string;
+	completed_at?: string; // วันที่จบ Sprint จริง
+	archived_count?: number; // จำนวนงานที่ Archive
 }
 
 // Local storage key
@@ -64,8 +66,14 @@ function createSprintStore() {
 		},
 		complete: (id: number) => {
 			update(sprints => {
+				const today = new Date().toISOString().split('T')[0];
 				const newSprints = sprints.map(s => 
-					s.id === id ? { ...s, status: 'completed' as const, end_date: new Date().toISOString().split('T')[0] } : s
+					s.id === id ? { 
+						...s, 
+						status: 'completed' as const, 
+						completed_at: today,
+						// Keep original end_date, don't change it
+					} : s
 				);
 				saveSprints(newSprints);
 				return newSprints;

@@ -34,14 +34,14 @@
             console.log('📥 Importing data from server...', csvData.substring(0, 100) + '...');
             try {
                 const result = await importAllData(csvData, { clearExisting: true, useExistingIds: true });
-                console.log(`✅ Imported ${result.tasks} tasks, ${result.projects} projects, ${result.assignees} assignees from server`);
+                console.log(`✅ Imported ${result.tasks} tasks, ${result.projects} projects, ${result.assignees} assignees, ${result.sprints} sprints from server`);
                 
                 // Notify parent to reload data instead of page reload
-                dispatch('dataImported', { count: result.tasks + result.projects + result.assignees });
+                dispatch('dataImported', { count: result.tasks + result.projects + result.assignees + result.sprints });
                 
                 // Small delay to allow UI to update
                 setTimeout(() => {
-                    syncMessage.set(`นำเข้าสำเร็จ ${result.tasks} งาน, ${result.projects} โปรเจค, ${result.assignees} ผู้รับผิดชอบ`);
+                    syncMessage.set(`นำเข้าสำเร็จ ${result.tasks} งาน, ${result.projects} โปรเจค, ${result.assignees} ผู้รับผิดชอบ, ${result.sprints} sprint`);
                     setTimeout(() => syncMessage.set(''), 3000);
                 }, 100);
             } catch (e) {

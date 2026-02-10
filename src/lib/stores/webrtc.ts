@@ -8,6 +8,9 @@ export const myPeerId = writable<string>('');
 export const hostPeerId = writable<string>('');
 export const connectedPeersList = writable<string[]>([]);
 
+// Store for incoming sync data (for sync.ts to subscribe)
+export const incomingSyncData = writable<{ type: string; document?: string; sprints?: any[] } | null>(null);
+
 let bc: BroadcastChannel | null = null;
 let currentRoomCode: string = '';
 let isHostPeer: boolean = false;
@@ -70,6 +73,10 @@ function handleSignalMessage(data: any) {
         case 'sync-data':
             // Handle incoming sync data
             console.log('📦 Received sync data from:', data.peerId);
+            // Pass to sync.ts via store
+            if (data.data) {
+                incomingSyncData.set(data.data);
+            }
             break;
     }
 }

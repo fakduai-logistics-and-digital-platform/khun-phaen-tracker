@@ -2,11 +2,13 @@
 	import { createEventDispatcher } from 'svelte';
 	import type { Sprint } from '$lib/types';
 	import { sprints, archiveCompletedTasks } from '$lib/stores/sprintStore';
-	import { Flag, Plus, X, Edit2, CheckCircle2, Play, Calendar, AlertCircle } from 'lucide-svelte';
+	import { Flag, Plus, X, Edit2, CheckCircle2, Play, Calendar, AlertCircle, Archive } from 'lucide-svelte';
 
 	const dispatch = createEventDispatcher<{
 		close: void;
 		complete: number; // sprint id
+		createSprint: { name: string; start_date: string; end_date: string };
+		moveTasksToSprint: { sprintId: number; taskIds: number[] };
 	}>();
 
 	export let tasks: { id: number; status: string; sprint_id?: number | null }[] = [];
@@ -14,16 +16,86 @@
 	let showAddForm = false;
 	let editingSprint: Sprint | null = null;
 	let newSprintName = '';
-	let newSprintStart = new Date().toISOString().split('T')[0];
-	let newSprintEnd = '';
+	// Helper to get date string in YYYY-MM-DD format
+	function getTodayString(): string {
+		return new Date().toISOString().split('T')[0];
+	}
+	
+	// Helper to get date string for N days from a given date
+	function getDateAfterDays(startDate: string, days: number): string {
+		const date = new Date(startDate);
+		date.setDate(date.getDate() + days);
+		return date.toISOString().split('T')[0];
+	}
+	
+	let newSprintStart = getTodayString();
+	let newSprintEnd = getDateAfterDays(getTodayString(), 14); // Default 2 weeks
 	let completeConfirmId: number | null = null;
+	let showMoveTasksConfirm = false;
+	let pendingSprintData: { name: string; start_date: string; end_date: string } | null = null;
+
+	// Check if can create new sprint
+	// สร้างได้เมื่อ: ไม่มี sprint เลย, หรือ sprint ล่าสุด completed, หรือ sprint ล่าสุดหมดอายุแล้ว
+	$: canCreateSprint = checkCanCreateSprint($sprints);
+	$: blockingSprint = getBlockingSprint($sprints);
+
+	function checkCanCreateSprint(sprintList: Sprint[]): boolean {
+		if (sprintList.length === 0) return true;
+		
+		const today = new Date();
+		today.setHours(0, 0, 0, 0);
+		
+		// Find the most recent active or planned sprint
+		for (const sprint of sprintList) {
+			if (sprint.status === 'active') return false;
+			if (sprint.status === 'planned') {
+				// Planned sprint สร้างใหม่ได้ทันทีโดยไม่ต้องรอหมดอายุ
+				// แต่ถ้าอยากให้รอหมดอายุ ให้ uncomment บรรทัดด้านล่าง
+				// const endDate = new Date(sprint.end_date);
+				// if (endDate >= today) return false;
+				return true;
+			}
+		}
+		return true;
+	}
+
+	function getBlockingSprint(sprintList: Sprint[]): Sprint | null {
+		const today = new Date();
+		today.setHours(0, 0, 0, 0);
+		
+		for (const sprint of sprintList) {
+			if (sprint.status === 'active') return sprint;
+			// Planned sprint ไม่บล็อกการสร้างใหม่แล้ว
+			// if (sprint.status === 'planned') {
+			// 	const endDate = new Date(sprint.end_date);
+			// 	if (endDate >= today) return sprint;
+			// }
+		}
+		return null;
+	}
+
+	// Get tasks that should be moved to new sprint
+	function getTasksToMoveToNewSprint(): number[] {
+		// Get all tasks that either:
+		// 1. Have no sprint (sprint_id is null)
+		// 2. Belong to a completed/expired sprint
+		const activeOrPlannedSprintIds = new Set(
+			$sprints
+				.filter(s => s.status === 'active' || s.status === 'planned')
+				.map(s => s.id)
+		);
+		
+		return tasks
+			.filter(t => !t.sprint_id || !activeOrPlannedSprintIds.has(t.sprint_id))
+			.map(t => t.id!);
+	}
 
 	function startAdd() {
 		showAddForm = true;
 		editingSprint = null;
 		newSprintName = '';
-		newSprintStart = new Date().toISOString().split('T')[0];
-		newSprintEnd = '';
+		newSprintStart = getTodayString();
+		newSprintEnd = getDateAfterDays(newSprintStart, 14); // Default 2 weeks from today
 	}
 
 	function startEdit(sprint: Sprint) {
@@ -38,8 +110,8 @@
 		showAddForm = false;
 		editingSprint = null;
 		newSprintName = '';
-		newSprintStart = new Date().toISOString().split('T')[0];
-		newSprintEnd = '';
+		newSprintStart = getTodayString();
+		newSprintEnd = getDateAfterDays(newSprintStart, 14); // Default 2 weeks from today
 	}
 
 	function handleSave() {
@@ -51,16 +123,63 @@
 				start_date: newSprintStart,
 				end_date: newSprintEnd
 			});
+			cancelEdit();
 		} else {
-			sprints.add({
+			// Check if can create new sprint
+			if (!canCreateSprint) {
+				alert('ไม่สามารถสร้าง Sprint ใหม่ได้: มี Sprint ที่ยังดำเนินการอยู่หรือยังไม่หมดอายุ');
+				return;
+			}
+			
+			// Store pending sprint data and show confirm dialog
+			pendingSprintData = {
 				name: newSprintName.trim(),
 				start_date: newSprintStart,
-				end_date: newSprintEnd,
-				status: 'planned'
-			});
+				end_date: newSprintEnd
+			};
+			
+			const tasksToMove = getTasksToMoveToNewSprint();
+			if (tasksToMove.length > 0) {
+				showMoveTasksConfirm = true;
+			} else {
+				confirmCreateSprint();
+			}
 		}
+	}
 
+	function confirmCreateSprint(moveTasks = true) {
+		if (!pendingSprintData) return;
+		
+		// Create the sprint
+		sprints.add({
+			name: pendingSprintData.name,
+			start_date: pendingSprintData.start_date,
+			end_date: pendingSprintData.end_date,
+			status: 'planned'
+		});
+		
+		// Get the newly created sprint (it will be the last one)
+		const newSprint = $sprints[$sprints.length - 1];
+		
+		// Move tasks if requested
+		if (moveTasks && newSprint) {
+			const tasksToMove = getTasksToMoveToNewSprint();
+			if (tasksToMove.length > 0) {
+				dispatch('moveTasksToSprint', { 
+					sprintId: newSprint.id!, 
+					taskIds: tasksToMove 
+				});
+			}
+		}
+		
+		showMoveTasksConfirm = false;
+		pendingSprintData = null;
 		cancelEdit();
+	}
+
+	function cancelMoveTasks() {
+		showMoveTasksConfirm = false;
+		pendingSprintData = null;
 	}
 
 	function startComplete(id: number) {
@@ -69,7 +188,22 @@
 
 	function confirmComplete() {
 		if (completeConfirmId) {
+			// Get incomplete tasks from this sprint
+			const incompleteTasks = tasks.filter(
+				t => t.sprint_id === completeConfirmId && t.status !== 'done'
+			);
+			
+			// Archive completed tasks
 			sprints.complete(completeConfirmId);
+			
+			// Dispatch event to move incomplete tasks out of sprint
+			if (incompleteTasks.length > 0) {
+				dispatch('moveTasksToSprint', {
+					sprintId: -1, // -1 means remove from sprint
+					taskIds: incompleteTasks.map(t => t.id!)
+				});
+			}
+			
 			dispatch('complete', completeConfirmId);
 			completeConfirmId = null;
 		}
@@ -107,6 +241,30 @@
 	function formatDate(dateStr: string): string {
 		const date = new Date(dateStr);
 		return date.toLocaleDateString('th-TH', { month: 'short', day: 'numeric' });
+	}
+
+	// Calculate duration between two dates
+	function getDurationDays(startDate: string, endDate: string): number {
+		const start = new Date(startDate);
+		const end = new Date(endDate);
+		const diffTime = end.getTime() - start.getTime();
+		return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 to include both start and end days
+	}
+
+	// Format duration in days or weeks
+	function formatDuration(startDate: string, endDate: string): string {
+		const days = getDurationDays(startDate, endDate);
+		if (days < 7) {
+			return `${days} วัน`;
+		} else if (days === 7) {
+			return `1 สัปดาห์`;
+		} else if (days % 7 === 0) {
+			return `${days / 7} สัปดาห์`;
+		} else {
+			const weeks = Math.floor(days / 7);
+			const remainingDays = days % 7;
+			return `${weeks} สัปดาห์ ${remainingDays} วัน`;
+		}
 	}
 
 	function handleBackdropClick(e: MouseEvent) {
@@ -160,6 +318,10 @@
 							<h3 class="font-semibold text-green-800 dark:text-green-400">{activeSprint.name}</h3>
 							<p class="text-sm text-green-600 dark:text-green-500">
 								กำลังดำเนินการ · {formatDate(activeSprint.start_date)} - {formatDate(activeSprint.end_date)}
+								<span class="inline-flex items-center gap-1 ml-2 px-2 py-0.5 bg-green-100 dark:bg-green-800/50 rounded text-xs font-medium">
+									<Calendar size={10} />
+									{formatDuration(activeSprint.start_date, activeSprint.end_date)}
+								</span>
 							</p>
 						</div>
 						<div class="text-right">
@@ -188,7 +350,15 @@
 							<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">วันเริ่มต้น</label>
 							<input
 								type="date"
-								bind:value={newSprintStart}
+								value={newSprintStart}
+								on:input={(e) => {
+									const newStart = e.currentTarget.value;
+									// Only auto-update end date if not editing existing sprint and start date changed
+									if (!editingSprint && newStart !== newSprintStart) {
+										newSprintEnd = getDateAfterDays(newStart, 14);
+									}
+									newSprintStart = newStart;
+								}}
 								class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none dark:bg-gray-800 dark:text-white"
 							/>
 						</div>
@@ -200,6 +370,15 @@
 								class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none dark:bg-gray-800 dark:text-white"
 							/>
 						</div>
+						<!-- Duration Display -->
+						{#if newSprintStart && newSprintEnd}
+							<div class="col-span-2 flex items-center justify-center gap-2 py-2 px-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800">
+								<Calendar size={16} class="text-blue-500" />
+								<span class="text-sm text-blue-700 dark:text-blue-300 font-medium">
+									ระยะเวลา: {formatDuration(newSprintStart, newSprintEnd)}
+								</span>
+							</div>
+						{/if}
 					</div>
 
 					<div class="flex gap-2 pt-2">
@@ -224,16 +403,37 @@
 						</button>
 					</div>
 				</div>
-			{:else}
-				<!-- Add Button -->
-				<button
-					on:click={startAdd}
-					class="w-full mb-6 py-3 px-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl text-gray-600 dark:text-gray-400 hover:border-primary hover:text-primary hover:bg-primary/5 transition-colors flex items-center justify-center gap-2"
-				>
-					<Plus size={18} />
-					สร้าง Sprint ใหม่
-				</button>
-			{/if}
+				{:else}
+					{#if !canCreateSprint && blockingSprint}
+						<!-- Disabled button with tooltip -->
+						<div class="relative group mb-6">
+							<button
+								disabled
+								class="w-full py-3 px-4 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl text-gray-400 dark:text-gray-600 cursor-not-allowed flex items-center justify-center gap-2"
+							>
+								<Plus size={18} />
+								สร้าง Sprint ใหม่
+							</button>
+							<!-- Tooltip -->
+							<div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 dark:bg-gray-700 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+								{#if blockingSprint.status === 'active'}
+									มี Sprint "{blockingSprint.name}" กำลังดำเนินการอยู่
+								{:else}
+									Sprint "{blockingSprint.name}" ยังไม่หมดอายุ
+								{/if}
+								<div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800 dark:border-t-gray-700"></div>
+							</div>
+						</div>
+					{:else}
+						<button
+							on:click={startAdd}
+							class="w-full mb-6 py-3 px-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl text-gray-600 dark:text-gray-400 hover:border-primary hover:text-primary hover:bg-primary/5 transition-colors flex items-center justify-center gap-2"
+						>
+							<Plus size={18} />
+							สร้าง Sprint ใหม่
+						</button>
+					{/if}
+				{/if}
 
 			<!-- Sprint List -->
 			<div class="space-y-3">
@@ -277,13 +477,37 @@
 										</div>
 										<p class="text-sm text-gray-500 dark:text-gray-400">
 											{formatDate(sprint.start_date)} - {formatDate(sprint.end_date)}
+										<span class="inline-flex items-center gap-1 ml-1 px-1.5 py-0.5 bg-gray-100 dark:bg-gray-600 rounded text-xs">
+											<Calendar size={10} />
+											{formatDuration(sprint.start_date, sprint.end_date)}
+										</span>
+										{#if sprint.completed_at}
+											<span class="inline-flex items-center gap-1 ml-1 px-1.5 py-0.5 bg-green-100 dark:bg-green-800/50 text-green-700 dark:text-green-300 rounded text-xs">
+												<CheckCircle2 size={10} />
+												จบ {formatDate(sprint.completed_at)}
+											</span>
+										{/if}
 										</p>
-										<p class="text-sm text-gray-600 dark:text-gray-300 mt-1">
-											{getTaskCount(sprint.id!).done}/{getTaskCount(sprint.id!).total} งานเสร็จแล้ว
-											{#if getTaskCount(sprint.id!).total > 0}
-												<span class="text-gray-400">({Math.round(getTaskCount(sprint.id!).done/getTaskCount(sprint.id!).total*100)}%)</span>
-											{/if}
-										</p>
+										{#if sprint.status === 'completed'}
+											<!-- Completed Sprint: Show archived count -->
+											<p class="text-sm text-gray-600 dark:text-gray-300 mt-1">
+												<Archive size={14} class="inline mr-1 text-gray-400" />
+												{sprint.archived_count || 0} งาน Archive
+												{#if sprint.archived_count}
+													<span class="text-gray-400 ml-1">(เสร็จสิ้นแล้ว)</span>
+												{:else}
+													<span class="text-gray-400 ml-1">(ไม่มีงานใน Sprint)</span>
+												{/if}
+											</p>
+										{:else}
+											<!-- Active/Planned Sprint: Show current progress -->
+											<p class="text-sm text-gray-600 dark:text-gray-300 mt-1">
+												{getTaskCount(sprint.id!).done}/{getTaskCount(sprint.id!).total} งานเสร็จแล้ว
+												{#if getTaskCount(sprint.id!).total > 0}
+													<span class="text-gray-400">({Math.round(getTaskCount(sprint.id!).done/getTaskCount(sprint.id!).total*100)}%)</span>
+												{/if}
+											</p>
+										{/if}
 
 										<!-- Progress Bar -->
 										{#if getTaskCount(sprint.id!).total > 0}
@@ -343,48 +567,127 @@
 	</div>
 </div>
 
-<!-- Complete Confirmation Modal -->
-{#if completeConfirmId}
-	<div class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-		<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full p-6 animate-modal-in">
-			<div class="flex items-center gap-3 mb-4">
-				<div class="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
-					<CheckCircle2 size={24} class="text-green-600 dark:text-green-400" />
-				</div>
-				<div>
-					<h3 class="text-lg font-bold text-gray-900 dark:text-white">จบ Sprint</h3>
-					<p class="text-sm text-gray-500 dark:text-gray-400">ยืนยันการจบ Sprint</p>
-				</div>
-			</div>
 
-			<div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4 mb-4">
-				<div class="flex items-start gap-2">
-					<AlertCircle size={18} class="text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
-					<p class="text-sm text-amber-800 dark:text-amber-300">
-						งานที่มีสถานะ "เสร็จแล้ว" จะถูก Archive และไม่แสดงในรายการปกติ
-						แต่สามารถดูได้ผ่านตัวกรอง "Archived"
-					</p>
+	<!-- Move Tasks Confirmation Modal -->
+	{#if showMoveTasksConfirm && pendingSprintData}
+		{@const tasksToMove = getTasksToMoveToNewSprint()}
+		<div class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+			<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full p-6 animate-modal-in">
+				<div class="flex items-center gap-3 mb-4">
+					<div class="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
+						<Flag size={24} class="text-blue-600 dark:text-blue-400" />
+					</div>
+					<div>
+						<h3 class="text-lg font-bold text-gray-900 dark:text-white">สร้าง Sprint ใหม่</h3>
+						<p class="text-sm text-gray-500 dark:text-gray-400">ยืนยันการสร้างและย้ายงาน</p>
+					</div>
 				</div>
-			</div>
 
-			<div class="flex gap-3">
-				<button
-					on:click={confirmComplete}
-					class="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
-				>
-					<CheckCircle2 size={16} />
-					ยืนยันจบ Sprint
-				</button>
-				<button
-					on:click={cancelComplete}
-					class="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-				>
-					ยกเลิก
-				</button>
+				<div class="space-y-3 mb-4">
+					<div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+						<p class="text-sm font-medium text-blue-800 dark:text-blue-300">{pendingSprintData.name}</p>
+						<p class="text-xs text-blue-600 dark:text-blue-400">
+							{formatDate(pendingSprintData.start_date)} - {formatDate(pendingSprintData.end_date)}
+							<span class="inline-flex items-center gap-1 ml-1">
+								<Calendar size={10} />
+								{formatDuration(pendingSprintData.start_date, pendingSprintData.end_date)}
+							</span>
+						</p>
+					</div>
+
+					{#if tasksToMove.length > 0}
+						<div class="bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg p-3">
+							<p class="text-sm text-gray-700 dark:text-gray-300">
+								<span class="font-medium">{tasksToMove.length} งาน</span> จะถูกย้ายมายัง Sprint นี้
+							</p>
+							<p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+								รวมงานที่ไม่มี Sprint และงานจาก Sprint เก่า
+							</p>
+						</div>
+					{/if}
+				</div>
+
+				<div class="flex gap-3">
+					<button
+						on:click={() => confirmCreateSprint(true)}
+						class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 text-sm"
+					>
+						<CheckCircle2 size={16} />
+						สร้างและย้ายงาน
+					</button>
+					<button
+						on:click={() => confirmCreateSprint(false)}
+						class="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+					>
+						สร้างอย่างเดียว
+					</button>
+					<button
+						on:click={cancelMoveTasks}
+						class="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+					>
+						ยกเลิก
+					</button>
+				</div>
 			</div>
 		</div>
-	</div>
-{/if}
+	{/if}
+
+	<!-- Complete Confirmation Modal -->
+	{#if completeConfirmId}
+		{@const incompleteTasks = tasks.filter(t => t.sprint_id === completeConfirmId && t.status !== 'done')}
+		{@const completedTasks = tasks.filter(t => t.sprint_id === completeConfirmId && t.status === 'done')}
+		{@const hasIncompleteTasks = incompleteTasks.length > 0}
+		<div class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+			<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full p-6 animate-modal-in">
+				<div class="flex items-center gap-3 mb-4">
+					<div class="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+						<CheckCircle2 size={24} class="text-green-600 dark:text-green-400" />
+					</div>
+					<div>
+						<h3 class="text-lg font-bold text-gray-900 dark:text-white">จบ Sprint</h3>
+						<p class="text-sm text-gray-500 dark:text-gray-400">ยืนยันการจบ Sprint</p>
+					</div>
+				</div>
+				
+				<div class="space-y-3 mb-4">
+					<div class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3">
+						<p class="text-sm text-green-800 dark:text-green-300">
+							<CheckCircle2 size={14} class="inline mr-1" />
+							<span class="font-medium">{completedTasks.length} งาน</span> ที่เสร็จแล้วจะถูก Archive
+						</p>
+					</div>
+					
+					{#if hasIncompleteTasks}
+						<div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+							<p class="text-sm text-amber-800 dark:text-amber-300">
+								<AlertCircle size={14} class="inline mr-1" />
+								<span class="font-medium">{incompleteTasks.length} งาน</span> ที่ยังไม่เสร็จจะถูกนำออกจาก Sprint
+							</p>
+							<p class="text-xs text-amber-600 dark:text-amber-400 mt-1">
+								งานเหล่านี้จะรอ Sprint ใหม่
+							</p>
+						</div>
+					{/if}
+				</div>
+
+				<div class="flex gap-3">
+					<button
+						on:click={confirmComplete}
+						class="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+					>
+						<CheckCircle2 size={16} />
+						ยืนยันจบ Sprint
+					</button>
+					<button
+						on:click={cancelComplete}
+						class="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+					>
+						ยกเลิก
+					</button>
+				</div>
+			</div>
+		</div>
+	{/if}
 
 <style>
 	@keyframes modal-in {

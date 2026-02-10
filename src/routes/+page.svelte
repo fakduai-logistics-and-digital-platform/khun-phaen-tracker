@@ -56,9 +56,15 @@
 	
 	let filters: FilterOptions = { ...DEFAULT_FILTERS };
 	let selectedSprint: Sprint | null = null;
+	$: filterableSprints = $sprints.filter((sprint) => sprint.status !== 'completed');
 	
 	let message = '';
 	let messageType: 'success' | 'error' = 'success';
+
+	function normalizeSprintFilterValue(value: FilterOptions['sprint_id']): FilterOptions['sprint_id'] {
+		if (value === undefined || value === 'all' || value === null) return value ?? 'all';
+		return filterableSprints.some((sprint) => sprint.id === value) ? value : 'all';
+	}
 	
 	onMount(() => {
 		// Enable auto-import for server sync (before any connection)
@@ -211,11 +217,52 @@
 	async function handleCompleteSprint(event: CustomEvent<number>) {
 		const sprintId = event.detail;
 		try {
+			// Archive completed tasks
 			const archivedCount = await archiveTasksBySprint(sprintId);
+			
+			// Move incomplete tasks out of sprint (set sprint_id to null)
+			const incompleteTasks = tasks.filter(t => t.sprint_id === sprintId && t.status !== 'done');
+			for (const task of incompleteTasks) {
+				await updateTask(task.id!, { sprint_id: null });
+			}
+			
+			// Update sprint with archived count
+			sprints.update(sprintId, { 
+				status: 'completed',
+				archived_count: archivedCount 
+			});
+
+			// Reset sprint filter if selected sprint has just been completed
+			if (filters.sprint_id === sprintId) {
+				filters = { ...filters, sprint_id: 'all' };
+				persistFilters();
+			}
+			
 			await loadData();
-			showMessage(`จบ Sprint สำเร็จ: Archive ${archivedCount} งานที่เสร็จแล้ว`);
+			showMessage(`จบ Sprint สำเร็จ: Archive ${archivedCount} งาน, นำ ${incompleteTasks.length} งานที่ไม่เสร็จออกจาก Sprint`);
 		} catch (e) {
 			showMessage('เกิดข้อผิดพลาดในการจบ Sprint', 'error');
+		}
+	}
+
+	async function handleMoveTasksToSprint(event: CustomEvent<{ sprintId: number; taskIds: number[] }>) {
+		const { sprintId, taskIds } = event.detail;
+		try {
+			let movedCount = 0;
+			for (const taskId of taskIds) {
+				// If sprintId is -1, remove from sprint (set to null)
+				const newSprintId = sprintId === -1 ? null : sprintId;
+				await updateTask(taskId, { sprint_id: newSprintId });
+				movedCount++;
+			}
+			await loadData();
+			if (sprintId === -1) {
+				showMessage(`นำ ${movedCount} งานออกจาก Sprint แล้ว`);
+			} else {
+				showMessage(`ย้าย ${movedCount} งานเข้า Sprint ใหม่แล้ว`);
+			}
+		} catch (e) {
+			showMessage('เกิดข้อผิดพลาดในการย้ายงาน', 'error');
 		}
 	}
 	
@@ -486,7 +533,7 @@
 			sprints.refresh();
 			
 			const actualAdded = afterStats.total - beforeStats.total;
-			showMessage(`นำเข้าสำเร็จ ${result.tasks} งาน (เพิ่มใหม่ ${actualAdded} งาน), ${result.projects} โปรเจค, ${result.assignees} ผู้รับผิดชอบ`);
+			showMessage(`นำเข้าสำเร็จ ${result.tasks} งาน (เพิ่มใหม่ ${actualAdded} งาน), ${result.projects} โปรเจค, ${result.assignees} ผู้รับผิดชอบ, ${result.sprints} sprint`);
 		} catch (e) {
 			console.error('❌ Import error:', e);
 			showMessage('เกิดข้อผิดพลาดในการนำเข้า: ' + (e instanceof Error ? e.message : 'Unknown error'), 'error');
@@ -524,7 +571,7 @@
 				category: saved.category ?? 'all',
 				project: saved.project ?? 'all',
 				assignee_id: saved.assignee_id !== undefined ? saved.assignee_id : 'all',
-				sprint_id: saved.sprint_id !== undefined ? saved.sprint_id : 'all'
+				sprint_id: normalizeSprintFilterValue(saved.sprint_id)
 			};
 		} catch {
 			localStorage.removeItem(FILTER_STORAGE_KEY);
@@ -537,6 +584,10 @@
 	}
 	
 	function applyFilters() {
+		filters = {
+			...filters,
+			sprint_id: normalizeSprintFilterValue(filters.sprint_id)
+		};
 		persistFilters();
 		loadData();
 	}
@@ -812,7 +863,7 @@
 					>
 						<option value="all">ทั้งหมด</option>
 						<option value={null}>ไม่มี Sprint</option>
-						{#each $sprints as sprint}
+						{#each filterableSprints as sprint}
 							<option value={sprint.id}>
 								{sprint.name} {sprint.status === 'active' ? '(กำลังทำ)' : sprint.status === 'completed' ? '(เสร็จสิ้น)' : ''}
 							</option>
@@ -903,6 +954,7 @@
 			tasks={tasks}
 			on:close={() => showSprintManager = false}
 			on:complete={handleCompleteSprint}
+			on:moveTasksToSprint={handleMoveTasksToSprint}
 		/>
 	{/if}
 	

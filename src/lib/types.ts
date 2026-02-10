@@ -18,6 +18,8 @@ export interface Sprint {
 	end_date: string;
 	status: 'active' | 'completed' | 'planned';
 	created_at?: string;
+	completed_at?: string; // วันที่จบ Sprint จริง
+	archived_count?: number; // จำนวนงานที่ Archive เมื่อจบ Sprint
 }
 
 export interface Task {
