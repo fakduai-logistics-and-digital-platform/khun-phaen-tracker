@@ -362,8 +362,14 @@
 			const url = URL.createObjectURL(blob);
 			link.setAttribute('href', url);
 			const now = new Date();
-		const dateStr = now.toISOString().split('T')[0];
-		const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '-');
+		const year = now.getFullYear();
+		const month = String(now.getMonth() + 1).padStart(2, '0');
+		const day = String(now.getDate()).padStart(2, '0');
+		const hours = String(now.getHours()).padStart(2, '0');
+		const minutes = String(now.getMinutes()).padStart(2, '0');
+		const seconds = String(now.getSeconds()).padStart(2, '0');
+		const dateStr = `${year}-${month}-${day}`;
+		const timeStr = `${hours}-${minutes}-${seconds}`;
 		link.setAttribute('download', `tasks_${dateStr}_${timeStr}.csv`);
 			document.body.appendChild(link);
 			link.click();
