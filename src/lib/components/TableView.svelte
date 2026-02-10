@@ -9,6 +9,7 @@
 	const dispatch = createEventDispatcher<{
 		edit: Task;
 		delete: number;
+		deleteSelected: number[];
 		statusChange: { id: number; status: Task['status'] };
 	}>();
 
@@ -51,6 +52,23 @@
 		});
 	
 	$: paginatedTasks = sortedTasks.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+	$: allTaskIds = new Set(
+		tasks
+			.map(task => task.id)
+			.filter((id): id is number => id !== undefined)
+	);
+	$: paginatedTaskIds = paginatedTasks
+		.map(task => task.id)
+		.filter((id): id is number => id !== undefined);
+	$: selectedOnPageCount = paginatedTaskIds.filter(id => selectedTasks.has(id)).length;
+	$: allOnPageSelected = paginatedTaskIds.length > 0 && selectedOnPageCount === paginatedTaskIds.length;
+	$: someOnPageSelected = selectedOnPageCount > 0 && !allOnPageSelected;
+	$: {
+		const validSelected = new Set(Array.from(selectedTasks).filter(id => allTaskIds.has(id)));
+		if (!areSetsEqual(selectedTasks, validSelected)) {
+			selectedTasks = validSelected;
+		}
+	}
 
 	function toggleSort(column: SortColumn) {
 		if (sortColumn === column) {
@@ -123,11 +141,21 @@
 	}
 
 	function toggleSelectAll() {
-		if (selectedTasks.size === tasks.length) {
-			selectedTasks = new Set();
+		const newSet = new Set(selectedTasks);
+		if (allOnPageSelected) {
+			paginatedTaskIds.forEach(id => newSet.delete(id));
 		} else {
-			selectedTasks = new Set(tasks.map(t => t.id!));
+			paginatedTaskIds.forEach(id => newSet.add(id));
 		}
+		selectedTasks = newSet;
+	}
+
+	function areSetsEqual(a: Set<number>, b: Set<number>) {
+		if (a.size !== b.size) return false;
+		for (const item of a) {
+			if (!b.has(item)) return false;
+		}
+		return true;
 	}
 
 	function toggleSelect(id: number) {
@@ -142,6 +170,14 @@
 
 	function handleStatusChange(id: number, newStatus: Task['status']) {
 		dispatch('statusChange', { id, status: newStatus });
+	}
+
+	function handleDeleteSelected() {
+		dispatch('deleteSelected', Array.from(selectedTasks));
+	}
+
+	function clearSelection() {
+		selectedTasks = new Set();
 	}
 
 	function toggleMobileCard(id: number) {
@@ -166,10 +202,24 @@
 <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
 	<!-- Bulk Actions Bar -->
 	{#if selectedTasks.size > 0}
-		<div class="bg-primary/10 dark:bg-primary/20 px-3 py-2 sm:px-4 sm:py-2 border-b border-gray-200 dark:border-gray-700 flex items-center gap-4">
+		<div class="bg-primary/10 dark:bg-primary/20 px-3 py-2 sm:px-4 sm:py-2 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
 			<span class="text-xs sm:text-sm text-primary dark:text-primary font-medium">
 				เลือก {selectedTasks.size} รายการ
 			</span>
+			<div class="flex items-center gap-2">
+				<button
+					on:click={clearSelection}
+					class="px-2.5 py-1.5 text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+				>
+					ยกเลิกเลือก
+				</button>
+				<button
+					on:click={handleDeleteSelected}
+					class="px-2.5 py-1.5 text-xs sm:text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
+				>
+					ลบที่เลือก
+				</button>
+			</div>
 		</div>
 	{/if}
 
@@ -181,8 +231,8 @@
 					<th class="px-3 py-2 lg:px-4 lg:py-3 text-left w-10">
 						<input
 							type="checkbox"
-							checked={selectedTasks.size === tasks.length && tasks.length > 0}
-							indeterminate={selectedTasks.size > 0 && selectedTasks.size < tasks.length}
+							checked={allOnPageSelected}
+							indeterminate={someOnPageSelected}
 							on:change={toggleSelectAll}
 							class="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
 						/>

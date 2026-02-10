@@ -11,7 +11,7 @@
 	import ExportImport from '$lib/components/ExportImport.svelte';
 	import WorkerManager from '$lib/components/WorkerManager.svelte';
 	import ProjectManager from '$lib/components/ProjectManager.svelte';
-	import { List, CalendarDays, Columns3, Table, Filter, Search, Plus, Users, Folder, Sparkles, Settings2 } from 'lucide-svelte';
+	import { List, CalendarDays, Columns3, Table, Filter, Search, Plus, Users, Folder, Sparkles, Settings2, Flag } from 'lucide-svelte';
 	import { initWasmSearch, indexTasks, performSearch, clearSearch, searchQuery, wasmReady, wasmLoading } from '$lib/stores/search';
 	import { compressionReady, compressionStats, getStorageInfo } from '$lib/stores/storage';
 	import { enableAutoImport, setMergeCallback } from '$lib/stores/server-sync';
@@ -19,6 +19,9 @@
 	import ServerSyncPanel from '$lib/components/ServerSyncPanel.svelte';
 	import { tabSettings, type TabId } from '$lib/stores/tabSettings';
 	import TabSettings from '$lib/components/TabSettings.svelte';
+	import { sprints, type Sprint } from '$lib/stores/sprintStore';
+	import SprintManager from '$lib/components/SprintManager.svelte';
+	import { archiveTasksBySprint } from '$lib/db';
 	
 	const FILTER_STORAGE_KEY = 'task-filters';
 	const DEFAULT_FILTERS: FilterOptions = {
@@ -48,8 +51,10 @@
 	let showProjectManager = false;
 	let searchInput = '';
 	let showTabSettings = false;
+	let showSprintManager = false;
 	
 	let filters: FilterOptions = { ...DEFAULT_FILTERS };
+	let selectedSprint: Sprint | null = null;
 	
 	let message = '';
 	let messageType: 'success' | 'error' = 'success';
@@ -199,6 +204,17 @@
 		setTimeout(() => message = '', 3000);
 	}
 	
+	async function handleCompleteSprint(event: CustomEvent<number>) {
+		const sprintId = event.detail;
+		try {
+			const archivedCount = await archiveTasksBySprint(sprintId);
+			await loadData();
+			showMessage(`จบ Sprint สำเร็จ: Archive ${archivedCount} งานที่เสร็จแล้ว`);
+		} catch (e) {
+			showMessage('เกิดข้อผิดพลาดในการจบ Sprint', 'error');
+		}
+	}
+	
 	async function handleAddTask(event: CustomEvent<Omit<Task, 'id' | 'created_at'>>) {
 		try {
 			if (editingTask) {
@@ -235,6 +251,28 @@
 			showMessage('ลบงานสำเร็จ');
 		} catch (e) {
 			showMessage('เกิดข้อผิดพลาด', 'error');
+		}
+	}
+
+	async function handleDeleteSelectedTasks(event: CustomEvent<number[]>) {
+		const ids = event.detail;
+		if (ids.length === 0) return;
+		if (!confirm(`คุณแน่ใจหรือไม่ที่จะลบงานที่เลือก ${ids.length} รายการ?`)) return;
+
+		try {
+			const deleteResults = await Promise.allSettled(ids.map(id => deleteTask(id)));
+			const deletedCount = deleteResults.filter(result => result.status === 'fulfilled').length;
+			const failedCount = ids.length - deletedCount;
+
+			await loadData();
+
+			if (failedCount === 0) {
+				showMessage(`ลบงานสำเร็จ ${deletedCount} รายการ`);
+			} else {
+				showMessage(`ลบสำเร็จ ${deletedCount} รายการ, ล้มเหลว ${failedCount} รายการ`, 'error');
+			}
+		} catch (e) {
+			showMessage('เกิดข้อผิดพลาดในการลบหลายรายการ', 'error');
 		}
 	}
 	
@@ -579,6 +617,15 @@
 				<span class="hidden sm:inline">โปรเจค</span>
 			</button>
 			
+			<!-- Sprint Management -->
+			<button
+				on:click={() => showSprintManager = true}
+				class="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
+			>
+				<Flag size={16} />
+				<span class="hidden sm:inline">Sprint</span>
+			</button>
+			
 			<ExportImport
 				on:exportCSV={handleExportCSV}
 				on:exportPDF={handleExportPDF}
@@ -699,6 +746,7 @@
 						<option value="todo">รอดำเนินการ</option>
 						<option value="in-progress">กำลังทำ</option>
 						<option value="done">เสร็จแล้ว</option>
+						<option value="archived">Archived (Sprint เก่า)</option>
 					</select>
 				</div>
 
@@ -741,6 +789,23 @@
 						<option value={null}>ไม่ระบุผู้รับผิดชอบ</option>
 						{#each assignees as assignee}
 							<option value={assignee.id}>{assignee.name}</option>
+						{/each}
+					</select>
+				</div>
+				
+				<div>
+					<label for="sprint" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Sprint</label>
+					<select
+						id="sprint"
+						bind:value={filters.sprint_id}
+						class="w-full h-10 px-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none"
+					>
+						<option value="all">ทั้งหมด</option>
+						<option value={null}>ไม่มี Sprint</option>
+						{#each $sprints as sprint}
+							<option value={sprint.id}>
+								{sprint.name} {sprint.status === 'active' ? '(กำลังทำ)' : sprint.status === 'completed' ? '(เสร็จสิ้น)' : ''}
+							</option>
 						{/each}
 					</select>
 				</div>
@@ -800,6 +865,7 @@
 				tasks={filteredTasks}
 				on:edit={handleEditTask}
 				on:delete={handleDeleteTask}
+				on:deleteSelected={handleDeleteSelectedTasks}
 				on:statusChange={handleStatusChange}
 			/>
 		{/if}
@@ -814,6 +880,15 @@
 			on:add={handleAddWorker}
 			on:update={handleUpdateWorker}
 			on:delete={handleDeleteWorker}
+		/>
+	{/if}
+	
+	<!-- Sprint Manager Modal -->
+	{#if showSprintManager}
+		<SprintManager
+			tasks={tasks}
+			on:close={() => showSprintManager = false}
+			on:complete={handleCompleteSprint}
 		/>
 	{/if}
 	
