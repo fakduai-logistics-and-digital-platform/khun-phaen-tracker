@@ -19,7 +19,7 @@
         autoReconnect,
         updateServerUrl
     } from '$lib/stores/server-sync';
-    import { exportToCSV, importFromCSV, getTasks } from '$lib/db';
+    import { exportAllData, importAllData, getTasks } from '$lib/db';
     import { Server, Link, LogOut, Users, RefreshCw, Copy, CheckCircle2, AlertCircle, Globe, Save, Edit2 } from 'lucide-svelte';
     
     const dispatch = createEventDispatcher<{
@@ -33,15 +33,15 @@
         async (csvData: string) => {
             console.log('📥 Importing data from server...', csvData.substring(0, 100) + '...');
             try {
-                const imported = await importFromCSV(csvData, { clearExisting: true });
-                console.log(`✅ Imported ${imported} tasks from server`);
+                const result = await importAllData(csvData, { clearExisting: true });
+                console.log(`✅ Imported ${result.tasks} tasks, ${result.projects} projects, ${result.assignees} assignees from server`);
                 
                 // Notify parent to reload data instead of page reload
-                dispatch('dataImported', { count: imported });
+                dispatch('dataImported', { count: result.tasks + result.projects + result.assignees });
                 
                 // Small delay to allow UI to update
                 setTimeout(() => {
-                    syncMessage.set(`นำเข้าสำเร็จ ${imported} รายการ`);
+                    syncMessage.set(`นำเข้าสำเร็จ ${result.tasks} งาน, ${result.projects} โปรเจค, ${result.assignees} ผู้รับผิดชอบ`);
                     setTimeout(() => syncMessage.set(''), 3000);
                 }, 100);
             } catch (e) {
@@ -56,8 +56,8 @@
         async () => {
             console.log('📤 Exporting data to server...');
             try {
-                const csv = await exportToCSV();
-                console.log(`📄 Exported ${csv.split('\n').length - 2} tasks`);
+                const csv = await exportAllData();
+                console.log(`📄 Exported data with ${csv.split('\n').length} lines`);
                 return csv;
             } catch (e) {
                 console.error('❌ Failed to export:', e);

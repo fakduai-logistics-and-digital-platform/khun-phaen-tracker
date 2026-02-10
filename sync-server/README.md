@@ -168,19 +168,69 @@ WS /ws
 
 ## Deployment
 
-### With Docker
+### Using Pre-built Docker Image
 
-```dockerfile
-FROM rust:1.75-slim as builder
-WORKDIR /app
-COPY . .
-RUN cargo build --release
+ดึงและรัน image จาก GitHub Container Registry (แนะนำ):
 
-FROM debian:bookworm-slim
-RUN apt-get update && apt-get install -y ca-certificates
-COPY --from=builder /app/target/release/sync-server /usr/local/bin/
-EXPOSE 3001
-CMD ["sync-server"]
+```bash
+# Pull image
+podman pull ghcr.io/watchakorn-18k/khun-phaen-tracker-offline/sync-server:latest
+
+# Run container (limit memory 100MB, background mode)
+podman run -d \
+  --name khu-phaen-sync \
+  --memory=100m \
+  -p 3002:3001 \
+  ghcr.io/watchakorn-18k/khun-phaen-tracker-offline/sync-server:latest
+
+# View logs
+podman logs -f khu-phaen-sync
+```
+
+หรือใช้ Docker:
+
+```bash
+# Pull image
+docker pull ghcr.io/watchakorn-18k/khun-phaen-tracker-offline/sync-server:latest
+
+# Run container (limit memory 100MB, background mode)
+docker run -d \
+  --name khu-phaen-sync \
+  --memory=100m \
+  -p 3002:3001 \
+  ghcr.io/watchakorn-18k/khun-phaen-tracker-offline/sync-server:latest
+
+# View logs
+docker logs -f khu-phaen-sync
+```
+
+ดู tags ทั้งหมดได้ที่: [GitHub Packages](https://github.com/watchakorn-18k?tab=packages)
+
+หลังรันเสร็จจะเข้าได้ที่:
+
+- REST API: `http://localhost:3002`
+- WebSocket: `ws://localhost:3002/ws`
+
+### Deploy on Render (HTTPS)
+
+สำหรับ Render ให้ใช้ image เดียวกันและใช้ public URL แบบ `https`:
+
+```txt
+https://<your-service>.onrender.com
+```
+
+หมายเหตุสำคัญ:
+
+1. Render จะส่งค่า `PORT` ให้ container อัตโนมัติ (แอปรองรับอยู่แล้ว)
+2. ตอนเชื่อมต่อจาก frontend ให้ใส่ URL แบบ `https://...`
+3. frontend จะเปลี่ยนเป็น `wss://.../ws` อัตโนมัติเมื่อเปิด WebSocket
+
+### Build Docker Image Manually
+
+```bash
+cd sync-server
+podman build -t khu-phaen-sync .
+podman run -d -p 3002:3001 --name khu-phaen-sync khu-phaen-sync
 ```
 
 ### With systemd

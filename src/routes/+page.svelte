@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import type { Task, Project, Assignee, ViewMode, FilterOptions } from '$lib/types';
-	import { getTasks, addTask, updateTask, deleteTask, getStats, exportToCSV, importFromCSV, getCategories, getAssignees, getProjects, getProjectsList, addProject, updateProject, deleteProject, getProjectStats, addAssignee as addAssigneeDB, getAssigneeStats, updateAssignee, deleteAssignee } from '$lib/db';
+	import { getTasks, addTask, updateTask, deleteTask, getStats, exportToCSV, importFromCSV, exportAllData, importAllData, mergeAllData, getCategories, getAssignees, getProjects, getProjectsList, addProject, updateProject, deleteProject, getProjectStats, addAssignee as addAssigneeDB, getAssigneeStats, updateAssignee, deleteAssignee } from '$lib/db';
 	import TaskForm from '$lib/components/TaskForm.svelte';
 	import TaskList from '$lib/components/TaskList.svelte';
 	import CalendarView from '$lib/components/CalendarView.svelte';
@@ -55,14 +55,14 @@
 		// Set merge callback for manual sync
 		setMergeCallback(async (csvData: string) => {
 			console.log('🔄 Merging data from server...');
-			const result = await mergeTasksFromCSV(csvData);
+			const result = await mergeAllData(csvData);
 			console.log('✅ Merge result:', result);
 			
 			// Reload data to show merged results
 			await loadData();
 			
 			// Show message
-			showMessage(`Merge สำเร็จ: เพิ่ม ${result.added}, อัพเดท ${result.updated}`);
+			showMessage(`Merge สำเร็จ: เพิ่ม ${result.tasks.added} งาน, ${result.projects.added} โปรเจค, ${result.assignees.added} ผู้รับผิดชอบ`);
 			
 			return result;
 		});
@@ -257,7 +257,7 @@
 	
 	async function handleExportCSV() {
 		try {
-			const csv = await exportToCSV();
+			const csv = await exportAllData();
 			// Add BOM for UTF-8 support in Excel
 			const BOM = '\uFEFF';
 			const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
@@ -268,7 +268,7 @@
 			document.body.appendChild(link);
 			link.click();
 			document.body.removeChild(link);
-			showMessage('ส่งออก CSV สำเร็จ');
+			showMessage('ส่งออก CSV สำเร็จ (รวมโปรเจคและผู้รับผิดชอบ)');
 		} catch (e) {
 			showMessage('เกิดข้อผิดพลาดในการส่งออก', 'error');
 		}
@@ -413,9 +413,9 @@
 	
 	async function handleImportCSV(event: CustomEvent<string>) {
 		try {
-			const imported = await importFromCSV(event.detail);
+			const result = await importAllData(event.detail, { clearExisting: false });
 			await loadData();
-			showMessage(`นำเข้าสำเร็จ ${imported} รายการ`);
+			showMessage(`นำเข้าสำเร็จ ${result.tasks} งาน, ${result.projects} โปรเจค, ${result.assignees} ผู้รับผิดชอบ`);
 		} catch (e) {
 			showMessage('เกิดข้อผิดพลาดในการนำเข้า', 'error');
 		}

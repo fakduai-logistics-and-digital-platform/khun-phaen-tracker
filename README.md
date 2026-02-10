@@ -102,24 +102,47 @@ cargo build --release
 # Binary จะอยู่ที่ target/release/sync-server
 ```
 
-## 🐳 Docker Deployment (Sync Server Only)
+## 🐳 Docker / Podman Deployment (Sync Server Only)
 
 > **Frontend** ใช้ Static Files จาก `npm run build` แล้วนำไป host บน nginx/apache ได้เลย
 > 
-> **Sync Server** รันผ่าน Docker ตามด้านล่าง
+> **Sync Server** รันผ่าน Docker หรือ Podman ตามด้านล่าง
 
-### Option 1: Docker Compose (แนะนำ)
+### Option 1: ใช้ Pre-built Image จาก GHCR (แนะนำ)
+
+```sh
+podman run -d \
+  --name khu-phaen-sync \
+  --memory=100m \
+  -p 3002:3001 \
+  ghcr.io/watchakorn-18k/khun-phaen-tracker-offline/sync-server:latest
+```
+
+หรือใช้ Docker:
+
+```sh
+docker run -d \
+  --name khu-phaen-sync \
+  --memory=100m \
+  -p 3002:3001 \
+  ghcr.io/watchakorn-18k/khun-phaen-tracker-offline/sync-server:latest
+```
+
+หลังรันเสร็จจะเข้าได้ที่:
+
+- REST API: `http://localhost:3002`
+- WebSocket: `ws://localhost:3002/ws`
+
+### Option 2: Docker Compose
 
 ```yaml
 version: '3.8'
 
 services:
-  sync-server:
-    build:
-      context: ./sync-server
-      dockerfile: Dockerfile
+  khu-phaen-sync:
+    image: ghcr.io/watchakorn-18k/khun-phaen-tracker-offline/sync-server:latest
     ports:
-      - "3001:3001"
+      - "3002:3001"
     environment:
       - PORT=3001
       - RUST_LOG=info
@@ -132,9 +155,7 @@ services:
 docker-compose up -d
 ```
 
-Sync Server จะรันที่ `ws://YOUR_PUBLIC_IP:3001`
-
-### Option 2: Docker Build เอง
+### Option 3: Build Image เอง
 
 ```sh
 cd sync-server
@@ -142,46 +163,28 @@ cd sync-server
 # Build image
 docker build -t khu-phaen-sync .
 
-# Run
-docker run -p 3001:3001 -e PORT=3001 khu-phaen-sync
+# Run (host 3002 -> container 3001)
+docker run -d \
+  --name khu-phaen-sync \
+  --memory=100m \
+  -p 3002:3001 \
+  khu-phaen-sync
 ```
 
-## 🌐 Public IP / Server Deployment
+## 🌐 Render (HTTPS / WSS)
 
-### 1. Build Frontend
+ถ้าจะ deploy บน Render ให้ใช้ URL แบบ `https` เท่านั้น เช่น:
 
-```sh
-npm run build
+```txt
+https://khu-phaen-sync.onrender.com
 ```
 
-นำโฟลเดอร์ `build/` ไปวางบน Web Server (nginx, Apache, etc.)
+วิธีใช้งาน:
 
-### 2. รัน Sync Server บน Server
-
-```sh
-cd sync-server
-docker build -t khu-phaen-sync .
-docker run -d -p 3001:3001 --name sync-server khu-phaen-sync
-```
-
-หรือใช้ docker-compose:
-
-```sh
-docker-compose up -d
-```
-
-### 3. แก้ไข Sync Server URL ใน Frontend
-
-แก้ไขไฟล์ที่ใช้เชื่อมต่อ WebSocket (มักอยู่ใน `src/lib/stores/server-sync.ts`):
-
-```typescript
-// แก้จาก localhost เป็น Public IP หรือ Domain ของคุณ
-const WS_URL = 'ws://YOUR_SERVER_IP:3001';  // HTTP
-// หรือ
-const WS_URL = 'wss://your-domain.com';      // HTTPS (ผ่าน reverse proxy)
-```
-
-แล้ว build ใหม่
+1. สร้าง Render Web Service จาก image `ghcr.io/watchakorn-18k/khun-phaen-tracker-offline/sync-server:latest`
+2. ให้ service bind กับ `PORT` (Render จะ inject ค่าให้อัตโนมัติ)
+3. ในหน้าแอป ใส่ Server URL เป็น `https://<your-service>.onrender.com`
+4. ตัวแอปจะเปลี่ยนเป็น `wss://<your-service>.onrender.com/ws` ให้อัตโนมัติเมื่อเชื่อมต่อ WebSocket
 
 ## ⚙️ Configuration
 
@@ -191,7 +194,7 @@ const WS_URL = 'wss://your-domain.com';      // HTTPS (ผ่าน reverse prox
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `PUBLIC_SYNC_SERVER_URL` | `ws://localhost:3001` | URL ของ Sync Server |
+| `PUBLIC_SYNC_SERVER_URL` | `http://localhost:3001` | Base URL ของ Sync Server (`http://` หรือ `https://`) |
 
 #### Sync Server (Runtime)
 

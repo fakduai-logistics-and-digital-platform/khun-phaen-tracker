@@ -1,7 +1,7 @@
 import { writable, get } from 'svelte/store';
 import { base } from '$app/paths';
 import type { Task } from '$lib/types';
-import { exportToCSV, importFromCSV } from '$lib/db';
+import { exportAllData, importAllData } from '$lib/db';
 
 // Auto-import flag
 let autoImportEnabled = false;
@@ -16,8 +16,8 @@ export function enableAutoImport() {
         onDocumentReceived = async (csvData: string) => {
             console.log('📥 Auto-importing data...');
             try {
-                const imported = await importFromCSV(csvData, { clearExisting: true });
-                console.log(`✅ Auto-imported ${imported} tasks`);
+                const result = await importAllData(csvData, { clearExisting: true });
+                console.log(`✅ Auto-imported ${result.tasks} tasks, ${result.projects} projects, ${result.assignees} assignees`);
                 
                 // Reload page to refresh data
                 window.location.reload();
@@ -31,7 +31,7 @@ export function enableAutoImport() {
     if (!onSyncRequest) {
         onSyncRequest = async () => {
             console.log('📤 Auto-exporting data...');
-            return await exportToCSV();
+            return await exportAllData();
         };
     }
 }

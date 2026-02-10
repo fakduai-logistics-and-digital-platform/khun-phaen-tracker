@@ -925,3 +925,613 @@ export function getTaskStats(): { total: number; byStatus: Record<string, number
 	
 	return { total, byStatus, lastUpdated };
 }
+
+// ===== Export/Import ALL Data (Tasks + Projects + Assignees) =====
+
+export interface AllData {
+	tasks: Task[];
+	projects: Project[];
+	assignees: Assignee[];
+}
+
+export async function exportAllData(): Promise<string> {
+	if (!db) throw new Error('DB not initialized');
+	
+	// Get tasks with assignee names
+	const tasksResult = execQuery(`
+		SELECT t.*, a.name as assignee_name 
+		FROM tasks t 
+		LEFT JOIN assignees a ON t.assignee_id = a.id 
+		ORDER BY t.date DESC, t.created_at DESC
+	`);
+	const projectsResult = execQuery('SELECT * FROM projects ORDER BY name');
+	const assigneesResult = execQuery('SELECT * FROM assignees ORDER BY name');
+	
+	// Build tasks CSV section with assignee_name
+	const taskHeaders = ['id', 'title', 'project', 'duration_minutes', 'date', 'status', 'category', 'notes', 'assignee_id', 'assignee_name', 'created_at'];
+	const csvRows: string[] = [];
+	
+	// Add tasks section
+	csvRows.push('# TASKS');
+	csvRows.push(taskHeaders.join(','));
+	
+	for (const row of tasksResult.values) {
+		const obj = Object.fromEntries(tasksResult.columns.map((col, i) => [col, row[i]]));
+		const values = taskHeaders.map(h => {
+			const val = obj[h];
+			if (val === null || val === undefined) return '';
+			const str = String(val);
+			if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+				return `"${str.replace(/"/g, '""')}"`;
+			}
+			return str;
+		});
+		csvRows.push(values.join(','));
+	}
+	
+	// Add projects section
+	csvRows.push('');
+	csvRows.push('# PROJECTS');
+	const projectHeaders = ['id', 'name', 'created_at'];
+	csvRows.push(projectHeaders.join(','));
+	
+	for (const row of projectsResult.values) {
+		const obj = Object.fromEntries(projectsResult.columns.map((col, i) => [col, row[i]]));
+		const values = projectHeaders.map(h => {
+			const val = obj[h];
+			if (val === null || val === undefined) return '';
+			const str = String(val);
+			if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+				return `"${str.replace(/"/g, '""')}"`;
+			}
+			return str;
+		});
+		csvRows.push(values.join(','));
+	}
+	
+	// Add assignees section
+	csvRows.push('');
+	csvRows.push('# ASSIGNEES');
+	const assigneeHeaders = ['id', 'name', 'color', 'created_at'];
+	csvRows.push(assigneeHeaders.join(','));
+	
+	for (const row of assigneesResult.values) {
+		const obj = Object.fromEntries(assigneesResult.columns.map((col, i) => [col, row[i]]));
+		const values = assigneeHeaders.map(h => {
+			const val = obj[h];
+			if (val === null || val === undefined) return '';
+			const str = String(val);
+			if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+				return `"${str.replace(/"/g, '""')}"`;
+			}
+			return str;
+		});
+		csvRows.push(values.join(','));
+	}
+	
+	return csvRows.join('\n');
+}
+
+export async function importAllData(csvContent: string, options: { clearExisting?: boolean } = {}): Promise<{ tasks: number; projects: number; assignees: number }> {
+	if (!db) throw new Error('DB not initialized');
+	
+	const lines = csvContent.trim().split('\n');
+	if (lines.length < 2) {
+		console.warn('CSV has less than 2 lines');
+		return { tasks: 0, projects: 0, assignees: 0 };
+	}
+	
+	// Parse sections
+	let currentSection: 'tasks' | 'projects' | 'assignees' | null = null;
+	let currentHeaders: string[] = [];
+	
+	const taskRows: Record<string, string>[] = [];
+	const projectRows: Record<string, string>[] = [];
+	const assigneeRows: Record<string, string>[] = [];
+	
+	for (const line of lines) {
+		const trimmedLine = line.trim();
+		if (!trimmedLine) continue;
+		
+		// Check for section header
+		if (trimmedLine.startsWith('# TASKS')) {
+			currentSection = 'tasks';
+			currentHeaders = [];
+			continue;
+		} else if (trimmedLine.startsWith('# PROJECTS')) {
+			currentSection = 'projects';
+			currentHeaders = [];
+			continue;
+		} else if (trimmedLine.startsWith('# ASSIGNEES')) {
+			currentSection = 'assignees';
+			currentHeaders = [];
+			continue;
+		}
+		
+		// If no section set yet, skip (might be old format without sections)
+		if (!currentSection) continue;
+		
+		// Parse header row
+		if (currentHeaders.length === 0) {
+			currentHeaders = trimmedLine.split(',').map(h => h.trim());
+			continue;
+		}
+		
+		// Parse data row
+		const values = parseCSVLine(trimmedLine);
+		if (values.length !== currentHeaders.length) {
+			console.warn(`Skipping row: value count mismatch`);
+			continue;
+		}
+		
+		const row: Record<string, string> = {};
+		currentHeaders.forEach((h, idx) => row[h] = values[idx]);
+		
+		if (currentSection === 'tasks') {
+			taskRows.push(row);
+		} else if (currentSection === 'projects') {
+			projectRows.push(row);
+		} else if (currentSection === 'assignees') {
+			assigneeRows.push(row);
+		}
+	}
+	
+	// If no sections found, treat as old format (tasks only)
+	if (taskRows.length === 0 && projectRows.length === 0 && assigneeRows.length === 0) {
+		// Try to import as old format (tasks only)
+		const tasksImported = await importFromCSV(csvContent, options);
+		return { tasks: tasksImported, projects: 0, assignees: 0 };
+	}
+	
+	// Start transaction
+	db.run('BEGIN TRANSACTION');
+	
+	try {
+		let tasksImported = 0;
+		let projectsImported = 0;
+		let assigneesImported = 0;
+		
+		// Clear existing data if requested
+		if (options.clearExisting !== false) {
+			db.run('DELETE FROM tasks');
+			db.run('DELETE FROM projects');
+			db.run('DELETE FROM assignees');
+		}
+		
+		// Import projects first (tasks may reference them)
+		for (const row of projectRows) {
+			try {
+				if (row.id) {
+					db.run(`
+						REPLACE INTO projects (id, name, created_at)
+						VALUES (?, ?, ?)
+					`, [
+						parseInt(row.id),
+						row.name || '',
+						row.created_at || new Date().toISOString()
+					]);
+				} else {
+					db.run(`
+						INSERT INTO projects (name, created_at)
+						VALUES (?, ?)
+					`, [
+						row.name || '',
+						row.created_at || new Date().toISOString()
+					]);
+				}
+				projectsImported++;
+			} catch (e) {
+				console.warn('Failed to import project:', row, e);
+			}
+		}
+		
+		// Import assignees from assignees section
+		for (const row of assigneeRows) {
+			try {
+				if (row.id) {
+					db.run(`
+						REPLACE INTO assignees (id, name, color, created_at)
+						VALUES (?, ?, ?, ?)
+					`, [
+						parseInt(row.id),
+						row.name || '',
+						row.color || '#6366F1',
+						row.created_at || new Date().toISOString()
+					]);
+				} else {
+					db.run(`
+						INSERT INTO assignees (name, color, created_at)
+						VALUES (?, ?, ?)
+					`, [
+						row.name || '',
+						row.color || '#6366F1',
+						row.created_at || new Date().toISOString()
+					]);
+				}
+				assigneesImported++;
+			} catch (e) {
+				console.warn('Failed to import assignee:', row, e);
+			}
+		}
+		
+		// Build assignee name to id map
+		const assigneeNameToId = new Map<string, number>();
+		const allAssigneesResult = execQuery('SELECT id, name FROM assignees');
+		for (const row of allAssigneesResult.values) {
+			const obj = Object.fromEntries(allAssigneesResult.columns.map((col, i) => [col, row[i]]));
+			assigneeNameToId.set(obj.name, obj.id);
+		}
+		
+		// Import tasks (with assignee_name support)
+		for (const row of taskRows) {
+			try {
+				// Resolve assignee_id from assignee_name if provided
+				let assigneeId: number | null = null;
+				if (row.assignee_id) {
+					assigneeId = parseInt(row.assignee_id);
+				} else if (row.assignee_name && row.assignee_name.trim()) {
+					// Try to find existing assignee by name
+					const existingId = assigneeNameToId.get(row.assignee_name.trim());
+					if (existingId) {
+						assigneeId = existingId;
+					} else {
+						// Create new assignee
+						db.run(`
+							INSERT INTO assignees (name, color, created_at)
+							VALUES (?, ?, ?)
+						`, [
+							row.assignee_name.trim(),
+							'#6366F1',
+							new Date().toISOString()
+						]);
+						// Get the new assignee id
+						const newAssigneeResult = execQuery('SELECT last_insert_rowid() as id');
+						assigneeId = newAssigneeResult.values[0][0];
+						assigneeNameToId.set(row.assignee_name.trim(), assigneeId);
+						assigneesImported++;
+					}
+				}
+				
+				if (row.id) {
+					db.run(`
+						REPLACE INTO tasks (id, title, project, duration_minutes, date, status, category, notes, assignee_id, created_at)
+						VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+					`, [
+						parseInt(row.id),
+						row.title || '',
+						row.project || '',
+						parseInt(row.duration_minutes) || 0,
+						row.date || new Date().toISOString().split('T')[0],
+						row.status || 'todo',
+						row.category || 'อื่นๆ',
+						row.notes || '',
+						assigneeId,
+						row.created_at || new Date().toISOString()
+					]);
+				} else {
+					db.run(`
+						INSERT INTO tasks (title, project, duration_minutes, date, status, category, notes, assignee_id)
+						VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+					`, [
+						row.title || '',
+						row.project || '',
+						parseInt(row.duration_minutes) || 0,
+						row.date || new Date().toISOString().split('T')[0],
+						row.status || 'todo',
+						row.category || 'อื่นๆ',
+						row.notes || '',
+						assigneeId
+					]);
+				}
+				tasksImported++;
+			} catch (e) {
+				console.warn('Failed to import task:', row, e);
+			}
+		}
+		
+		db.run('COMMIT');
+		saveDatabase();
+		
+		console.log(`✅ Import complete: ${tasksImported} tasks, ${projectsImported} projects, ${assigneesImported} assignees`);
+		
+		return { tasks: tasksImported, projects: projectsImported, assignees: assigneesImported };
+	} catch (e) {
+		console.error('❌ Import failed, rolling back:', e);
+		try {
+			db.run('ROLLBACK');
+		} catch (rollbackErr) {
+			console.error('Rollback failed:', rollbackErr);
+		}
+		throw e;
+	}
+}
+
+// Merge all data from server (smart merge)
+export async function mergeAllData(csvContent: string): Promise<{ 
+	tasks: { added: number; updated: number; unchanged: number };
+	projects: { added: number; updated: number };
+	assignees: { added: number; updated: number };
+}> {
+	if (!db) throw new Error('DB not initialized');
+	
+	const trimmed = csvContent.trim();
+	if (!trimmed) {
+		console.log('Empty CSV, nothing to merge');
+		return { 
+			tasks: { added: 0, updated: 0, unchanged: 0 },
+			projects: { added: 0, updated: 0 },
+			assignees: { added: 0, updated: 0 }
+		};
+	}
+	
+	// Parse sections
+	let currentSection: 'tasks' | 'projects' | 'assignees' | null = null;
+	let currentHeaders: string[] = [];
+	
+	const taskRows: Record<string, string>[] = [];
+	const projectRows: Record<string, string>[] = [];
+	const assigneeRows: Record<string, string>[] = [];
+	
+	const lines = trimmed.split('\n');
+	
+	for (const line of lines) {
+		const trimmedLine = line.trim();
+		if (!trimmedLine) continue;
+		
+		if (trimmedLine.startsWith('# TASKS')) {
+			currentSection = 'tasks';
+			currentHeaders = [];
+			continue;
+		} else if (trimmedLine.startsWith('# PROJECTS')) {
+			currentSection = 'projects';
+			currentHeaders = [];
+			continue;
+		} else if (trimmedLine.startsWith('# ASSIGNEES')) {
+			currentSection = 'assignees';
+			currentHeaders = [];
+			continue;
+		}
+		
+		if (!currentSection) continue;
+		
+		if (currentHeaders.length === 0) {
+			currentHeaders = trimmedLine.split(',').map(h => h.trim());
+			continue;
+		}
+		
+		const values = parseCSVLine(trimmedLine);
+		if (values.length !== currentHeaders.length) continue;
+		
+		const row: Record<string, string> = {};
+		currentHeaders.forEach((h, idx) => row[h] = values[idx]);
+		
+		if (currentSection === 'tasks') taskRows.push(row);
+		else if (currentSection === 'projects') projectRows.push(row);
+		else if (currentSection === 'assignees') assigneeRows.push(row);
+	}
+	
+	// If no sections found, treat as old format (tasks only)
+	if (taskRows.length === 0 && projectRows.length === 0 && assigneeRows.length === 0) {
+		const result = await mergeTasksFromCSV(csvContent);
+		return {
+			tasks: result,
+			projects: { added: 0, updated: 0 },
+			assignees: { added: 0, updated: 0 }
+		};
+	}
+	
+	// Get existing data for comparison
+	const existingProjects = new Map();
+	const existingAssignees = new Map();
+	const existingTasks = new Map();
+	
+	const projectsResult = execQuery('SELECT * FROM projects');
+	for (const row of projectsResult.values) {
+		const obj = Object.fromEntries(projectsResult.columns.map((col, i) => [col, row[i]]));
+		existingProjects.set(obj.id, obj);
+	}
+	
+	const assigneesResult = execQuery('SELECT * FROM assignees');
+	for (const row of assigneesResult.values) {
+		const obj = Object.fromEntries(assigneesResult.columns.map((col, i) => [col, row[i]]));
+		existingAssignees.set(obj.id, obj);
+	}
+	
+	const tasksResult = execQuery('SELECT * FROM tasks');
+	for (const row of tasksResult.values) {
+		const obj = Object.fromEntries(tasksResult.columns.map((col, i) => [col, row[i]]));
+		existingTasks.set(obj.id, obj);
+	}
+	
+	db.run('BEGIN TRANSACTION');
+	
+	try {
+		let tasksAdded = 0, tasksUpdated = 0, tasksUnchanged = 0;
+		let projectsAdded = 0, projectsUpdated = 0;
+		let assigneesAdded = 0, assigneesUpdated = 0;
+		
+		// Merge projects
+		for (const row of projectRows) {
+			const serverId = row.id ? parseInt(row.id) : null;
+			const existing = serverId ? existingProjects.get(serverId) : null;
+			
+			if (!existing) {
+				try {
+					db.run(`
+						INSERT INTO projects (name, created_at)
+						VALUES (?, ?)
+					`, [row.name || '', row.created_at || new Date().toISOString()]);
+					projectsAdded++;
+				} catch (e) {
+					console.warn('Failed to insert project:', e);
+				}
+			} else if (existing.name !== row.name) {
+				try {
+					db.run(`
+						UPDATE projects SET name = ?, created_at = ? WHERE id = ?
+					`, [row.name || '', row.created_at || existing.created_at, serverId]);
+					projectsUpdated++;
+				} catch (e) {
+					console.warn('Failed to update project:', e);
+				}
+			}
+			if (serverId) existingProjects.delete(serverId);
+		}
+		
+		// Build assignee name to id map for lookup
+		const assigneeNameToId = new Map<string, number>();
+		for (const [id, assignee] of existingAssignees) {
+			assigneeNameToId.set(assignee.name, id);
+		}
+		
+		// Merge assignees from assignees section
+		for (const row of assigneeRows) {
+			const serverId = row.id ? parseInt(row.id) : null;
+			const existing = serverId ? existingAssignees.get(serverId) : null;
+			
+			if (!existing) {
+				try {
+					db.run(`
+						INSERT INTO assignees (name, color, created_at)
+						VALUES (?, ?, ?)
+					`, [row.name || '', row.color || '#6366F1', row.created_at || new Date().toISOString()]);
+					// Update map
+					const newIdResult = execQuery('SELECT last_insert_rowid() as id');
+					const newId = newIdResult.values[0][0];
+					assigneeNameToId.set(row.name || '', newId);
+					assigneesAdded++;
+				} catch (e) {
+					console.warn('Failed to insert assignee:', e);
+				}
+			} else if (existing.name !== row.name || existing.color !== row.color) {
+				try {
+					db.run(`
+						UPDATE assignees SET name = ?, color = ?, created_at = ? WHERE id = ?
+					`, [
+						row.name || '',
+						row.color || '#6366F1',
+						row.created_at || existing.created_at,
+						serverId
+					]);
+					assigneesUpdated++;
+				} catch (e) {
+					console.warn('Failed to update assignee:', e);
+				}
+			}
+			if (serverId) existingAssignees.delete(serverId);
+		}
+		
+		// Helper function to resolve assignee_id from assignee_name
+		function resolveAssigneeId(row: Record<string, string>): number | null {
+			if (row.assignee_id) {
+				return parseInt(row.assignee_id);
+			}
+			if (row.assignee_name && row.assignee_name.trim()) {
+				const name = row.assignee_name.trim();
+				const existingId = assigneeNameToId.get(name);
+				if (existingId) {
+					return existingId;
+				}
+				// Create new assignee
+				try {
+					db.run(`
+						INSERT INTO assignees (name, color, created_at)
+						VALUES (?, ?, ?)
+					`, [name, '#6366F1', new Date().toISOString()]);
+					const newIdResult = execQuery('SELECT last_insert_rowid() as id');
+					const newId = newIdResult.values[0][0];
+					assigneeNameToId.set(name, newId);
+					assigneesAdded++;
+					return newId;
+				} catch (e) {
+					console.warn('Failed to create assignee:', e);
+				}
+			}
+			return null;
+		}
+		
+		// Merge tasks (with assignee_name support)
+		for (const row of taskRows) {
+			const serverId = row.id ? parseInt(row.id) : null;
+			const existing = serverId ? existingTasks.get(serverId) : null;
+			const assigneeId = resolveAssigneeId(row);
+			
+			if (!existing) {
+				try {
+					db.run(`
+						INSERT INTO tasks (title, project, duration_minutes, date, status, category, notes, assignee_id, created_at)
+						VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+					`, [
+						row.title || '',
+						row.project || '',
+						parseInt(row.duration_minutes) || 0,
+						row.date || new Date().toISOString().split('T')[0],
+						row.status || 'todo',
+						row.category || 'อื่นๆ',
+						row.notes || '',
+						assigneeId,
+						row.created_at || new Date().toISOString()
+					]);
+					tasksAdded++;
+				} catch (e) {
+					console.warn('Failed to insert task:', e);
+				}
+			} else {
+				const isDifferent = 
+					row.title !== existing.title ||
+					row.status !== existing.status ||
+					row.project !== existing.project ||
+					(row.notes || '') !== (existing.notes || '');
+				
+				const serverDate = new Date(row.created_at || 0).getTime();
+				const localDate = new Date(existing.created_at || 0).getTime();
+				
+				if (isDifferent && serverDate >= localDate) {
+					try {
+						db.run(`
+							UPDATE tasks 
+							SET title = ?, project = ?, duration_minutes = ?, 
+							    date = ?, status = ?, category = ?, notes = ?, 
+							    assignee_id = ?, created_at = ?
+							WHERE id = ?
+						`, [
+							row.title || '',
+							row.project || '',
+							parseInt(row.duration_minutes) || 0,
+							row.date || new Date().toISOString().split('T')[0],
+							row.status || 'todo',
+							row.category || 'อื่นๆ',
+							row.notes || '',
+							assigneeId,
+							row.created_at || new Date().toISOString(),
+							serverId
+						]);
+						tasksUpdated++;
+					} catch (e) {
+						console.warn('Failed to update task:', e);
+					}
+				} else {
+					tasksUnchanged++;
+				}
+			}
+			if (serverId) existingTasks.delete(serverId);
+		}
+		
+		db.run('COMMIT');
+		saveDatabase();
+		
+		console.log(`✅ Merge complete:`);
+		console.log(`   Tasks: +${tasksAdded} ~${tasksUpdated} =${tasksUnchanged}`);
+		console.log(`   Projects: +${projectsAdded} ~${projectsUpdated}`);
+		console.log(`   Assignees: +${assigneesAdded} ~${assigneesUpdated}`);
+		
+		return {
+			tasks: { added: tasksAdded, updated: tasksUpdated, unchanged: tasksUnchanged },
+			projects: { added: projectsAdded, updated: projectsUpdated },
+			assignees: { added: assigneesAdded, updated: assigneesUpdated }
+		};
+	} catch (e) {
+		db.run('ROLLBACK');
+		throw e;
+	}
+}
