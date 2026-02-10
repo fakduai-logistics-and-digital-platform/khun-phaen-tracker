@@ -455,12 +455,15 @@
                                     <span class="font-medium">คุณ (Host)</span>
                                 </li>
                             {:else}
-                                <li class="text-sm flex items-center gap-2">
-                                    <span class="w-2 h-2 bg-yellow-500 rounded-full"></span>
-                                    <span class="font-medium">Host</span>
-                                </li>
+                                <!-- Find host from peers list -->
+                                {#each $serverPeers.filter(p => p.id.startsWith('host_')) as host}
+                                    <li class="text-sm flex items-center gap-2">
+                                        <span class="w-2 h-2 bg-yellow-500 rounded-full"></span>
+                                        <span class="font-medium">{host.name}</span>
+                                    </li>
+                                {/each}
                             {/if}
-                            {#each $serverPeers as peer}
+                            {#each $serverPeers.filter(p => !p.id.startsWith('host_')) as peer}
                                 <li class="text-sm flex items-center gap-2 pl-4">
                                     <span class="w-2 h-2 bg-green-500 rounded-full"></span>
                                     <span>{peer.name}</span>
