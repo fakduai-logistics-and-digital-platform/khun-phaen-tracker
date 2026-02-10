@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import type { Task, Project, Assignee, ViewMode, FilterOptions } from '$lib/types';
-	import { getTasks, addTask, updateTask, deleteTask, getStats, exportToCSV, importFromCSV, exportAllData, importAllData, mergeAllData, getCategories, getAssignees, getProjects, getProjectsList, addProject, updateProject, deleteProject, getProjectStats, addAssignee as addAssigneeDB, getAssigneeStats, updateAssignee, deleteAssignee } from '$lib/db';
+	import { getTasks, getTasksBySprint, addTask, updateTask, deleteTask, getStats, exportToCSV, importFromCSV, exportAllData, importAllData, mergeAllData, getCategories, getAssignees, getProjects, getProjectsList, addProject, updateProject, deleteProject, getProjectStats, addAssignee as addAssigneeDB, getAssigneeStats, updateAssignee, deleteAssignee, archiveTasksBySprint } from '$lib/db';
 	import TaskForm from '$lib/components/TaskForm.svelte';
 	import TaskList from '$lib/components/TaskList.svelte';
 	import CalendarView from '$lib/components/CalendarView.svelte';
@@ -21,7 +21,6 @@
 	import TabSettings from '$lib/components/TabSettings.svelte';
 	import { sprints, type Sprint } from '$lib/stores/sprintStore';
 	import SprintManager from '$lib/components/SprintManager.svelte';
-	import { archiveTasksBySprint } from '$lib/db';
 	
 	const FILTER_STORAGE_KEY = 'task-filters';
 	const DEFAULT_FILTERS: FilterOptions = {
@@ -36,6 +35,7 @@
 	};
 	
 	let tasks: Task[] = [];
+	let sprintManagerTasks: Task[] = [];
 	let filteredTasks: Task[] = [];
 	let categories: string[] = [];
 	let projects: string[] = [];
@@ -117,7 +117,12 @@
 	
 	async function loadData() {
 		try {
-			tasks = await getTasks(filters);
+			const [visibleTasks, allTasks] = await Promise.all([
+				getTasks(filters),
+				getTasks()
+			]);
+			tasks = visibleTasks;
+			sprintManagerTasks = allTasks;
 			
 			// Index tasks for WASM search
 			if ($wasmReady) {
@@ -240,7 +245,8 @@
 			const archivedCount = await archiveTasksBySprint(sprintId);
 			
 			// Move incomplete tasks out of sprint (set sprint_id to null)
-			const incompleteTasks = tasks.filter(t => t.sprint_id === sprintId && t.status !== 'done');
+			const sprintTasks = await getTasksBySprint(sprintId);
+			const incompleteTasks = sprintTasks.filter(t => t.status !== 'done');
 			for (const task of incompleteTasks) {
 				await updateTask(task.id!, { sprint_id: null });
 			}
@@ -979,7 +985,7 @@
 	<!-- Sprint Manager Modal -->
 	{#if showSprintManager}
 		<SprintManager
-			tasks={tasks}
+			tasks={sprintManagerTasks}
 			on:close={() => showSprintManager = false}
 			on:complete={handleCompleteSprint}
 			on:moveTasksToSprint={handleMoveTasksToSprint}

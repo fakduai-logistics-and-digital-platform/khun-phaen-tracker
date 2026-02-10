@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
 	import type { Sprint } from '$lib/types';
-	import { sprints, archiveCompletedTasks } from '$lib/stores/sprintStore';
+	import { sprints } from '$lib/stores/sprintStore';
 	import { Flag, Plus, X, Edit2, CheckCircle2, Play, Calendar, AlertCircle, Archive } from 'lucide-svelte';
 
 	const dispatch = createEventDispatcher<{
@@ -11,7 +11,7 @@
 		moveTasksToSprint: { sprintId: number; taskIds: number[] };
 	}>();
 
-	export let tasks: { id: number; status: string; sprint_id?: number | null }[] = [];
+	export let tasks: { id?: number; status: string; sprint_id?: number | null }[] = [];
 
 	let showAddForm = false;
 	let editingSprint: Sprint | null = null;
@@ -86,8 +86,8 @@
 		);
 		
 		return tasks
-			.filter(t => !t.sprint_id || !activeOrPlannedSprintIds.has(t.sprint_id))
-			.map(t => t.id!);
+			.filter(t => t.id !== undefined && (!t.sprint_id || !activeOrPlannedSprintIds.has(t.sprint_id)))
+			.map(t => t.id as number);
 	}
 
 	function startAdd() {
@@ -151,22 +151,19 @@
 		if (!pendingSprintData) return;
 		
 		// Create the sprint
-		sprints.add({
+		const newSprint = sprints.add({
 			name: pendingSprintData.name,
 			start_date: pendingSprintData.start_date,
 			end_date: pendingSprintData.end_date,
 			status: 'planned'
 		});
 		
-		// Get the newly created sprint (it will be the last one)
-		const newSprint = $sprints[$sprints.length - 1];
-		
 		// Move tasks if requested
-		if (moveTasks && newSprint) {
+		if (moveTasks && newSprint.id) {
 			const tasksToMove = getTasksToMoveToNewSprint();
 			if (tasksToMove.length > 0) {
 				dispatch('moveTasksToSprint', { 
-					sprintId: newSprint.id!, 
+					sprintId: newSprint.id, 
 					taskIds: tasksToMove 
 				});
 			}
@@ -200,7 +197,9 @@
 			if (incompleteTasks.length > 0) {
 				dispatch('moveTasksToSprint', {
 					sprintId: -1, // -1 means remove from sprint
-					taskIds: incompleteTasks.map(t => t.id!)
+					taskIds: incompleteTasks
+						.filter(t => t.id !== undefined)
+						.map(t => t.id as number)
 				});
 			}
 			

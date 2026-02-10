@@ -43,17 +43,20 @@ function createSprintStore() {
 
 	return {
 		subscribe,
-		add: (sprint: Omit<Sprint, 'id' | 'created_at'>) => {
+		add: (sprint: Omit<Sprint, 'id' | 'created_at'>): Sprint => {
+			const newSprint: Sprint = {
+				...sprint,
+				id: Date.now(),
+				created_at: new Date().toISOString()
+			};
+
 			update(sprints => {
-				const newSprint: Sprint = {
-					...sprint,
-					id: Date.now(),
-					created_at: new Date().toISOString()
-				};
 				const newSprints = [...sprints, newSprint];
 				saveSprints(newSprints);
 				return newSprints;
 			});
+
+			return newSprint;
 		},
 		update: (id: number, updates: Partial<Sprint>) => {
 			update(sprints => {
