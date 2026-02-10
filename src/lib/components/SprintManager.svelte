@@ -7,6 +7,7 @@
 	const dispatch = createEventDispatcher<{
 		close: void;
 		complete: number; // sprint id
+		deleteSprint: number; // sprint id
 		createSprint: { name: string; start_date: string; end_date: string };
 		moveTasksToSprint: { sprintId: number; taskIds: number[] };
 	}>();
@@ -214,6 +215,7 @@
 
 	function handleDelete(id: number) {
 		if (confirm('คุณแน่ใจหรือไม่ที่จะลบ Sprint นี้?')) {
+			dispatch('deleteSprint', id);
 			sprints.delete(id);
 		}
 	}

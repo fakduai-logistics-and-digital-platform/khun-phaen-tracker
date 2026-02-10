@@ -237,6 +237,20 @@
 		messageType = type;
 		setTimeout(() => message = '', 3000);
 	}
+
+	function applySprintUpdateToLocalState(taskIds: number[], sprintId: number | null) {
+		if (taskIds.length === 0) return;
+		const taskIdSet = new Set(taskIds);
+
+		const updateTaskSprint = (task: Task): Task => {
+			if (task.id === undefined || !taskIdSet.has(task.id)) return task;
+			return { ...task, sprint_id: sprintId };
+		};
+
+		tasks = tasks.map(updateTaskSprint);
+		sprintManagerTasks = sprintManagerTasks.map(updateTaskSprint);
+		filteredTasks = filteredTasks.map(updateTaskSprint);
+	}
 	
 	async function handleCompleteSprint(event: CustomEvent<number>) {
 		const sprintId = event.detail;
@@ -272,11 +286,14 @@
 
 	async function handleMoveTasksToSprint(event: CustomEvent<{ sprintId: number; taskIds: number[] }>) {
 		const { sprintId, taskIds } = event.detail;
+		const newSprintId = sprintId === -1 ? null : sprintId;
+
+		// Optimistic update so sprint dialog stats change immediately.
+		applySprintUpdateToLocalState(taskIds, newSprintId);
+
 		try {
 			let movedCount = 0;
 			for (const taskId of taskIds) {
-				// If sprintId is -1, remove from sprint (set to null)
-				const newSprintId = sprintId === -1 ? null : sprintId;
 				await updateTask(taskId, { sprint_id: newSprintId });
 				movedCount++;
 			}
@@ -287,7 +304,30 @@
 				showMessage(`ย้าย ${movedCount} งานเข้า Sprint ใหม่แล้ว`);
 			}
 		} catch (e) {
+			await loadData();
 			showMessage('เกิดข้อผิดพลาดในการย้ายงาน', 'error');
+		}
+	}
+
+	async function handleDeleteSprint(event: CustomEvent<number>) {
+		const sprintId = event.detail;
+		try {
+			const sprintTasks = await getTasksBySprint(sprintId);
+			const taskIds = sprintTasks
+				.map((task) => task.id)
+				.filter((id): id is number => id !== undefined);
+
+			if (taskIds.length > 0) {
+				await handleMoveTasksToSprint(
+					new CustomEvent('moveTasksToSprint', {
+						detail: { sprintId: -1, taskIds }
+					})
+				);
+			} else {
+				await loadData();
+			}
+		} catch (e) {
+			showMessage('เกิดข้อผิดพลาดในการอัปเดตงานหลังลบ Sprint', 'error');
 		}
 	}
 	
@@ -988,6 +1028,7 @@
 			tasks={sprintManagerTasks}
 			on:close={() => showSprintManager = false}
 			on:complete={handleCompleteSprint}
+			on:deleteSprint={handleDeleteSprint}
 			on:moveTasksToSprint={handleMoveTasksToSprint}
 		/>
 	{/if}
