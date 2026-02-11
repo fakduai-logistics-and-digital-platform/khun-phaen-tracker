@@ -112,36 +112,49 @@ export async function initDB(): Promise<void> {
 	}
 }
 
+// Track if we've checked updated_at column
+let hasUpdatedAtColumn: boolean | null = null;
+
+// Check and add updated_at column if needed
+function ensureUpdatedAtColumn(): boolean {
+	if (!db) return false;
+	
+	// Return cached result if already checked
+	if (hasUpdatedAtColumn !== null) return hasUpdatedAtColumn;
+	
+	try {
+		const result = db.exec("PRAGMA table_info(tasks)");
+		const columns = result[0]?.values || [];
+		hasUpdatedAtColumn = columns.some((col: any[]) => col[1] === 'updated_at');
+		
+		if (!hasUpdatedAtColumn) {
+			console.log('🔄 Adding updated_at column...');
+			db.run(`ALTER TABLE tasks ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`);
+			hasUpdatedAtColumn = true;
+			console.log('✅ Added updated_at column');
+			return true;
+		}
+		return hasUpdatedAtColumn;
+	} catch (e) {
+		// If PRAGMA fails, assume column doesn't exist and try to add it
+		try {
+			db.run(`ALTER TABLE tasks ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`);
+			hasUpdatedAtColumn = true;
+			console.log('✅ Added updated_at column (fallback)');
+			return true;
+		} catch (e2) {
+			hasUpdatedAtColumn = false;
+			return false;
+		}
+	}
+}
+
 // Run migrations for existing databases
 function runMigrations() {
 	if (!db) return;
 	
 	console.log('🔄 Running migrations...');
-	
-	// Check if updated_at column exists using PRAGMA
-	try {
-		const result = db.exec("PRAGMA table_info(tasks)");
-		const columns = result[0]?.values || [];
-		const hasUpdatedAt = columns.some((col: any[]) => col[1] === 'updated_at');
-		
-		if (hasUpdatedAt) {
-			console.log('✅ updated_at column already exists');
-		} else {
-			// Column doesn't exist, add it
-			console.log('🔄 Adding updated_at column...');
-			db.run(`ALTER TABLE tasks ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`);
-			console.log('✅ Added updated_at column');
-		}
-	} catch (e: any) {
-		console.warn('⚠️ Migration check failed:', e?.message || e);
-		// Fallback: try to add column anyway (will fail silently if exists)
-		try {
-			db.run(`ALTER TABLE tasks ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`);
-			console.log('✅ Added updated_at column (fallback)');
-		} catch (e2) {
-			// Column probably already exists
-		}
-	}
+	ensureUpdatedAtColumn();
 }
 
 // Cleanup database before refresh/unload
@@ -299,6 +312,9 @@ export async function updateTask(id: number, updates: Partial<Task>): Promise<vo
 	
 	console.log('🔍 updateTask called:', { id, updates: Object.keys(updates) });
 	
+	// Ensure updated_at column exists before trying to use it
+	const hasUpdatedAt = ensureUpdatedAtColumn();
+	
 	const sets: string[] = [];
 	const values: any[] = [];
 	
@@ -343,12 +359,14 @@ export async function updateTask(id: number, updates: Partial<Task>): Promise<vo
 		values.push(updates.is_archived ? 1 : 0);
 	}
 	
-	// Always update updated_at when task is modified
-	sets.push('updated_at = CURRENT_TIMESTAMP');
+	// Always update updated_at when task is modified (only if column exists)
+	if (hasUpdatedAt) {
+		sets.push('updated_at = CURRENT_TIMESTAMP');
+	}
 	
-	if (sets.length === 1) {
-		// Only updated_at, no other changes - still update it
-		// But we need at least one field to update
+	if (sets.length === 0) {
+		console.log('⚠️ No fields to update');
+		return;
 	}
 	
 	values.push(id);
@@ -364,6 +382,8 @@ export async function updateTask(id: number, updates: Partial<Task>): Promise<vo
 		// If updated_at column doesn't exist, try without it
 		if (e?.message?.includes('updated_at')) {
 			console.log('⚠️ Retrying without updated_at...');
+			// Reset the cache so next time we check again
+			hasUpdatedAtColumn = false;
 			const setsWithoutUpdatedAt = sets.filter(s => !s.includes('updated_at'));
 			if (setsWithoutUpdatedAt.length > 0) {
 				db.run(`UPDATE tasks SET ${setsWithoutUpdatedAt.join(', ')} WHERE id = ?`, 

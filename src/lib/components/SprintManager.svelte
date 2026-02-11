@@ -294,7 +294,7 @@
 					<Flag size={20} class="text-primary" />
 				</div>
 				<div>
-					<h2 class="text-xl font-bold text-gray-900 dark:text-white">จัดการ Sprint</h2>
+					<h2 class="text-xl font-bold text-gray-900 dark:text-white">จัดการ | Sprint</h2>
 					<p class="text-sm text-gray-500 dark:text-gray-400">{$sprints.length} Sprint</p>
 				</div>
 			</div>
