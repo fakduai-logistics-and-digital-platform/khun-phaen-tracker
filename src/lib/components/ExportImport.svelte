@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
-	import { Download, Upload, FileSpreadsheet, FileText, Image as ImageIcon, FileCode, ChevronDown, ChevronRight, Video } from 'lucide-svelte';
+	import { Download, Upload, FileSpreadsheet, FileText, Image as ImageIcon, FileCode, ChevronDown, ChevronRight, Video, Presentation } from 'lucide-svelte';
 	import { toPng } from 'html-to-image';
 
 	const dispatch = createEventDispatcher<{
@@ -9,6 +9,7 @@
 		exportPNG: void;
 		exportMarkdown: void;
 		exportVideo: void;
+		exportSlide: void;
 		exportDatabase: {
 			database: 'SQLite' | 'MongoDB/NoSQL' | 'PostgreSQL';
 			extensions: string[];
@@ -154,6 +155,11 @@
 		showExportDropdown = false;
 	}
 
+	function handleExportSlide() {
+		dispatch('exportSlide');
+		showExportDropdown = false;
+	}
+
 	function handleExportDatabase(target: DatabaseTarget) {
 		dispatch('exportDatabase', {
 			database: target.database,
@@ -231,6 +237,13 @@
 				>
 					<Video size={16} class="text-orange-500" />
 					ส่งออก Video (WebM)
+				</button>
+				<button
+					on:click={handleExportSlide}
+					class="w-full flex items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors whitespace-nowrap"
+				>
+					<Presentation size={16} class="text-indigo-600" />
+					ส่งออก Slide (PPTX)
 				</button>
 				<div class="my-1 border-t border-gray-200 dark:border-gray-700"></div>
 				<div class="relative group">

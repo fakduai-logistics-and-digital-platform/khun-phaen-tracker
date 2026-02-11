@@ -11,7 +11,7 @@
 	import ExportImport from '$lib/components/ExportImport.svelte';
 	import WorkerManager from '$lib/components/WorkerManager.svelte';
 	import ProjectManager from '$lib/components/ProjectManager.svelte';
-	import { List, CalendarDays, Columns3, Table, Filter, Search, Plus, Users, Folder, Sparkles, Settings2, Flag, FileText, FileSpreadsheet, Image as ImageIcon, Video } from 'lucide-svelte';
+	import { List, CalendarDays, Columns3, Table, Filter, Search, Plus, Users, Folder, Sparkles, Settings2, Flag, FileText, FileSpreadsheet, Image as ImageIcon, Video, Presentation } from 'lucide-svelte';
 	import { initWasmSearch, indexTasks, performSearch, clearSearch, searchQuery, wasmReady, wasmLoading } from '$lib/stores/search';
 	import { compressionReady, compressionStats, getStorageInfo } from '$lib/stores/storage';
 	import { enableAutoImport, setMergeCallback } from '$lib/stores/server-sync';
@@ -30,6 +30,7 @@
 	import MonthlySummaryCharts from '$lib/components/MonthlySummaryCharts.svelte';
 	import { toPng } from 'html-to-image';
 	import * as XLSX from 'xlsx';
+	import PptxGenJS from 'pptxgenjs';
 
 	const FILTER_STORAGE_KEY = 'task-filters';
 	const DEFAULT_FILTERS: FilterOptions = {
@@ -983,21 +984,38 @@
 		});
 	}
 
-	async function composeMonthlyChartsImage(
+	async function composeMonthlyReportImage(
 		charts: Array<{ title: string; image: string }>,
-		periodLabel: string
+		periodLabel: string,
+		taskSnapshot: Task[]
 	): Promise<string> {
 		const loaded = await Promise.all(charts.map(async (chart) => ({ ...chart, img: await loadImage(chart.image) })));
-		if (loaded.length === 0) {
-			throw new Error('No charts to compose');
-		}
+		const doneTasks = taskSnapshot.filter((task) => task.status === 'done');
+		const inProgressTasks = taskSnapshot.filter((task) => task.status === 'in-progress');
+		const todoTasks = taskSnapshot.filter((task) => task.status === 'todo');
+		const archivedTasks = taskSnapshot.filter((task) => task.is_archived);
+		const assigneeSummary = [...taskSnapshot.reduce((acc, task) => {
+			const name = task.assignee?.name || 'ไม่ระบุผู้รับผิดชอบ';
+			const item = acc.get(name) || { name, total: 0, done: 0, inProgress: 0, todo: 0 };
+			item.total += 1;
+			if (task.status === 'done') item.done += 1;
+			else if (task.status === 'in-progress') item.inProgress += 1;
+			else item.todo += 1;
+			acc.set(name, item);
+			return acc;
+		}, new Map<string, { name: string; total: number; done: number; inProgress: number; todo: number }>()).values()]
+			.sort((a, b) => b.total - a.total)
+			.slice(0, 5);
+		const keyTasks = [...taskSnapshot]
+			.sort((a, b) => normalizeTaskDate(b.date).localeCompare(normalizeTaskDate(a.date)))
+			.slice(0, 8);
 
 		const cols = 2;
-		const rows = Math.ceil(loaded.length / cols);
+		const rows = Math.max(1, Math.ceil(Math.max(1, loaded.length) / cols));
 		const cellWidth = 900;
 		const cellHeight = 560;
 		const gap = 24;
-		const headerHeight = 140;
+		const headerHeight = 580;
 		const padding = 32;
 
 		const width = padding * 2 + cols * cellWidth + (cols - 1) * gap;
@@ -1019,10 +1037,73 @@
 		// Header
 		ctx.fillStyle = '#0f172a';
 		ctx.font = '700 52px "Noto Sans Thai", sans-serif';
-		ctx.fillText('Monthly Summary Charts', padding, padding + 52);
+		ctx.fillText('Monthly Performance Report', padding, padding + 52);
 		ctx.fillStyle = '#334155';
 		ctx.font = '400 30px "Noto Sans Thai", sans-serif';
 		ctx.fillText(periodLabel, padding, padding + 98);
+
+		const statsY = padding + 126;
+		const statCards = [
+			{ label: 'งานทั้งหมด', value: `${taskSnapshot.length}`, color: '#0f172a' },
+			{ label: 'เสร็จแล้ว', value: `${doneTasks.length}`, color: '#16a34a' },
+			{ label: 'กำลังทำ', value: `${inProgressTasks.length}`, color: '#2563eb' },
+			{ label: 'รอดำเนินการ', value: `${todoTasks.length}`, color: '#d97706' },
+			{ label: 'Archived', value: `${archivedTasks.length}`, color: '#475569' }
+		];
+		statCards.forEach((card, i) => {
+			const cardW = 350;
+			const cardX = padding + i * (cardW + 12);
+			drawRoundedRect(ctx, cardX, statsY, cardW, 110, 16);
+			ctx.fillStyle = '#ffffff';
+			ctx.fill();
+			ctx.strokeStyle = '#cbd5e1';
+			ctx.lineWidth = 1.5;
+			ctx.stroke();
+			ctx.fillStyle = '#64748b';
+			ctx.font = '600 21px "Noto Sans Thai", sans-serif';
+			ctx.fillText(card.label, cardX + 16, statsY + 38);
+			ctx.fillStyle = card.color;
+			ctx.font = '700 42px "Noto Sans Thai", sans-serif';
+			ctx.fillText(card.value, cardX + 16, statsY + 86);
+		});
+
+		const summaryBoxY = statsY + 130;
+		drawRoundedRect(ctx, padding, summaryBoxY, width - padding * 2, 190, 18);
+		ctx.fillStyle = '#ffffff';
+		ctx.fill();
+		ctx.strokeStyle = '#cbd5e1';
+		ctx.stroke();
+		ctx.fillStyle = '#0f172a';
+		ctx.font = '700 26px "Noto Sans Thai", sans-serif';
+		ctx.fillText('ใครทำอะไรบ้าง (Top 5)', padding + 18, summaryBoxY + 36);
+		ctx.fillStyle = '#334155';
+		ctx.font = '500 20px "Noto Sans Thai", sans-serif';
+		assigneeSummary.forEach((person, idx) => {
+			const y = summaryBoxY + 70 + idx * 24;
+			ctx.fillText(
+				`${idx + 1}. ${person.name} • รวม ${person.total} • เสร็จ ${person.done} • กำลังทำ ${person.inProgress} • รอดำเนินการ ${person.todo}`,
+				padding + 24,
+				y
+			);
+		});
+
+		const taskBoxY = summaryBoxY + 206;
+		drawRoundedRect(ctx, padding, taskBoxY, width - padding * 2, 180, 18);
+		ctx.fillStyle = '#ffffff';
+		ctx.fill();
+		ctx.strokeStyle = '#cbd5e1';
+		ctx.stroke();
+		ctx.fillStyle = '#0f172a';
+		ctx.font = '700 26px "Noto Sans Thai", sans-serif';
+		ctx.fillText('รายการงานล่าสุด', padding + 18, taskBoxY + 36);
+		ctx.font = '500 18px "Noto Sans Thai", sans-serif';
+		keyTasks.slice(0, 6).forEach((task, idx) => {
+			const assignee = task.assignee?.name || 'ไม่ระบุ';
+			const line = `${idx + 1}. ${task.title || '-'} (${assignee}) • ${normalizeTaskDate(task.date)}`;
+			const y = taskBoxY + 66 + idx * 20;
+			const wrapped = wrapText(ctx, line, width - padding * 2 - 30);
+			ctx.fillText(wrapped[0], padding + 24, y);
+		});
 
 		loaded.forEach((item, idx) => {
 			const col = idx % cols;
@@ -1051,6 +1132,17 @@
 			const imageH = cellHeight - 72;
 			ctx.drawImage(item.img, imageX, imageY, imageW, imageH);
 		});
+
+		if (loaded.length === 0) {
+			drawRoundedRect(ctx, padding, padding + headerHeight, width - padding * 2, 220, 18);
+			ctx.fillStyle = '#ffffff';
+			ctx.fill();
+			ctx.strokeStyle = '#cbd5e1';
+			ctx.stroke();
+			ctx.fillStyle = '#0f172a';
+			ctx.font = '700 34px "Noto Sans Thai", sans-serif';
+			ctx.fillText('ไม่มีกราฟในช่วงข้อมูลนี้', padding + 24, padding + headerHeight + 84);
+		}
 
 		return canvas.toDataURL('image/png');
 	}
@@ -1416,6 +1508,110 @@
 		}
 	}
 
+	async function handleExportSlide(event?: CustomEvent<number | void>, contextOverride?: { taskSnapshot: Task[]; scopeLabel: string }) {
+		try {
+			const now = new Date();
+			const reportDate = formatDateISO(now);
+			const { taskSnapshot, scopeLabel } = contextOverride || await getExportTaskContext(event);
+			if (event?.detail && taskSnapshot.length === 0) {
+				showMessage('Sprint นี้ยังไม่มีงานที่ Archive สำหรับส่งออก', 'error');
+				return;
+			}
+			if (taskSnapshot.length === 0) {
+				showMessage('ยังไม่มีงานสำหรับส่งออกสไลด์', 'error');
+				return;
+			}
+
+			const doneTasks = sortTasksForReport(taskSnapshot.filter((task) => task.status === 'done'));
+			const inProgressTasks = sortTasksForReport(taskSnapshot.filter((task) => task.status === 'in-progress'));
+			const todoTasks = sortTasksForReport(taskSnapshot.filter((task) => task.status === 'todo'));
+			const assigneeSummary = [...taskSnapshot.reduce((acc, task) => {
+				const key = task.assignee?.name || 'ไม่ระบุผู้รับผิดชอบ';
+				acc.set(key, (acc.get(key) || 0) + 1);
+				return acc;
+			}, new Map<string, number>()).entries()]
+				.map(([name, count]) => ({ name, count }))
+				.sort((a, b) => b.count - a.count)
+				.slice(0, 8);
+
+			const pptx = new PptxGenJS();
+			pptx.layout = 'LAYOUT_WIDE';
+			pptx.author = 'Khu Phaen Task Tracker';
+			pptx.subject = 'Task report summary';
+			pptx.title = `Task Report ${reportDate}`;
+
+			const addTitle = (slide: PptxGenJS.Slide, title: string, subtitle: string) => {
+				slide.background = { color: '0B1B34' };
+				slide.addText(title, {
+					x: 0.6, y: 0.5, w: 12, h: 0.8,
+					fontFace: 'Calibri', fontSize: 34, bold: true, color: 'FFFFFF'
+				});
+				slide.addText(subtitle, {
+					x: 0.6, y: 1.4, w: 12, h: 0.5,
+					fontFace: 'Calibri', fontSize: 16, color: 'BFDBFE'
+				});
+			};
+
+			const cover = pptx.addSlide();
+			addTitle(cover, `Task Report - ${reportDate}`, scopeLabel);
+			cover.addText(
+				[
+					{ text: `งานทั้งหมด ${taskSnapshot.length} งาน\n` },
+					{ text: `เสร็จแล้ว ${doneTasks.length} งาน\n` },
+					{ text: `กำลังทำ ${inProgressTasks.length} งาน\n` },
+					{ text: `รอดำเนินการ ${todoTasks.length} งาน` }
+				],
+				{
+					x: 0.7, y: 2.3, w: 5.4, h: 2.2,
+					fontFace: 'Calibri', fontSize: 20, color: 'E2E8F0', breakLine: true
+				}
+			);
+
+			const assigneeSlide = pptx.addSlide();
+			addTitle(assigneeSlide, 'Who Did What', 'Top ผู้รับผิดชอบ');
+			assigneeSummary.forEach((item, index) => {
+				assigneeSlide.addText(`${index + 1}. ${item.name} - ${item.count} งาน`, {
+					x: 0.8, y: 2 + index * 0.5, w: 11.5, h: 0.4,
+					fontFace: 'Calibri', fontSize: 20, color: 'F8FAFC'
+				});
+			});
+
+			const taskLine = (task: Task) => {
+				const assignee = task.assignee?.name || 'ไม่ระบุ';
+				const status = task.status === 'done' ? 'DONE' : task.status === 'in-progress' ? 'IN-PROGRESS' : 'TODO';
+				return `${task.title || '-'} (${assignee}) • ${status} • ${normalizeTaskDate(task.date)}`;
+			};
+
+			const addTaskSlide = (title: string, list: Task[]) => {
+				const slide = pptx.addSlide();
+				addTitle(slide, title, `${list.length} งาน`);
+				const chunk = list.slice(0, 12);
+				chunk.forEach((task, i) => {
+					slide.addText(`• ${taskLine(task)}`, {
+						x: 0.8, y: 2 + i * 0.42, w: 12, h: 0.35,
+						fontFace: 'Calibri', fontSize: 14, color: 'E2E8F0'
+					});
+				});
+				if (list.length === 0) {
+					slide.addText('ไม่มีงานในหมวดนี้', {
+						x: 0.8, y: 2.2, w: 8, h: 0.5,
+						fontFace: 'Calibri', fontSize: 18, color: 'CBD5E1'
+					});
+				}
+			};
+
+			addTaskSlide('Done Tasks', doneTasks);
+			addTaskSlide('In Progress Tasks', inProgressTasks);
+			addTaskSlide('Todo Tasks', todoTasks);
+
+			await pptx.writeFile({ fileName: `task_report_${reportDate}_${formatExportTimestamp().split('_')[1]}.pptx` });
+			showMessage('ส่งออก Slide (PPTX) สำเร็จ');
+		} catch (error) {
+			console.error('Slide export failed:', error);
+			showMessage('ส่งออก Slide (PPTX) ไม่สำเร็จ', 'error');
+		}
+	}
+
 	async function handleCompleteAndExport(event: CustomEvent<{ sprintId: number; format: 'markdown' | 'video' }>) {
 		const { sprintId, format } = event.detail;
 		const completed = await handleCompleteSprint(new CustomEvent('complete', { detail: sprintId }));
@@ -1660,7 +1856,7 @@
 		}
 		try {
 			const chartImages = await captureMonthlyChartImages();
-			const dataUrl = await composeMonthlyChartsImage(chartImages, monthlySummary.periodLabel);
+			const dataUrl = await composeMonthlyReportImage(chartImages, monthlySummary.periodLabel, context.taskSnapshot);
 			const link = document.createElement('a');
 			link.href = dataUrl;
 			link.download = `monthly_summary_${formatExportTimestamp()}.png`;
@@ -1685,16 +1881,44 @@
 			}
 
 			const chartImages = await captureMonthlyChartImages();
-			if (chartImages.length === 0) {
-				showMessage('ไม่พบกราฟสำหรับส่งออกวิดีโอ', 'error');
-				return;
-			}
 			const chartAssets = await Promise.all(
 				chartImages.map(async (item) => ({
 					title: item.title,
 					img: await loadImage(item.image)
 				}))
 			);
+			const taskSnapshot = [...context.taskSnapshot];
+			const doneTasks = taskSnapshot.filter((task) => task.status === 'done');
+			const inProgressTasks = taskSnapshot.filter((task) => task.status === 'in-progress');
+			const todoTasks = taskSnapshot.filter((task) => task.status === 'todo');
+			const assigneeMap = new Map<string, { total: number; done: number; inProgress: number; todo: number; tasks: Task[] }>();
+			for (const task of taskSnapshot) {
+				const name = task.assignee?.name || 'ไม่ระบุผู้รับผิดชอบ';
+				const current = assigneeMap.get(name) || { total: 0, done: 0, inProgress: 0, todo: 0, tasks: [] };
+				current.total += 1;
+				if (task.status === 'done') current.done += 1;
+				else if (task.status === 'in-progress') current.inProgress += 1;
+				else current.todo += 1;
+				current.tasks.push(task);
+				assigneeMap.set(name, current);
+			}
+			const topAssignees = [...assigneeMap.entries()]
+				.map(([name, info]) => ({ name, ...info }))
+				.sort((a, b) => b.total - a.total)
+				.slice(0, 4);
+			const assigneeDetailPages = [...assigneeMap.entries()]
+				.map(([name, info]) => ({
+					name,
+					...info,
+					tasks: [...info.tasks]
+						.sort((a, b) => normalizeTaskDate(b.date).localeCompare(normalizeTaskDate(a.date)))
+						.slice(0, 7)
+				}))
+				.sort((a, b) => b.total - a.total)
+				.slice(0, 3);
+			const keyTasks = [...taskSnapshot]
+				.sort((a, b) => normalizeTaskDate(b.date).localeCompare(normalizeTaskDate(a.date)))
+				.slice(0, 8);
 
 			const now = new Date();
 			const reportDate = formatDateISO(now);
@@ -1711,7 +1935,7 @@
 			for (let i = 0; i < chartAssets.length; i += 2) {
 				chartPages.push(chartAssets.slice(i, i + 2));
 			}
-			const totalSlides = 1 + chartPages.length; // cover + chart pages
+			const totalSlides = 4 + assigneeDetailPages.length + chartPages.length;
 
 			const renderCover = (progress: number) => {
 				const reveal = Math.min(Math.max(progress / 0.6, 0), 1);
@@ -1730,17 +1954,162 @@
 				ctx.globalAlpha = reveal;
 				ctx.fillStyle = '#7dd3fc';
 				ctx.font = '700 28px "Trebuchet MS", "Noto Sans Thai", sans-serif';
-				ctx.fillText('MONTHLY ANALYTICS VIDEO', 88, 110);
+				ctx.fillText('MONTHLY PERFORMANCE REPORT', 88, 110);
 				ctx.fillStyle = '#ffffff';
 				ctx.font = '700 58px "Trebuchet MS", "Noto Sans Thai", sans-serif';
-				ctx.fillText('สรุปกราฟรายเดือน', 88, 188);
+				ctx.fillText('สรุปผลงานรายเดือน', 88, 188);
 				ctx.fillStyle = '#dbeafe';
 				ctx.font = '400 30px "Trebuchet MS", "Noto Sans Thai", sans-serif';
 				ctx.fillText(monthlySummary.periodLabel, 88, 234);
 				ctx.fillStyle = '#cbd5e1';
 				ctx.font = '500 26px "Trebuchet MS", "Noto Sans Thai", sans-serif';
-				ctx.fillText(`จำนวนงาน ${context.taskSnapshot.length} งาน  •  กราฟ ${chartAssets.length} กราฟ`, 88, 298);
+				ctx.fillText(`จำนวนงาน ${taskSnapshot.length} งาน  •  ผู้รับผิดชอบ ${assigneeMap.size} คน`, 88, 298);
 				ctx.globalAlpha = 1;
+			};
+
+			const renderSummaryPage = () => {
+				const bg = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+				bg.addColorStop(0, '#eff6ff');
+				bg.addColorStop(1, '#dbeafe');
+				ctx.fillStyle = bg;
+				ctx.fillRect(0, 0, canvas.width, canvas.height);
+				ctx.fillStyle = '#0f172a';
+				ctx.font = '700 42px "Trebuchet MS", "Noto Sans Thai", sans-serif';
+				ctx.fillText('ภาพรวมผลลัพธ์', 60, 76);
+				const cards = [
+					{ label: 'งานทั้งหมด', value: `${taskSnapshot.length}`, color: '#0f172a' },
+					{ label: 'เสร็จแล้ว', value: `${doneTasks.length}`, color: '#16a34a' },
+					{ label: 'กำลังทำ', value: `${inProgressTasks.length}`, color: '#2563eb' },
+					{ label: 'รอดำเนินการ', value: `${todoTasks.length}`, color: '#d97706' }
+				];
+				cards.forEach((card, i) => {
+					const x = 60 + i * 295;
+					drawRoundedRect(ctx, x, 118, 260, 150, 16);
+					ctx.fillStyle = '#ffffff';
+					ctx.fill();
+					ctx.strokeStyle = '#cbd5e1';
+					ctx.stroke();
+					ctx.fillStyle = '#64748b';
+					ctx.font = '600 22px "Trebuchet MS", "Noto Sans Thai", sans-serif';
+					ctx.fillText(card.label, x + 18, 165);
+					ctx.fillStyle = card.color;
+					ctx.font = '700 56px "Trebuchet MS", "Noto Sans Thai", sans-serif';
+					ctx.fillText(card.value, x + 18, 232);
+				});
+				ctx.fillStyle = '#334155';
+				ctx.font = '500 26px "Trebuchet MS", "Noto Sans Thai", sans-serif';
+				ctx.fillText(`เวลารวม ${(monthlySummary.totalMinutes / 60).toFixed(1)} ชม. • งานเฉลี่ย/วัน ${monthlySummary.avgPerDay.toFixed(2)}`, 60, 328);
+			};
+
+			const renderAssigneePage = () => {
+				const bg = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+				bg.addColorStop(0, '#f8fafc');
+				bg.addColorStop(1, '#e2e8f0');
+				ctx.fillStyle = bg;
+				ctx.fillRect(0, 0, canvas.width, canvas.height);
+				ctx.fillStyle = '#0f172a';
+				ctx.font = '700 38px "Trebuchet MS", "Noto Sans Thai", sans-serif';
+				ctx.fillText('ใครทำอะไรบ้าง', 60, 72);
+				ctx.fillStyle = '#475569';
+				ctx.font = '500 22px "Trebuchet MS", "Noto Sans Thai", sans-serif';
+				ctx.fillText('สรุปตามผู้รับผิดชอบ (Top 4)', 60, 102);
+				topAssignees.forEach((a, i) => {
+					const y = 136 + i * 138;
+					drawRoundedRect(ctx, 60, y, 1160, 118, 14);
+					ctx.fillStyle = '#ffffff';
+					ctx.fill();
+					ctx.strokeStyle = '#cbd5e1';
+					ctx.stroke();
+					ctx.fillStyle = '#0f172a';
+					ctx.font = '700 30px "Trebuchet MS", "Noto Sans Thai", sans-serif';
+					ctx.fillText(a.name, 84, y + 44);
+					ctx.fillStyle = '#334155';
+					ctx.font = '500 22px "Trebuchet MS", "Noto Sans Thai", sans-serif';
+					ctx.fillText(`รวม ${a.total} งาน  •  เสร็จ ${a.done}  •  กำลังทำ ${a.inProgress}  •  รอดำเนินการ ${a.todo}`, 84, y + 82);
+				});
+			};
+
+			const renderTaskPage = () => {
+				const bg = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+				bg.addColorStop(0, '#eef2ff');
+				bg.addColorStop(1, '#e0e7ff');
+				ctx.fillStyle = bg;
+				ctx.fillRect(0, 0, canvas.width, canvas.height);
+				ctx.fillStyle = '#0f172a';
+				ctx.font = '700 38px "Trebuchet MS", "Noto Sans Thai", sans-serif';
+				ctx.fillText('รายการงานสำคัญในรอบเดือน', 60, 72);
+				keyTasks.forEach((task, i) => {
+					const y = 116 + i * 72;
+					const statusColor = task.status === 'done' ? '#16a34a' : task.status === 'in-progress' ? '#2563eb' : '#d97706';
+					ctx.fillStyle = '#ffffff';
+					drawRoundedRect(ctx, 60, y, 1160, 58, 12);
+					ctx.fill();
+					ctx.strokeStyle = '#cbd5e1';
+					ctx.stroke();
+					ctx.fillStyle = '#0f172a';
+					ctx.font = '600 21px "Trebuchet MS", "Noto Sans Thai", sans-serif';
+					const assignee = task.assignee?.name || 'ไม่ระบุ';
+					const title = `${task.title || '-'} (${assignee})`;
+					const wrapped = wrapText(ctx, title, 880);
+					ctx.fillText(wrapped[0], 82, y + 35);
+					ctx.fillStyle = statusColor;
+					ctx.font = '700 18px "Trebuchet MS", "Noto Sans Thai", sans-serif';
+					ctx.fillText(task.status === 'done' ? 'DONE' : task.status === 'in-progress' ? 'IN PROGRESS' : 'TODO', 980, y + 35);
+					ctx.fillStyle = '#475569';
+					ctx.font = '500 16px "Trebuchet MS", "Noto Sans Thai", sans-serif';
+					ctx.fillText(normalizeTaskDate(task.date), 1120, y + 35);
+				});
+			};
+
+			const renderAssigneeTaskPage = (
+				entry: { name: string; total: number; done: number; inProgress: number; todo: number; tasks: Task[] },
+				pageIndex: number
+			) => {
+				const bg = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+				bg.addColorStop(0, '#f0f9ff');
+				bg.addColorStop(1, '#dbeafe');
+				ctx.fillStyle = bg;
+				ctx.fillRect(0, 0, canvas.width, canvas.height);
+				ctx.fillStyle = '#0f172a';
+				ctx.font = '700 38px "Trebuchet MS", "Noto Sans Thai", sans-serif';
+				ctx.fillText(`งานของ ${entry.name}`, 60, 70);
+				ctx.fillStyle = '#334155';
+				ctx.font = '500 21px "Trebuchet MS", "Noto Sans Thai", sans-serif';
+				ctx.fillText(
+					`หน้า ${pageIndex + 1}/${assigneeDetailPages.length} • รวม ${entry.total} งาน • เสร็จ ${entry.done} • กำลังทำ ${entry.inProgress} • รอดำเนินการ ${entry.todo}`,
+					60,
+					102
+				);
+
+				entry.tasks.forEach((task, i) => {
+					const y = 130 + i * 80;
+					const statusColor = task.status === 'done' ? '#16a34a' : task.status === 'in-progress' ? '#2563eb' : '#d97706';
+					drawRoundedRect(ctx, 60, y, 1160, 66, 12);
+					ctx.fillStyle = '#ffffff';
+					ctx.fill();
+					ctx.strokeStyle = '#cbd5e1';
+					ctx.stroke();
+
+					ctx.fillStyle = '#0f172a';
+					ctx.font = '600 20px "Trebuchet MS", "Noto Sans Thai", sans-serif';
+					const projectTag = task.project ? ` (${task.project})` : '';
+					const archivedTag = task.is_archived ? ' [ARCHIVED]' : '';
+					const line = `${task.title || '-'}${projectTag}${archivedTag}`;
+					const wrapped = wrapText(ctx, line, 860);
+					ctx.fillText(wrapped[0], 82, y + 32);
+
+					ctx.fillStyle = statusColor;
+					ctx.font = '700 16px "Trebuchet MS", "Noto Sans Thai", sans-serif';
+					ctx.fillText(task.status === 'done' ? 'DONE' : task.status === 'in-progress' ? 'IN PROGRESS' : 'TODO', 960, y + 28);
+
+					ctx.fillStyle = '#475569';
+					ctx.font = '500 15px "Trebuchet MS", "Noto Sans Thai", sans-serif';
+					ctx.fillText(normalizeTaskDate(task.date), 1088, y + 28);
+					if ((task.duration_minutes || 0) > 0) {
+						const mins = task.duration_minutes || 0;
+						ctx.fillText(`${Math.floor(mins / 60)}ชม ${mins % 60}น`, 1088, y + 50);
+					}
+				});
 			};
 
 			const renderChartPage = (charts: Array<{ title: string; img: HTMLImageElement }>, pageIndex: number) => {
@@ -1752,7 +2121,7 @@
 
 				ctx.fillStyle = '#0f172a';
 				ctx.font = '700 34px "Trebuchet MS", "Noto Sans Thai", sans-serif';
-				ctx.fillText(`กราฟวิเคราะห์ (${pageIndex + 1}/${chartPages.length})`, 52, 58);
+				ctx.fillText(`กราฟวิเคราะห์ (${pageIndex + 1}/${Math.max(1, chartPages.length)})`, 52, 58);
 				ctx.fillStyle = '#334155';
 				ctx.font = '500 20px "Trebuchet MS", "Noto Sans Thai", sans-serif';
 				ctx.fillText(monthlySummary.periodLabel, 52, 88);
@@ -1820,9 +2189,32 @@
 			const renderSlideByIndex = (index: number, progress = 0) => {
 				if (index === 0) {
 					renderCover(progress);
+				} else if (index === 1) {
+					renderSummaryPage();
+				} else if (index === 2) {
+					renderAssigneePage();
+				} else if (index === 3) {
+					renderTaskPage();
 				} else {
-					const page = chartPages[index - 1] || [];
-					renderChartPage(page, index - 1);
+					const assigneePageIndex = index - 4;
+					if (assigneePageIndex < assigneeDetailPages.length) {
+						renderAssigneeTaskPage(assigneeDetailPages[assigneePageIndex], assigneePageIndex);
+						return;
+					}
+					const chartIndex = assigneePageIndex - assigneeDetailPages.length;
+					const page = chartPages[chartIndex] || [];
+					if (page.length > 0) {
+						renderChartPage(page, chartIndex);
+					} else {
+						const bg = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+						bg.addColorStop(0, '#eff6ff');
+						bg.addColorStop(1, '#dbeafe');
+						ctx.fillStyle = bg;
+						ctx.fillRect(0, 0, canvas.width, canvas.height);
+						ctx.fillStyle = '#0f172a';
+						ctx.font = '700 42px "Trebuchet MS", "Noto Sans Thai", sans-serif';
+						ctx.fillText('ไม่มีกราฟให้แสดงในช่วงข้อมูลนี้', 180, 370);
+					}
 				}
 			};
 
@@ -1854,7 +2246,7 @@
 			const link = document.createElement('a');
 			const timeStr = `${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}-${String(now.getSeconds()).padStart(2, '0')}`;
 			link.href = url;
-			link.download = `monthly_charts_${reportDate}_${timeStr}.webm`;
+			link.download = `monthly_report_${reportDate}_${timeStr}.webm`;
 			document.body.appendChild(link);
 			link.click();
 			document.body.removeChild(link);
@@ -1867,7 +2259,7 @@
 				clearInterval(videoExportTimer);
 				videoExportTimer = null;
 			}
-			showMessage('ส่งออกวิดีโอรายเดือนสำเร็จ');
+			showMessage('ส่งออกวิดีโอสรุปผลรายเดือนสำเร็จ');
 		} catch (error) {
 			console.error('Monthly Video export failed:', error);
 			videoExportInProgress = false;
@@ -1877,6 +2269,15 @@
 			}
 			showMessage('ส่งออกวิดีโอรายเดือนไม่สำเร็จ', 'error');
 		}
+	}
+
+	async function handleExportMonthlySlide() {
+		const context = getMonthlyExportTaskContext();
+		if (context.taskSnapshot.length === 0) {
+			showMessage('ยังไม่มีงานในช่วง 30 วันสำหรับส่งออก', 'error');
+			return;
+		}
+		await handleExportSlide(undefined, context);
 	}
 	
 	async function handleImportCSV(event: CustomEvent<string>) {
@@ -2182,6 +2583,7 @@
 				on:exportPNG={() => showMessage('ส่งออก PNG สำเร็จ')}
 				on:exportMarkdown={handleExportMarkdown}
 				on:exportVideo={handleExportVideo}
+				on:exportSlide={handleExportSlide}
 				on:exportDatabase={handleExportDatabase}
 				on:importCSV={handleImportCSV}
 			/>
@@ -2471,6 +2873,14 @@
 							aria-label="Export Video"
 						>
 							<Video size={16} />
+						</button>
+						<button
+							on:click={handleExportMonthlySlide}
+							class="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
+							title="Export Slide"
+							aria-label="Export Slide"
+						>
+							<Presentation size={16} />
 						</button>
 						<button
 							on:click={() => showMonthlySummary = false}

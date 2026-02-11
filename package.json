@@ -34,6 +34,7 @@
 		"idb": "^8.0.3",
 		"jspdf": "^4.1.0",
 		"lucide-svelte": "^0.563.0",
+		"pptxgenjs": "^4.0.1",
 		"qrcode": "^1.5.4",
 		"sql.js": "^1.13.0",
 		"svelte-dnd-action": "^0.9.69",
