@@ -22,6 +22,7 @@
 	import { sprints, type Sprint } from '$lib/stores/sprintStore';
 	import SprintManager from '$lib/components/SprintManager.svelte';
 	import SearchableSprintSelect from '$lib/components/SearchableSprintSelect.svelte';
+	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	
 	const FILTER_STORAGE_KEY = 'task-filters';
 	const DEFAULT_FILTERS: FilterOptions = {
@@ -873,60 +874,64 @@
 
 				<div>
 					<label for="status" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">สถานะ</label>
-					<select
+					<SearchableSelect
 						id="status"
 						bind:value={filters.status}
-						class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none"
-					>
-						<option value="all">ทั้งหมด</option>
-						<option value="todo">รอดำเนินการ</option>
-						<option value="in-progress">กำลังทำ</option>
-						<option value="done">เสร็จแล้ว</option>
-						<option value="archived">Archived (Sprint เก่า)</option>
-					</select>
+						options={[
+							{ value: 'all', label: 'ทั้งหมด' },
+							{ value: 'todo', label: 'รอดำเนินการ', badge: true, badgeColor: 'bg-gray-400' },
+							{ value: 'in-progress', label: 'กำลังทำ', badge: true, badgeColor: 'bg-blue-500' },
+							{ value: 'done', label: 'เสร็จแล้ว', badge: true, badgeColor: 'bg-green-500' },
+							{ value: 'archived', label: 'Archived (Sprint เก่า)', badge: true, badgeColor: 'bg-gray-600' }
+						]}
+						placeholder="ค้นหาสถานะ..."
+						showSearch={false}
+					/>
 				</div>
 
 				<div>
 					<label for="category" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">หมวดหมู่</label>
-					<select
+					<SearchableSelect
 						id="category"
 						bind:value={filters.category}
-						class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none"
-					>
-						<option value="all">ทั้งหมด</option>
-						{#each categories as cat}
-							<option value={cat}>{cat}</option>
-						{/each}
-					</select>
+						options={[
+							{ value: 'all', label: 'ทั้งหมด' },
+							...categories.map(cat => ({ value: cat, label: cat }))
+						]}
+						placeholder="ค้นหาหมวดหมู่..."
+					/>
 				</div>
 
 				<div>
 					<label for="project" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">โปรเจค</label>
-					<select
+					<SearchableSelect
 						id="project"
 						bind:value={filters.project}
-						class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none"
-					>
-						<option value="all">ทั้งหมด</option>
-						{#each projects as proj}
-							<option value={proj}>{proj}</option>
-						{/each}
-					</select>
+						options={[
+							{ value: 'all', label: 'ทั้งหมด' },
+							...projects.map(proj => ({ value: proj, label: proj }))
+						]}
+						placeholder="ค้นหาโปรเจค..."
+					/>
 				</div>
 
 				<div>
 					<label for="assignee" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ผู้รับผิดชอบ</label>
-					<select
+					<SearchableSelect
 						id="assignee"
 						bind:value={filters.assignee_id}
-						class="w-full h-10 px-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none"
-					>
-						<option value="all">ทั้งหมด</option>
-						<option value={null}>ไม่ระบุผู้รับผิดชอบ</option>
-						{#each assignees as assignee}
-							<option value={assignee.id}>{assignee.name}</option>
-						{/each}
-					</select>
+						options={[
+							{ value: 'all', label: 'ทั้งหมด' },
+							{ value: null, label: 'ไม่ระบุผู้รับผิดชอบ', badge: true, badgeColor: 'bg-gray-300' },
+							...assignees.map(a => ({ 
+								value: a.id, 
+								label: a.name,
+								badge: true,
+								badgeColor: a.color ? '' : 'bg-indigo-500'
+							}))
+						]}
+						placeholder="ค้นหาผู้รับผิดชอบ..."
+					/>
 				</div>
 				
 				<div>
