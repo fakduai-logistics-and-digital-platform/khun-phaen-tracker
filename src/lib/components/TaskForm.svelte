@@ -159,21 +159,50 @@
 		copySucceeded = false;
 	}
 
+	// Free translation API using MyMemory (1000 words/day free, no key required)
+	// Falls back to Chrome Translator API if available
 	async function translateTitle(input: string): Promise<{ text: string; translated: boolean }> {
 		const cleaned = input.trim();
 		if (!cleaned) return { text: '', translated: false };
 
-		const translatorInstance = await getOrCreateTranslator();
-		if (!translatorInstance) return { text: cleaned, translated: false };
+		// Check if text is already English (only ASCII characters)
+		const isEnglish = /^[\x00-\x7F]+$/.test(cleaned.replace(/\s/g, ''));
+		if (isEnglish) return { text: cleaned, translated: false };
 
+		// Try MyMemory API first (works on all browsers)
 		try {
-			const translatedText = (await translatorInstance.translate(cleaned)).trim();
-			if (!translatedText) return { text: cleaned, translated: false };
-			return { text: translatedText, translated: true };
+			const encodedText = encodeURIComponent(cleaned);
+			const response = await fetch(
+				`https://api.mymemory.translated.net/get?q=${encodedText}&langpair=th|en`,
+				{ signal: AbortSignal.timeout(5000) }
+			);
+			
+			if (response.ok) {
+				const data = await response.json();
+				if (data.responseStatus === 200 && data.responseData?.translatedText) {
+					const translatedText = data.responseData.translatedText.trim();
+					if (translatedText && translatedText.toLowerCase() !== cleaned.toLowerCase()) {
+						return { text: translatedText, translated: true };
+					}
+				}
+			}
 		} catch (error) {
-			console.warn('Translator API failed. Fallback to original title:', error);
-			return { text: cleaned, translated: false };
+			console.warn('MyMemory API failed:', error);
 		}
+
+		// Fallback to Chrome Translator API if available
+		const translatorInstance = await getOrCreateTranslator();
+		if (translatorInstance) {
+			try {
+				const translatedText = (await translatorInstance.translate(cleaned)).trim();
+				if (translatedText) return { text: translatedText, translated: true };
+			} catch (error) {
+				console.warn('Chrome Translator API failed:', error);
+			}
+		}
+
+		// Final fallback: use original text with basic transliteration
+		return { text: cleaned, translated: false };
 	}
 
 	async function updateBranchPreview(rawTitle: string) {
@@ -201,10 +230,10 @@
 		isTranslatingBranch = false;
 
 		if (translated) {
-			branchMessage = 'แปลด้วย Browser Translator API แล้ว';
+			branchMessage = 'แปลเป็นภาษาอังกฤษแล้ว';
 			branchMessageType = 'success';
 		} else {
-			branchMessage = 'ใช้ชื่อเดิม (Translator API ยังไม่พร้อมใช้งาน)';
+			branchMessage = 'ใช้ชื่อเดิม (ภาษาไทยหรือแปลไม่สำเร็จ)';
 			branchMessageType = 'info';
 		}
 	}
