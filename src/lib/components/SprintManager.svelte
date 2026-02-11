@@ -362,8 +362,9 @@
 			{#if showAddForm}
 				<div class="bg-gray-50 dark:bg-gray-700 rounded-xl p-4 mb-6 space-y-4">
 					<div>
-						<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ชื่อ Sprint</label>
+						<label for="sprint-name-input" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ชื่อ Sprint</label>
 						<input
+							id="sprint-name-input"
 							type="text"
 							bind:value={newSprintName}
 							placeholder="เช่น Sprint 1, สัปดาห์ที่ 1..."
@@ -373,8 +374,9 @@
 
 					<div class="grid grid-cols-2 gap-4">
 						<div>
-							<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">วันเริ่มต้น</label>
+							<label for="sprint-start-input" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">วันเริ่มต้น</label>
 							<input
+								id="sprint-start-input"
 								type="date"
 								value={newSprintStart}
 								on:input={(e) => {
@@ -389,8 +391,9 @@
 							/>
 						</div>
 						<div>
-							<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">วันสิ้นสุด</label>
+							<label for="sprint-end-input" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">วันสิ้นสุด</label>
 							<input
+								id="sprint-end-input"
 								type="date"
 								bind:value={newSprintEnd}
 								class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none dark:bg-gray-800 dark:text-white"

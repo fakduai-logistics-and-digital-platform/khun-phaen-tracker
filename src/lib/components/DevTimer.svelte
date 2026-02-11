@@ -136,6 +136,7 @@
 			class="flex flex-col items-end"
 			on:mouseenter={handleMouseEnter}
 			on:mouseleave={handleMouseLeave}
+			role="group"
 		>
 			<!-- Top Controls (Above Timer) - Absolute positioned -->
 			{#if isExpanded}

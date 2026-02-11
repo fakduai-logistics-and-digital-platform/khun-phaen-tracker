@@ -122,10 +122,11 @@
 			{#if showAddForm}
 				<div class="bg-gray-50 dark:bg-gray-700 rounded-xl p-4 mb-6 space-y-4">
 					<div>
-						<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+						<label for="worker-name-input" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
 							{editingWorker ? 'แก้ไขชื่อ' : 'ชื่อผู้รับผิดชอบ'}
 						</label>
 						<input
+							id="worker-name-input"
 							type="text"
 							bind:value={newWorkerName}
 							placeholder="เช่น สมชาย, สมหญิง..."
@@ -134,12 +135,13 @@
 					</div>
 
 					<div>
-						<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">สีประจำตัว</label>
+						<label for="worker-color-picker" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">สีประจำตัว</label>
 						<div class="flex flex-wrap gap-2 mb-3">
 							{#each colorOptions as color}
 								<button
 									type="button"
 									on:click={() => newWorkerColor = color}
+									aria-label={`เลือกสี ${color}`}
 									class="w-8 h-8 rounded-full border-2 transition-all flex items-center justify-center"
 									class:border-gray-800={newWorkerColor === color}
 									class:border-white={newWorkerColor === color}
@@ -153,10 +155,11 @@
 								</button>
 							{/each}
 						</div>
-						<div class="flex items-center gap-2">
-							<input
-								type="color"
-								bind:value={newWorkerColor}
+							<div class="flex items-center gap-2">
+								<input
+									id="worker-color-picker"
+									type="color"
+									bind:value={newWorkerColor}
 								class="w-10 h-8 rounded cursor-pointer border border-gray-300 dark:border-gray-600"
 							/>
 							<input

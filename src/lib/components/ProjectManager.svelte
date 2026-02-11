@@ -109,10 +109,11 @@
 			{#if showAddForm}
 				<div class="bg-gray-50 dark:bg-gray-700 rounded-xl p-4 mb-6 space-y-4">
 					<div>
-						<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+						<label for="project-name-input" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
 							{editingProject ? 'แก้ไขชื่อโปรเจค' : 'ชื่อโปรเจค'}
 						</label>
 						<input
+							id="project-name-input"
 							type="text"
 							bind:value={newProjectName}
 							placeholder="เช่น โปรเจค A, งานลูกค้า XYZ..."

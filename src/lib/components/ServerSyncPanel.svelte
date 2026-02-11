@@ -298,7 +298,7 @@
             
             <!-- Server URL Input -->
             <div class="mb-4">
-                <label class="block text-sm text-gray-600 dark:text-gray-400 mb-1">Server URL</label>
+                <label for="server-url-input" class="block text-sm text-gray-600 dark:text-gray-400 mb-1">Server URL</label>
                 <div class="flex gap-2">
                     {#if $serverStatus === 'connected' && !isEditingUrl}
                         <div class="flex-1 px-3 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 truncate">
@@ -320,6 +320,7 @@
                         </button>
                     {:else if isEditingUrl}
                         <input
+                            id="server-url-input"
                             type="text"
                             bind:value={editedUrl}
                             placeholder="http://localhost:3001"

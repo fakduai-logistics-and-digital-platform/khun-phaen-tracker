@@ -472,7 +472,6 @@
 						placeholder="เช่น ออกแบบโลโก้, เขียนรายงาน..."
 						class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none dark:bg-gray-700 dark:text-white"
 						required
-						autofocus
 					/>
 				</div>
 
@@ -529,8 +528,9 @@
 					{#if showAddAssigneeForm}
 						<div class="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg space-y-3">
 							<div>
-								<label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">ชื่อ</label>
+								<label for="new-assignee-name" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">ชื่อ</label>
 								<input
+									id="new-assignee-name"
 									type="text"
 									bind:value={newAssigneeName}
 									placeholder="ชื่อผู้รับผิดชอบ..."
@@ -538,12 +538,13 @@
 								/>
 							</div>
 							<div>
-								<label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">สีประจำตัว</label>
+								<label for="new-assignee-color-picker" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">สีประจำตัว</label>
 								<div class="flex flex-wrap gap-1.5 mb-2">
 									{#each colorOptions as color}
 										<button
 											type="button"
 											on:click={() => newAssigneeColor = color}
+											aria-label={`เลือกสี ${color}`}
 											class="w-6 h-6 rounded-full border-2 transition-all {newAssigneeColor === color ? 'border-gray-800 dark:border-white scale-110' : 'border-transparent hover:scale-105'}"
 											style="background-color: {color}"
 										></button>
@@ -551,6 +552,7 @@
 								</div>
 								<div class="flex items-center gap-2">
 									<input
+										id="new-assignee-color-picker"
 										type="color"
 										bind:value={newAssigneeColor}
 										class="w-10 h-8 rounded cursor-pointer border border-gray-300 dark:border-gray-600"
@@ -726,19 +728,21 @@
 
 					<div class="px-5 py-4 space-y-3">
 						<div>
-							<label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Task Title</label>
-							<input
-								type="text"
-								value={title}
+								<label for="branch-task-title" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Task Title</label>
+								<input
+									id="branch-task-title"
+									type="text"
+									value={title}
 								readonly
 								class="w-full h-10 px-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-200 text-sm"
 							/>
 						</div>
 
 						<div>
-							<label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Git Flow Prefix</label>
-							<select
-								bind:value={gitFlowType}
+								<label for="git-flow-prefix" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Git Flow Prefix</label>
+								<select
+									id="git-flow-prefix"
+									bind:value={gitFlowType}
 								class="w-full h-10 px-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
 							>
 								{#each gitFlowTypes as flow}
@@ -748,10 +752,11 @@
 						</div>
 
 						<div>
-							<label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Branch Name</label>
-							<div class="flex gap-2">
-								<input
-									type="text"
+								<label for="branch-name-preview" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Branch Name</label>
+								<div class="flex gap-2">
+									<input
+										id="branch-name-preview"
+										type="text"
 									value={branchName}
 									readonly
 									on:focus={(event) => (event.currentTarget as HTMLInputElement).select()}

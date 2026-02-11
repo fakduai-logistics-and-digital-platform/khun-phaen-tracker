@@ -152,6 +152,7 @@
 
 	<div class="space-y-2 mb-4">
 		{#each editingTabs as tab, index (tab.id)}
+			<!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
 			<div
 				animate:flip={{ duration: 250, easing: quintOut }}
 				draggable={true}
@@ -165,13 +166,14 @@
 				on:mouseleave={handlePressEnd}
 				on:touchstart={() => handlePressStart(index)}
 				on:touchend={handlePressEnd}
+				role="listitem"
 				class="tab-item flex items-center gap-2 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border-2 cursor-move select-none {draggedIndex === index ? 'dragging' : 'border-gray-200 dark:border-gray-600'} {isPressing && pressingIndex === index ? 'pressing' : ''}"
 			>
 				<div class="drag-handle text-gray-400 hover:text-primary transition-colors">
 					<GripVertical size={18} />
 				</div>
 				
-				<svelte:component this={getIcon(tab.icon)} size={18} class="text-gray-600 dark:text-gray-300 icon-animated" />
+				<svelte:component this={getIcon(tab.icon)} size={18} class="text-gray-600 dark:text-gray-300" />
 				
 				<span class="flex-1 font-medium text-gray-700 dark:text-gray-200">
 					{tab.label}
@@ -265,11 +267,4 @@
 		color: #6366F1;
 	}
 	
-	.icon-animated {
-		transition: transform 0.3s ease;
-	}
-	
-	.tab-item:hover .icon-animated {
-		transform: scale(1.1);
-	}
 </style>
