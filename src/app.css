@@ -25,9 +25,23 @@
   color-scheme: dark;
 }
 
-/* Remove body background to let layout control it */
+/* Font for Thai support - prioritize Thai fonts for Thai characters */
 body {
   @apply text-gray-900 dark:text-gray-100 antialiased;
+  font-family: 'Inter', 'Noto Sans Thai', 'Thai Fallback', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* Ensure all elements inherit the font */
+*, *::before, *::after {
+  font-family: inherit;
+}
+
+/* Better Thai text rendering */
+body {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "kern" 1, "liga" 1;
 }
 
 /* Custom scrollbar */
