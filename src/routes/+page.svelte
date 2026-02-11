@@ -21,6 +21,7 @@
 	import TabSettings from '$lib/components/TabSettings.svelte';
 	import { sprints, type Sprint } from '$lib/stores/sprintStore';
 	import SprintManager from '$lib/components/SprintManager.svelte';
+	import SearchableSprintSelect from '$lib/components/SearchableSprintSelect.svelte';
 	
 	const FILTER_STORAGE_KEY = 'task-filters';
 	const DEFAULT_FILTERS: FilterOptions = {
@@ -72,7 +73,7 @@
 	
 	let filters: FilterOptions = { ...DEFAULT_FILTERS };
 	let selectedSprint: Sprint | null = null;
-	$: filterableSprints = $sprints.filter((sprint) => sprint.status !== 'completed');
+	// Show all sprints including completed ones in dropdown
 	
 	// Save view mode when it changes
 	$: saveViewMode(currentView);
@@ -82,7 +83,7 @@
 
 	function normalizeSprintFilterValue(value: FilterOptions['sprint_id']): FilterOptions['sprint_id'] {
 		if (value === undefined || value === 'all' || value === null) return value ?? 'all';
-		return filterableSprints.some((sprint) => sprint.id === value) ? value : 'all';
+		return $sprints.some((sprint) => sprint.id === value) ? value : 'all';
 	}
 	
 	onMount(() => {
@@ -930,19 +931,11 @@
 				
 				<div>
 					<label for="sprint" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Sprint</label>
-					<select
+					<SearchableSprintSelect
 						id="sprint"
+						sprints={$sprints}
 						bind:value={filters.sprint_id}
-						class="w-full h-10 px-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none"
-					>
-						<option value="all">ทั้งหมด</option>
-						<option value={null}>ไม่มี Sprint</option>
-						{#each filterableSprints as sprint}
-							<option value={sprint.id}>
-								{sprint.name} {sprint.status === 'active' ? '(กำลังทำ)' : sprint.status === 'completed' ? '(เสร็จสิ้น)' : ''}
-							</option>
-						{/each}
-					</select>
+					/>
 				</div>
 			</div>
 
