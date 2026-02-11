@@ -11,7 +11,7 @@
 	import ExportImport from '$lib/components/ExportImport.svelte';
 	import WorkerManager from '$lib/components/WorkerManager.svelte';
 	import ProjectManager from '$lib/components/ProjectManager.svelte';
-	import { List, CalendarDays, Columns3, Table, Filter, Search, Plus, Users, Folder, Sparkles, Settings2, Flag } from 'lucide-svelte';
+	import { List, CalendarDays, Columns3, Table, Filter, Search, Plus, Users, Folder, Sparkles, Settings2, Flag, FileText, FileSpreadsheet, Image as ImageIcon, Video } from 'lucide-svelte';
 	import { initWasmSearch, indexTasks, performSearch, clearSearch, searchQuery, wasmReady, wasmLoading } from '$lib/stores/search';
 	import { compressionReady, compressionStats, getStorageInfo } from '$lib/stores/storage';
 	import { enableAutoImport, setMergeCallback } from '$lib/stores/server-sync';
@@ -953,6 +953,108 @@
 		`;
 	}
 
+	async function captureMonthlyChartImages(): Promise<Array<{ title: string; image: string }>> {
+		if (!monthlySummaryRef) return [];
+		const chartCards = Array.from(
+			monthlySummaryRef.querySelectorAll<HTMLElement>('[data-monthly-chart]')
+		);
+		const images: Array<{ title: string; image: string }> = [];
+
+		for (const card of chartCards) {
+			const title = card.dataset.chartTitle || 'Chart';
+			const image = await toPng(card, {
+				quality: 0.95,
+				pixelRatio: 2,
+				backgroundColor: document.documentElement.classList.contains('dark') ? '#111827' : '#ffffff',
+				fontEmbedCSS: ''
+			});
+			images.push({ title, image });
+		}
+
+		return images;
+	}
+
+	function loadImage(dataUrl: string): Promise<HTMLImageElement> {
+		return new Promise((resolve, reject) => {
+			const img = new Image();
+			img.onload = () => resolve(img);
+			img.onerror = reject;
+			img.src = dataUrl;
+		});
+	}
+
+	async function composeMonthlyChartsImage(
+		charts: Array<{ title: string; image: string }>,
+		periodLabel: string
+	): Promise<string> {
+		const loaded = await Promise.all(charts.map(async (chart) => ({ ...chart, img: await loadImage(chart.image) })));
+		if (loaded.length === 0) {
+			throw new Error('No charts to compose');
+		}
+
+		const cols = 2;
+		const rows = Math.ceil(loaded.length / cols);
+		const cellWidth = 900;
+		const cellHeight = 560;
+		const gap = 24;
+		const headerHeight = 140;
+		const padding = 32;
+
+		const width = padding * 2 + cols * cellWidth + (cols - 1) * gap;
+		const height = padding * 2 + headerHeight + rows * cellHeight + (rows - 1) * gap;
+
+		const canvas = document.createElement('canvas');
+		canvas.width = width;
+		canvas.height = height;
+		const ctx = canvas.getContext('2d');
+		if (!ctx) throw new Error('Cannot create canvas context');
+
+		// Background
+		const gradient = ctx.createLinearGradient(0, 0, width, height);
+		gradient.addColorStop(0, '#f8fafc');
+		gradient.addColorStop(1, '#e2e8f0');
+		ctx.fillStyle = gradient;
+		ctx.fillRect(0, 0, width, height);
+
+		// Header
+		ctx.fillStyle = '#0f172a';
+		ctx.font = '700 52px "Noto Sans Thai", sans-serif';
+		ctx.fillText('Monthly Summary Charts', padding, padding + 52);
+		ctx.fillStyle = '#334155';
+		ctx.font = '400 30px "Noto Sans Thai", sans-serif';
+		ctx.fillText(periodLabel, padding, padding + 98);
+
+		loaded.forEach((item, idx) => {
+			const col = idx % cols;
+			const row = Math.floor(idx / cols);
+			const x = padding + col * (cellWidth + gap);
+			const y = padding + headerHeight + row * (cellHeight + gap);
+
+			// Card
+			ctx.fillStyle = '#ffffff';
+			ctx.strokeStyle = '#cbd5e1';
+			ctx.lineWidth = 2;
+			ctx.beginPath();
+			ctx.roundRect(x, y, cellWidth, cellHeight, 18);
+			ctx.fill();
+			ctx.stroke();
+
+			// Title
+			ctx.fillStyle = '#1e293b';
+			ctx.font = '700 28px "Noto Sans Thai", sans-serif';
+			ctx.fillText(item.title, x + 18, y + 42);
+
+			// Image
+			const imageX = x + 16;
+			const imageY = y + 56;
+			const imageW = cellWidth - 32;
+			const imageH = cellHeight - 72;
+			ctx.drawImage(item.img, imageX, imageY, imageW, imageH);
+		});
+
+		return canvas.toDataURL('image/png');
+	}
+
 	async function handleExportMarkdown(event?: CustomEvent<number | void>, contextOverride?: { taskSnapshot: Task[]; scopeLabel: string }) {
 		try {
 			const today = new Date();
@@ -1147,7 +1249,7 @@
 		ctx.globalAlpha = 1;
 	}
 
-	async function handleExportVideo(event?: CustomEvent<number | void>) {
+	async function handleExportVideo(event?: CustomEvent<number | void>, contextOverride?: { taskSnapshot: Task[]; scopeLabel: string }) {
 		try {
 			if (typeof MediaRecorder === 'undefined') {
 				showMessage('เบราว์เซอร์นี้ยังไม่รองรับการส่งออกวิดีโอ', 'error');
@@ -1156,7 +1258,7 @@
 
 			const now = new Date();
 			const reportDate = formatDateISO(now);
-			const { taskSnapshot, scopeLabel } = await getExportTaskContext(event);
+			const { taskSnapshot, scopeLabel } = contextOverride || await getExportTaskContext(event);
 			if (event?.detail && taskSnapshot.length === 0) {
 				showMessage('Sprint นี้ยังไม่มีงานที่ Archive สำหรับส่งออก', 'error');
 				return;
@@ -1462,6 +1564,318 @@
 		} catch (e) {
 			console.error('PDF Export Error:', e);
 			showMessage('เกิดข้อผิดพลาดในการส่งออก', 'error');
+		}
+	}
+
+	async function handleExportMonthlyPDF() {
+		const context = getMonthlyExportTaskContext();
+		if (context.taskSnapshot.length === 0) {
+			showMessage('ยังไม่มีงานในช่วง 30 วันสำหรับส่งออก', 'error');
+			return;
+		}
+		try {
+			const chartImages = await captureMonthlyChartImages();
+			const chartsHtml = chartImages.length > 0
+				? `<div style="margin-top:20px; page-break-inside:avoid;">
+						<h2 style="font-family:'Noto Sans Thai',sans-serif; font-size:16px; margin-bottom:10px;">กราฟวิเคราะห์ (30 วัน)</h2>
+						<div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+							${chartImages.map((item) => `
+								<div style="border:1px solid #e2e8f0; border-radius:10px; padding:8px;">
+									<div style="font-size:12px; color:#334155; margin-bottom:6px;">${item.title}</div>
+									<img src="${item.image}" style="width:100%; border-radius:8px;" />
+								</div>
+							`).join('')}
+						</div>
+				   </div>`
+				: '';
+			const htmlContent = `
+				${buildTaskReportHtml(context.taskSnapshot, context.scopeLabel).replace(
+					'</body>',
+					`${chartsHtml}</body>`
+				)}
+			`;
+			const printWindow = window.open('', '_blank');
+			if (printWindow) {
+				printWindow.document.write(htmlContent);
+				printWindow.document.close();
+				setTimeout(() => printWindow.print(), 800);
+				showMessage('เปิดหน้าต่างพิมพ์ PDF แล้ว (Monthly Summary)');
+			} else {
+				showMessage('กรุณาอนุญาตให้เปิดหน้าต่างใหม่', 'error');
+			}
+		} catch (error) {
+			console.error('Monthly PDF export failed:', error);
+			showMessage('ส่งออก PDF รายเดือนไม่สำเร็จ', 'error');
+		}
+	}
+
+	async function handleExportMonthlyXlsx() {
+		const context = getMonthlyExportTaskContext();
+		if (context.taskSnapshot.length === 0) {
+			showMessage('ยังไม่มีงานในช่วง 30 วันสำหรับส่งออก', 'error');
+			return;
+		}
+		try {
+			const rows = context.taskSnapshot.map((task, index) => ({
+				no: index + 1,
+				title: task.title || '',
+				project: task.project || '',
+				assignee: task.assignee?.name || '',
+				status: task.status,
+				date: normalizeTaskDate(task.date),
+				duration_minutes: task.duration_minutes || 0,
+				is_archived: task.is_archived ? 1 : 0
+			}));
+			const summaryRows = [
+				{ metric: 'ช่วงข้อมูล', value: context.scopeLabel },
+				{ metric: 'งานทั้งหมด', value: context.taskSnapshot.length },
+				{ metric: 'เสร็จแล้ว', value: context.taskSnapshot.filter((t) => t.status === 'done').length },
+				{ metric: 'กำลังทำ', value: context.taskSnapshot.filter((t) => t.status === 'in-progress').length },
+				{ metric: 'รอดำเนินการ', value: context.taskSnapshot.filter((t) => t.status === 'todo').length },
+				{ metric: 'Archived', value: context.taskSnapshot.filter((t) => t.is_archived).length }
+			];
+
+			const wb = XLSX.utils.book_new();
+			const summarySheet = XLSX.utils.json_to_sheet(summaryRows);
+			const tasksSheet = XLSX.utils.json_to_sheet(rows);
+			XLSX.utils.book_append_sheet(wb, summarySheet, 'Summary');
+			XLSX.utils.book_append_sheet(wb, tasksSheet, 'Tasks');
+			XLSX.writeFile(wb, `monthly_summary_${formatExportTimestamp()}.xlsx`);
+			showMessage('ส่งออก XLSX รายเดือนสำเร็จ');
+		} catch (error) {
+			console.error('Monthly XLSX export failed:', error);
+			showMessage('ส่งออก XLSX รายเดือนไม่สำเร็จ', 'error');
+		}
+	}
+
+	async function handleExportMonthlyPng() {
+		const context = getMonthlyExportTaskContext();
+		if (context.taskSnapshot.length === 0) {
+			showMessage('ยังไม่มีงานในช่วง 30 วันสำหรับส่งออก', 'error');
+			return;
+		}
+		if (!monthlySummaryRef) {
+			showMessage('ไม่พบหน้าสรุปรายเดือนสำหรับจับภาพ', 'error');
+			return;
+		}
+		try {
+			const chartImages = await captureMonthlyChartImages();
+			const dataUrl = await composeMonthlyChartsImage(chartImages, monthlySummary.periodLabel);
+			const link = document.createElement('a');
+			link.href = dataUrl;
+			link.download = `monthly_summary_${formatExportTimestamp()}.png`;
+			link.click();
+			showMessage('ส่งออก PNG รายเดือนสำเร็จ');
+		} catch (error) {
+			console.error('Monthly PNG export failed:', error);
+			showMessage('ส่งออก PNG รายเดือนไม่สำเร็จ', 'error');
+		}
+	}
+
+	async function handleExportMonthlyVideo() {
+		const context = getMonthlyExportTaskContext();
+		if (context.taskSnapshot.length === 0) {
+			showMessage('ยังไม่มีงานในช่วง 30 วันสำหรับส่งออก', 'error');
+			return;
+		}
+		try {
+			if (typeof MediaRecorder === 'undefined') {
+				showMessage('เบราว์เซอร์นี้ยังไม่รองรับการส่งออกวิดีโอ', 'error');
+				return;
+			}
+
+			const chartImages = await captureMonthlyChartImages();
+			if (chartImages.length === 0) {
+				showMessage('ไม่พบกราฟสำหรับส่งออกวิดีโอ', 'error');
+				return;
+			}
+			const chartAssets = await Promise.all(
+				chartImages.map(async (item) => ({
+					title: item.title,
+					img: await loadImage(item.image)
+				}))
+			);
+
+			const now = new Date();
+			const reportDate = formatDateISO(now);
+			const canvas = document.createElement('canvas');
+			canvas.width = 1280;
+			canvas.height = 720;
+			const ctx = canvas.getContext('2d');
+			if (!ctx) {
+				showMessage('ไม่สามารถสร้าง canvas สำหรับวิดีโอได้', 'error');
+				return;
+			}
+
+			const chartPages: Array<Array<{ title: string; img: HTMLImageElement }>> = [];
+			for (let i = 0; i < chartAssets.length; i += 2) {
+				chartPages.push(chartAssets.slice(i, i + 2));
+			}
+			const totalSlides = 1 + chartPages.length; // cover + chart pages
+
+			const renderCover = (progress: number) => {
+				const reveal = Math.min(Math.max(progress / 0.6, 0), 1);
+				const bg = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+				bg.addColorStop(0, '#0b1b34');
+				bg.addColorStop(1, '#112a50');
+				ctx.fillStyle = bg;
+				ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+				const orb = ctx.createRadialGradient(1020, 160, 40, 1020, 160, 320);
+				orb.addColorStop(0, '#5eead4aa');
+				orb.addColorStop(1, '#00000000');
+				ctx.fillStyle = orb;
+				ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+				ctx.globalAlpha = reveal;
+				ctx.fillStyle = '#7dd3fc';
+				ctx.font = '700 28px "Trebuchet MS", "Noto Sans Thai", sans-serif';
+				ctx.fillText('MONTHLY ANALYTICS VIDEO', 88, 110);
+				ctx.fillStyle = '#ffffff';
+				ctx.font = '700 58px "Trebuchet MS", "Noto Sans Thai", sans-serif';
+				ctx.fillText('สรุปกราฟรายเดือน', 88, 188);
+				ctx.fillStyle = '#dbeafe';
+				ctx.font = '400 30px "Trebuchet MS", "Noto Sans Thai", sans-serif';
+				ctx.fillText(monthlySummary.periodLabel, 88, 234);
+				ctx.fillStyle = '#cbd5e1';
+				ctx.font = '500 26px "Trebuchet MS", "Noto Sans Thai", sans-serif';
+				ctx.fillText(`จำนวนงาน ${context.taskSnapshot.length} งาน  •  กราฟ ${chartAssets.length} กราฟ`, 88, 298);
+				ctx.globalAlpha = 1;
+			};
+
+			const renderChartPage = (charts: Array<{ title: string; img: HTMLImageElement }>, pageIndex: number) => {
+				const bg = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+				bg.addColorStop(0, '#eef6ff');
+				bg.addColorStop(1, '#dbeafe');
+				ctx.fillStyle = bg;
+				ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+				ctx.fillStyle = '#0f172a';
+				ctx.font = '700 34px "Trebuchet MS", "Noto Sans Thai", sans-serif';
+				ctx.fillText(`กราฟวิเคราะห์ (${pageIndex + 1}/${chartPages.length})`, 52, 58);
+				ctx.fillStyle = '#334155';
+				ctx.font = '500 20px "Trebuchet MS", "Noto Sans Thai", sans-serif';
+				ctx.fillText(monthlySummary.periodLabel, 52, 88);
+
+				const cardWidth = 560;
+				const cardHeight = 256;
+				const cardX = 52;
+				const secondX = 668;
+				const cardY = 118;
+				const gapY = 292;
+
+				const positions = [
+					{ x: cardX, y: cardY },
+					{ x: secondX, y: cardY },
+					{ x: cardX, y: cardY + gapY },
+					{ x: secondX, y: cardY + gapY }
+				];
+
+				charts.forEach((chart, idx) => {
+					const p = positions[idx];
+					drawRoundedRect(ctx, p.x, p.y, cardWidth, cardHeight, 16);
+					ctx.fillStyle = '#ffffff';
+					ctx.fill();
+					ctx.strokeStyle = '#cbd5e1';
+					ctx.lineWidth = 1.5;
+					ctx.stroke();
+
+					ctx.fillStyle = '#0f172a';
+					ctx.font = '700 20px "Trebuchet MS", "Noto Sans Thai", sans-serif';
+					ctx.fillText(chart.title, p.x + 16, p.y + 30);
+					ctx.drawImage(chart.img, p.x + 12, p.y + 42, cardWidth - 24, cardHeight - 54);
+				});
+			};
+
+			const fps = 30;
+			const slideDuration = 3.2;
+			const transitionDuration = 0.6;
+			const totalDuration = totalSlides * slideDuration;
+			const totalFrames = Math.ceil(totalDuration * fps);
+			const stream = canvas.captureStream(fps);
+
+			const exportStart = performance.now();
+			videoExportInProgress = true;
+			videoExportPercent = 0;
+			videoExportElapsedMs = 0;
+			if (videoExportTimer) clearInterval(videoExportTimer);
+			videoExportTimer = setInterval(() => {
+				videoExportElapsedMs = performance.now() - exportStart;
+			}, 200);
+
+			const mimeType =
+				MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' :
+				MediaRecorder.isTypeSupported('video/webm;codecs=vp8') ? 'video/webm;codecs=vp8' :
+				'video/webm';
+			const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 5_000_000 });
+			const chunks: Blob[] = [];
+			recorder.ondataavailable = (event) => {
+				if (event.data.size > 0) chunks.push(event.data);
+			};
+			const stopPromise = new Promise<void>((resolve) => {
+				recorder.onstop = () => resolve();
+			});
+			recorder.start();
+
+			const renderSlideByIndex = (index: number, progress = 0) => {
+				if (index === 0) {
+					renderCover(progress);
+				} else {
+					const page = chartPages[index - 1] || [];
+					renderChartPage(page, index - 1);
+				}
+			};
+
+			for (let frame = 0; frame < totalFrames; frame++) {
+				const t = frame / fps;
+				const slideIndex = Math.min(Math.floor(t / slideDuration), totalSlides - 1);
+				const localT = t - slideIndex * slideDuration;
+				const progress = Math.min(localT / slideDuration, 1);
+				renderSlideByIndex(slideIndex, progress);
+
+				if (localT > slideDuration - transitionDuration && slideIndex < totalSlides - 1) {
+					const blend = (localT - (slideDuration - transitionDuration)) / transitionDuration;
+					ctx.globalAlpha = Math.min(Math.max(blend, 0), 1);
+					renderSlideByIndex(slideIndex + 1, 0);
+					ctx.globalAlpha = 1;
+				}
+
+				videoExportPercent = Math.min(100, Math.round(((frame + 1) / totalFrames) * 100));
+				await new Promise((resolve) => setTimeout(resolve, 1000 / fps));
+			}
+
+			await new Promise((resolve) => setTimeout(resolve, 120));
+			recorder.stop();
+			await stopPromise;
+			stream.getTracks().forEach((track) => track.stop());
+
+			const blob = new Blob(chunks, { type: mimeType });
+			const url = URL.createObjectURL(blob);
+			const link = document.createElement('a');
+			const timeStr = `${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}-${String(now.getSeconds()).padStart(2, '0')}`;
+			link.href = url;
+			link.download = `monthly_charts_${reportDate}_${timeStr}.webm`;
+			document.body.appendChild(link);
+			link.click();
+			document.body.removeChild(link);
+			URL.revokeObjectURL(url);
+
+			videoExportPercent = 100;
+			videoExportElapsedMs = performance.now() - exportStart;
+			videoExportInProgress = false;
+			if (videoExportTimer) {
+				clearInterval(videoExportTimer);
+				videoExportTimer = null;
+			}
+			showMessage('ส่งออกวิดีโอรายเดือนสำเร็จ');
+		} catch (error) {
+			console.error('Monthly Video export failed:', error);
+			videoExportInProgress = false;
+			if (videoExportTimer) {
+				clearInterval(videoExportTimer);
+				videoExportTimer = null;
+			}
+			showMessage('ส่งออกวิดีโอรายเดือนไม่สำเร็จ', 'error');
 		}
 	}
 	
@@ -2019,19 +2433,53 @@
 				tabindex="0"
 				aria-label="ปิดหน้าต่างสรุปรายเดือน"
 			>
-			<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+			<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col" bind:this={monthlySummaryRef}>
 				<div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700">
 					<div>
 						<h3 class="text-xl font-bold text-gray-900 dark:text-white">สรุปรายการ 1 เดือนย้อนหลัง</h3>
 						<p class="text-sm text-gray-500 dark:text-gray-400">{monthlySummary.periodLabel}</p>
 					</div>
-					<button
-						on:click={() => showMonthlySummary = false}
-						class="w-9 h-9 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-						title="ปิด"
-					>
-						×
-					</button>
+					<div class="flex items-center gap-2">
+						<button
+							on:click={handleExportMonthlyPDF}
+							class="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+							title="Export PDF"
+							aria-label="Export PDF"
+						>
+							<FileText size={16} />
+						</button>
+						<button
+							on:click={handleExportMonthlyXlsx}
+							class="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors"
+							title="Export XLSX"
+							aria-label="Export XLSX"
+						>
+							<FileSpreadsheet size={16} />
+						</button>
+						<button
+							on:click={handleExportMonthlyPng}
+							class="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors"
+							title="Export PNG"
+							aria-label="Export PNG"
+						>
+							<ImageIcon size={16} />
+						</button>
+						<button
+							on:click={handleExportMonthlyVideo}
+							class="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors"
+							title="Export Video"
+							aria-label="Export Video"
+						>
+							<Video size={16} />
+						</button>
+						<button
+							on:click={() => showMonthlySummary = false}
+							class="w-9 h-9 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+							title="ปิด"
+						>
+							×
+						</button>
+					</div>
 				</div>
 
 				<div class="p-6 overflow-y-auto space-y-6">

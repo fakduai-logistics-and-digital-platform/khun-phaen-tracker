@@ -301,19 +301,19 @@
 	</div>
 
 	<div class="grid md:grid-cols-2 gap-4">
-		<div class="rounded-2xl border border-gray-200 dark:border-gray-700 p-4 bg-white/90 dark:bg-gray-800/70 shadow-sm">
+		<div class="rounded-2xl border border-gray-200 dark:border-gray-700 p-4 bg-white/90 dark:bg-gray-800/70 shadow-sm" data-monthly-chart="status" data-chart-title="สัดส่วนสถานะงาน">
 			<h4 class="font-semibold text-gray-900 dark:text-white mb-3">สัดส่วนสถานะงาน</h4>
 			<div class="h-56"><canvas bind:this={statusCanvas}></canvas></div>
 		</div>
-		<div class="rounded-2xl border border-gray-200 dark:border-gray-700 p-4 bg-white/90 dark:bg-gray-800/70 shadow-sm">
+		<div class="rounded-2xl border border-gray-200 dark:border-gray-700 p-4 bg-white/90 dark:bg-gray-800/70 shadow-sm" data-monthly-chart="trend" data-chart-title="แนวโน้มรายวัน 30 วัน">
 			<h4 class="font-semibold text-gray-900 dark:text-white mb-3">แนวโน้มรายวัน 30 วัน</h4>
 			<div class="h-56"><canvas bind:this={trendCanvas}></canvas></div>
 		</div>
-		<div class="rounded-2xl border border-gray-200 dark:border-gray-700 p-4 bg-white/90 dark:bg-gray-800/70 shadow-sm">
+		<div class="rounded-2xl border border-gray-200 dark:border-gray-700 p-4 bg-white/90 dark:bg-gray-800/70 shadow-sm" data-monthly-chart="project" data-chart-title="Top โปรเจค">
 			<h4 class="font-semibold text-gray-900 dark:text-white mb-3">Top โปรเจค</h4>
 			<div class="h-56"><canvas bind:this={projectCanvas}></canvas></div>
 		</div>
-		<div class="rounded-2xl border border-gray-200 dark:border-gray-700 p-4 bg-white/90 dark:bg-gray-800/70 shadow-sm">
+		<div class="rounded-2xl border border-gray-200 dark:border-gray-700 p-4 bg-white/90 dark:bg-gray-800/70 shadow-sm" data-monthly-chart="assignee" data-chart-title="Top ผู้รับผิดชอบ">
 			<h4 class="font-semibold text-gray-900 dark:text-white mb-3">Top ผู้รับผิดชอบ</h4>
 			<div class="h-56"><canvas bind:this={assigneeCanvas}></canvas></div>
 		</div>
