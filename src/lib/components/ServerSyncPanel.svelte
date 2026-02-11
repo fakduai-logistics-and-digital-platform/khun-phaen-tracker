@@ -8,6 +8,7 @@
         serverPeers,
         lastServerSync,
         syncMessage,
+        currentPeerIdStore,
         createServerRoom,
         joinServerRoom,
         leaveServerRoom,
@@ -475,7 +476,7 @@
                                 <Users size={16} />
                                 <span>ผู้เชื่อมต่อ</span>
                             </div>
-                            <span class="font-medium">{$serverPeers.length + 1}</span>
+                            <span class="font-medium">{$serverPeers.filter(p => p.id !== $currentPeerIdStore).length + 1}</span>
                         </div>
                         <ul class="space-y-1">
                             {#if $isServerHost}
@@ -488,11 +489,17 @@
                                 {#each $serverPeers.filter(p => p.id.startsWith('host_')) as host}
                                     <li class="text-sm flex items-center gap-2">
                                         <span class="w-2 h-2 bg-yellow-500 rounded-full"></span>
-                                        <span class="font-medium">{host.name}</span>
+                                        <span class="font-medium">{host.name} (Host)</span>
                                     </li>
                                 {/each}
+                                <!-- Show self for peer -->
+                                <li class="text-sm flex items-center gap-2">
+                                    <span class="w-2 h-2 bg-blue-500 rounded-full"></span>
+                                    <span class="font-medium">คุณ</span>
+                                </li>
                             {/if}
-                            {#each $serverPeers.filter(p => !p.id.startsWith('host_')) as peer}
+                            <!-- Other peers (excluding self) -->
+                            {#each $serverPeers.filter(p => !p.id.startsWith('host_') && p.id !== $currentPeerIdStore) as peer}
                                 <li class="text-sm flex items-center gap-2 pl-4">
                                     <span class="w-2 h-2 bg-green-500 rounded-full"></span>
                                     <span>{peer.name}</span>

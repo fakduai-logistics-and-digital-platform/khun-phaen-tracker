@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(xxd:*)"
+      "Bash(xxd:*)",
+      "Bash(find:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run check:*)",
+      "Bash(npm run build:*)"
     ]
   }
 }

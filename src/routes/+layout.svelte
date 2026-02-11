@@ -6,11 +6,13 @@
 	import { theme } from '$lib/stores/theme';
 	import favicon from '$lib/assets/favicon.svg';
 	import DevTimer from '$lib/components/DevTimer.svelte';
+	import BookmarkManager from '$lib/components/BookmarkManager.svelte';
 
 	let loading = true;
 	let error = '';
 	let currentTime = new Date();
 	let timeInterval: ReturnType<typeof setInterval>;
+	let showBookmarkManager = false;
 
 	onMount(async () => {
 		try {
@@ -137,8 +139,15 @@
 			<slot />
 		</main>
 
-		<!-- Dev Timer - Fixed Bottom Bar -->
-		<DevTimer />
+		<!-- Dev Timer - Fixed Bottom Right -->
+		<DevTimer 
+			on:showBookmarks={() => showBookmarkManager = true}
+		/>
+		
+		<!-- Bookmark Manager Modal -->
+		{#if showBookmarkManager}
+			<BookmarkManager on:close={() => showBookmarkManager = false} />
+		{/if}
 		
 		<!-- Spacer for fixed timer -->
 		<div class="h-10"></div>

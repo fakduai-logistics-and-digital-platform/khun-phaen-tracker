@@ -16,7 +16,7 @@ export const compressionStats = writable({
 
 // Simple LZ-string compression (pure JS, no WASM)
 // Based on LZ-string library - minimal implementation
-const LZString = {
+export const LZString = {
 	compress: (input: string): string => {
 		if (!input) return '';
 		const keyStr = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
 	import type { Task, Sprint } from '$lib/types';
-	import { ArrowUpDown, ArrowUp, ArrowDown, Edit2, Trash2, CheckCircle2, Circle, PlayCircle, User, Folder, Clock, Calendar, MoreVertical, ChevronDown, ChevronUp, Flag, X } from 'lucide-svelte';
+	import { ArrowUpDown, ArrowUp, ArrowDown, Edit2, Trash2, CheckCircle2, Circle, PlayCircle, User, Folder, Clock, Calendar, MoreVertical, ChevronDown, ChevronUp, Flag, X, QrCode } from 'lucide-svelte';
 	import Pagination from './Pagination.svelte';
 
 	export let tasks: Task[] = [];
@@ -15,6 +15,7 @@
 		changeSprint: number[];
 		changeStatus: number[];
 		changeProject: number[];
+		exportQR: number[];
 	}>();
 
 	function getSprintName(sprintId: number | null | undefined): string | null {
@@ -199,6 +200,10 @@
 		dispatch('changeProject', Array.from(selectedTasks));
 	}
 
+	function handleExportQR() {
+		dispatch('exportQR', Array.from(selectedTasks));
+	}
+
 	function clearSelection() {
 		selectedTasks = new Set();
 	}
@@ -232,35 +237,43 @@
 			<div class="flex items-center gap-2">
 				<button
 					on:click={clearSelection}
-					class="px-2.5 py-1.5 text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+					class="px-2.5 py-1.5 text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 border border-gray-300 dark:border-gray-500 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
 				>
 					ยกเลิกเลือก
 				</button>
 				<button
 					on:click={handleChangeStatus}
-					class="px-2.5 py-1.5 text-xs sm:text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors flex items-center gap-1.5"
+					class="px-2.5 py-1.5 text-xs sm:text-sm font-medium text-blue-600 dark:text-blue-400 border border-blue-300 dark:border-blue-500 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors flex items-center gap-1.5"
 				>
 					<CheckCircle2 size={14} />
 					เปลี่ยน Status
 				</button>
 				<button
 					on:click={handleChangeProject}
-					class="px-2.5 py-1.5 text-xs sm:text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors flex items-center gap-1.5"
+					class="px-2.5 py-1.5 text-xs sm:text-sm font-medium text-purple-600 dark:text-purple-400 border border-purple-300 dark:border-purple-500 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors flex items-center gap-1.5"
 				>
 					<Folder size={14} />
 					เปลี่ยน Project
 				</button>
 				<button
 					on:click={handleChangeSprint}
-					class="px-2.5 py-1.5 text-xs sm:text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 rounded-lg transition-colors flex items-center gap-1.5"
+					class="px-2.5 py-1.5 text-xs sm:text-sm font-medium text-amber-600 dark:text-amber-400 border border-amber-300 dark:border-amber-500 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors flex items-center gap-1.5"
 				>
 					<Flag size={14} />
 					เปลี่ยน Sprint
 				</button>
 				<button
-					on:click={handleDeleteSelected}
-					class="px-2.5 py-1.5 text-xs sm:text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
+					on:click={handleExportQR}
+					class="px-2.5 py-1.5 text-xs sm:text-sm font-medium text-teal-600 dark:text-teal-400 border border-teal-300 dark:border-teal-500 rounded-lg hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-colors flex items-center gap-1.5"
 				>
+					<QrCode size={14} />
+					QR Export
+				</button>
+				<button
+					on:click={handleDeleteSelected}
+					class="px-2.5 py-1.5 text-xs sm:text-sm font-medium text-red-600 dark:text-red-400 border border-red-300 dark:border-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-1.5"
+				>
+					<Trash2 size={14} />
 					ลบที่เลือก
 				</button>
 			</div>

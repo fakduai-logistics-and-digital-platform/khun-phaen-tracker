@@ -3,6 +3,7 @@ import initSqlJs from 'sql.js';
 import { base } from '$app/paths';
 import { getItem, setItem, initCompression, compressionReady } from './stores/storage';
 import { get } from 'svelte/store';
+import { syncTaskToCRDT, deleteTaskFromCRDT, initCRDT } from './stores/crdt-sync';
 
 // SQLite database instance
 let db: any = null;
@@ -284,7 +285,7 @@ function execQuery(sql: string, params?: any[]): { columns: string[], values: an
 
 // ===== Task Functions =====
 
-export async function addTask(task: Omit<Task, 'id' | 'created_at'>): Promise<void> {
+export async function addTask(task: Omit<Task, 'id' | 'created_at'>): Promise<number> {
 	if (!db) throw new Error('DB not initialized');
 	
 	db.run(
@@ -305,6 +306,24 @@ export async function addTask(task: Omit<Task, 'id' | 'created_at'>): Promise<vo
 	);
 	
 	saveDatabase();
+	
+	// Get the last inserted id
+	const result = db.exec('SELECT last_insert_rowid() as id');
+	const id = result[0]?.values[0][0] as number;
+	
+	// Sync to CRDT
+	if (id) {
+		const fullTask: Task = {
+			...task,
+			id,
+			assignee: null,
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString()
+		};
+		syncTaskToCRDT(fullTask);
+	}
+	
+	return id;
 }
 
 export async function updateTask(id: number, updates: Partial<Task>): Promise<void> {
@@ -377,6 +396,16 @@ export async function updateTask(id: number, updates: Partial<Task>): Promise<vo
 		db.run(`UPDATE tasks SET ${sets.join(', ')} WHERE id = ?`, values);
 		saveDatabase();
 		console.log('✅ updateTask completed:', { id });
+		
+		// Sync to CRDT - get updated task first
+		try {
+			const updatedTask = await getTaskById(id);
+			if (updatedTask) {
+				syncTaskToCRDT(updatedTask);
+			}
+		} catch (syncError) {
+			console.warn('⚠️ Failed to sync to CRDT:', syncError);
+		}
 	} catch (e: any) {
 		console.error('❌ updateTask failed:', e?.message || e);
 		// If updated_at column doesn't exist, try without it
@@ -402,6 +431,9 @@ export async function deleteTask(id: number): Promise<void> {
 	
 	db.run('DELETE FROM tasks WHERE id = ?', [id]);
 	saveDatabase();
+	
+	// Sync to CRDT (soft delete)
+	deleteTaskFromCRDT(id);
 }
 
 export async function getTasks(filter?: FilterOptions): Promise<Task[]> {

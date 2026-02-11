@@ -18,6 +18,7 @@
 	import { Zap } from 'lucide-svelte';
 	import ServerSyncPanel from '$lib/components/ServerSyncPanel.svelte';
 	import { tabSettings, type TabId } from '$lib/stores/tabSettings';
+	import { theme } from '$lib/stores/theme';
 	import TabSettings from '$lib/components/TabSettings.svelte';
 	import { sprints, type Sprint } from '$lib/stores/sprintStore';
 	import SprintManager from '$lib/components/SprintManager.svelte';
@@ -25,6 +26,7 @@
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
 	import CustomDatePicker from '$lib/components/CustomDatePicker.svelte';
 	import { showKeyboardShortcuts } from '$lib/stores/keyboardShortcuts';
+	import QRExportModal from '$lib/components/QRExportModal.svelte';
 
 	const FILTER_STORAGE_KEY = 'task-filters';
 	const DEFAULT_FILTERS: FilterOptions = {
@@ -75,6 +77,8 @@
 	let showSprintManager = false;
 	let showChangeSprintModal = false;
 	let selectedTaskIdsForSprintChange: number[] = [];
+	let showQRExport = false;
+	let qrExportTasks: Task[] = [];
 	let searchInputRef: HTMLInputElement;
 
 	let filters: FilterOptions = { ...DEFAULT_FILTERS };
@@ -159,6 +163,32 @@
 			case '?':
 				event.preventDefault();
 				$showKeyboardShortcuts = true;
+				break;
+			case '1':
+				event.preventDefault();
+				currentView = $tabSettings[0]?.id || 'list';
+				break;
+			case '2':
+				event.preventDefault();
+				currentView = $tabSettings[1]?.id || 'calendar';
+				break;
+			case '3':
+				event.preventDefault();
+				currentView = $tabSettings[2]?.id || 'kanban';
+				break;
+			case '4':
+				event.preventDefault();
+				currentView = $tabSettings[3]?.id || 'table';
+				break;
+			case 'f':
+			case 'F':
+				event.preventDefault();
+				showFilters = !showFilters;
+				break;
+			case 't':
+			case 'T':
+				event.preventDefault();
+				theme.toggle();
 				break;
 		}
 	}
@@ -476,7 +506,14 @@
 			showMessage('เกิดข้อผิดพลาดในการลบหลายรายการ', 'error');
 		}
 	}
-	
+
+	function handleExportQR(event: CustomEvent<number[]>) {
+		const ids = event.detail;
+		if (ids.length === 0) return;
+		qrExportTasks = tasks.filter(t => t.id != null && ids.includes(t.id));
+		showQRExport = true;
+	}
+
 	function handleEditTask(event: CustomEvent<Task>) {
 		editingTask = event.detail;
 		showForm = true;
@@ -527,6 +564,114 @@
 			showMessage('ส่งออก CSV สำเร็จ (รวมโปรเจคและผู้รับผิดชอบ)');
 		} catch (e) {
 			showMessage('เกิดข้อผิดพลาดในการส่งออก', 'error');
+		}
+	}
+
+	function formatDateISO(date: Date): string {
+		const year = date.getFullYear();
+		const month = String(date.getMonth() + 1).padStart(2, '0');
+		const day = String(date.getDate()).padStart(2, '0');
+		return `${year}-${month}-${day}`;
+	}
+
+	function sanitizeMarkdownText(text: string): string {
+		return text.replace(/\r?\n/g, ' ').trim();
+	}
+
+	function escapeMarkdownInline(text: string): string {
+		return text.replace(/([\\`*_{}[\]()#+\-.!|>~])/g, '\\$1');
+	}
+
+	function normalizeTaskDate(dateText: string | undefined): string {
+		if (!dateText) return '-';
+		const isoMatch = dateText.match(/^(\d{4}-\d{2}-\d{2})/);
+		if (isoMatch) return isoMatch[1];
+		const parsed = new Date(dateText);
+		return Number.isNaN(parsed.getTime()) ? '-' : formatDateISO(parsed);
+	}
+
+	function sortTasksForReport(list: Task[]): Task[] {
+		return [...list].sort((a, b) => {
+			const dateCompare = normalizeTaskDate(a.date).localeCompare(normalizeTaskDate(b.date));
+			if (dateCompare !== 0) return dateCompare;
+			const idA = a.id ?? Number.MAX_SAFE_INTEGER;
+			const idB = b.id ?? Number.MAX_SAFE_INTEGER;
+			if (idA !== idB) return idA - idB;
+			return (a.title || '').localeCompare(b.title || '', 'th');
+		});
+	}
+
+	async function handleExportMarkdown() {
+		try {
+			const today = new Date();
+			const reportDate = formatDateISO(today);
+			const taskSnapshot = [...tasks];
+
+			const doneTasks = sortTasksForReport(taskSnapshot.filter((task) => task.status === 'done'));
+			const inProgressTasks = sortTasksForReport(taskSnapshot.filter((task) => task.status === 'in-progress'));
+			const todoTasks = sortTasksForReport(taskSnapshot.filter((task) => task.status === 'todo'));
+			const unknownStatusTasks = sortTasksForReport(
+				taskSnapshot.filter((task) => task.status !== 'done' && task.status !== 'in-progress' && task.status !== 'todo')
+			);
+
+			const taskLine = (task: Task, done = false) => {
+				const title = escapeMarkdownInline(sanitizeMarkdownText(task.title || 'ไม่ระบุชื่องาน'));
+				const project = escapeMarkdownInline(sanitizeMarkdownText(task.project || '-'));
+				const assignee = escapeMarkdownInline(sanitizeMarkdownText(task.assignee?.name || 'ไม่ระบุ'));
+				const dateText = normalizeTaskDate(task.date);
+				if (done) {
+					return `- [x] ${title} (${project}) - ผู้รับผิดชอบ: ${assignee} - ${dateText}`;
+				}
+				return `- [ ] ${title} (${project}) - ผู้รับผิดชอบ: ${assignee} - Due: ${dateText}`;
+			};
+
+			const markdown = [
+				`# Task Report - ${reportDate}`,
+				'',
+				'## 📊 สถิติ',
+				`- งานทั้งหมด: ${taskSnapshot.length} งาน`,
+				`- เสร็จแล้ว: ${doneTasks.length} งาน`,
+				`- กำลังทำ: ${inProgressTasks.length} งาน`,
+				`- รอดำเนินการ: ${todoTasks.length} งาน`,
+				'',
+				'## 📋 รายการงาน',
+				'',
+				'### ✅ เสร็จแล้ว',
+				...(doneTasks.length > 0 ? doneTasks.map((task) => taskLine(task, true)) : ['- ไม่มีงาน']),
+				'',
+				'### 🔄 กำลังทำ',
+				...(inProgressTasks.length > 0 ? inProgressTasks.map((task) => taskLine(task)) : ['- ไม่มีงาน']),
+				'',
+				'### ⏳ รอดำเนินการ',
+				...(todoTasks.length > 0 ? todoTasks.map((task) => taskLine(task)) : ['- ไม่มีงาน']),
+				...(unknownStatusTasks.length > 0
+					? [
+							'',
+							'### ❓ สถานะอื่นๆ',
+							...unknownStatusTasks.map((task) => taskLine(task))
+						]
+					: [])
+			].join('\n');
+
+			const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8;' });
+			const link = document.createElement('a');
+			const url = URL.createObjectURL(blob);
+			link.setAttribute('href', url);
+
+			const hours = String(today.getHours()).padStart(2, '0');
+			const minutes = String(today.getMinutes()).padStart(2, '0');
+			const seconds = String(today.getSeconds()).padStart(2, '0');
+			link.setAttribute('download', `task_report_${reportDate}_${hours}-${minutes}-${seconds}.md`);
+
+			document.body.appendChild(link);
+			link.click();
+			document.body.removeChild(link);
+			URL.revokeObjectURL(url);
+
+			showMessage('ส่งออก Markdown สำเร็จ');
+		} catch (e) {
+			console.error('Markdown Export Error:', e);
+			showMessage('เกิดข้อผิดพลาดในการส่งออก Markdown', 'error');
 		}
 	}
 	
@@ -850,6 +995,8 @@
 			<ExportImport
 				on:exportCSV={handleExportCSV}
 				on:exportPDF={handleExportPDF}
+				on:exportPNG={() => showMessage('ส่งออก PNG สำเร็จ')}
+				on:exportMarkdown={handleExportMarkdown}
 				on:importCSV={handleImportCSV}
 			/>
 			
@@ -1086,6 +1233,7 @@
 				on:delete={handleDeleteTask}
 				on:deleteSelected={handleDeleteSelectedTasks}
 				on:statusChange={handleStatusChange}
+				on:exportQR={handleExportQR}
 			/>
 		{/if}
 	</div>
@@ -1125,6 +1273,16 @@
 		/>
 	{/if}
 
+	<!-- QR Export Modal -->
+	<QRExportModal
+		show={showQRExport}
+		selectedTasks={qrExportTasks}
+		allProjects={projectList}
+		allAssignees={assignees}
+		on:close={() => { showQRExport = false; qrExportTasks = []; }}
+		on:exportCSV={handleExportCSV}
+	/>
+
 	<!-- Keyboard Shortcuts Modal -->
 	{#if $showKeyboardShortcuts}
 		<!-- svelte-ignore a11y-click-events-have-key-events -->
@@ -1146,37 +1304,94 @@
 					</button>
 				</div>
 
-				<div class="space-y-3">
-					<div class="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700">
-						<div class="flex items-center gap-3">
-							<kbd class="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-sm font-mono text-gray-700 dark:text-gray-300">/</kbd>
-							<span class="text-gray-700 dark:text-gray-300">โฟกัสช่องค้นหา</span>
+				<!-- View Shortcuts -->
+				<div class="mb-4">
+					<h4 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">การมองเห็น (Views)</h4>
+					<div class="space-y-2">
+						<div class="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700">
+							<div class="flex items-center gap-3">
+								<kbd class="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-sm font-mono text-gray-700 dark:text-gray-300">1</kbd>
+								<span class="text-gray-700 dark:text-gray-300">{$tabSettings[0]?.label || 'รายการ'} ({$tabSettings[0]?.id || 'list'})</span>
+							</div>
+							<span class="text-xs text-gray-400">{$tabSettings[0]?.id || 'list'} view</span>
 						</div>
-						<span class="text-xs text-gray-400">Focus search</span>
+						<div class="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700">
+							<div class="flex items-center gap-3">
+								<kbd class="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-sm font-mono text-gray-700 dark:text-gray-300">2</kbd>
+								<span class="text-gray-700 dark:text-gray-300">{$tabSettings[1]?.label || 'ปฏิทิน'} ({$tabSettings[1]?.id || 'calendar'})</span>
+							</div>
+							<span class="text-xs text-gray-400">{$tabSettings[1]?.id || 'calendar'} view</span>
+						</div>
+						<div class="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700">
+							<div class="flex items-center gap-3">
+								<kbd class="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-sm font-mono text-gray-700 dark:text-gray-300">3</kbd>
+								<span class="text-gray-700 dark:text-gray-300">{$tabSettings[2]?.label || 'Kanban'} ({$tabSettings[2]?.id || 'kanban'})</span>
+							</div>
+							<span class="text-xs text-gray-400">{$tabSettings[2]?.id || 'kanban'} view</span>
+						</div>
+						<div class="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700">
+							<div class="flex items-center gap-3">
+								<kbd class="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-sm font-mono text-gray-700 dark:text-gray-300">4</kbd>
+								<span class="text-gray-700 dark:text-gray-300">{$tabSettings[3]?.label || 'ตาราง'} ({$tabSettings[3]?.id || 'table'})</span>
+							</div>
+							<span class="text-xs text-gray-400">{$tabSettings[3]?.id || 'table'} view</span>
+						</div>
 					</div>
+				</div>
 
-					<div class="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700">
-						<div class="flex items-center gap-3">
-							<kbd class="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-sm font-mono text-gray-700 dark:text-gray-300">N</kbd>
-							<span class="text-gray-700 dark:text-gray-300">เพิ่มงานใหม่</span>
+				<!-- Action Shortcuts -->
+				<div class="mb-4">
+					<h4 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">การทำงาน (Actions)</h4>
+					<div class="space-y-2">
+						<div class="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700">
+							<div class="flex items-center gap-3">
+								<kbd class="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-sm font-mono text-gray-700 dark:text-gray-300">/</kbd>
+								<span class="text-gray-700 dark:text-gray-300">โฟกัสช่องค้นหา</span>
+							</div>
+							<span class="text-xs text-gray-400">Focus search</span>
 						</div>
-						<span class="text-xs text-gray-400">New task</span>
+						<div class="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700">
+							<div class="flex items-center gap-3">
+								<kbd class="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-sm font-mono text-gray-700 dark:text-gray-300">N</kbd>
+								<span class="text-gray-700 dark:text-gray-300">เพิ่มงานใหม่</span>
+							</div>
+							<span class="text-xs text-gray-400">New task</span>
+						</div>
+						<div class="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700">
+							<div class="flex items-center gap-3">
+								<kbd class="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-sm font-mono text-gray-700 dark:text-gray-300">F</kbd>
+								<span class="text-gray-700 dark:text-gray-300">เปิด/ปิดตัวกรอง</span>
+							</div>
+							<span class="text-xs text-gray-400">Toggle filters</span>
+						</div>
+						<div class="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700">
+							<div class="flex items-center gap-3">
+								<kbd class="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-sm font-mono text-gray-700 dark:text-gray-300">T</kbd>
+								<span class="text-gray-700 dark:text-gray-300">สลับธีม สว่าง/มืด</span>
+							</div>
+							<span class="text-xs text-gray-400">Toggle theme</span>
+						</div>
 					</div>
+				</div>
 
-					<div class="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700">
-						<div class="flex items-center gap-3">
-							<kbd class="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-sm font-mono text-gray-700 dark:text-gray-300">Esc</kbd>
-							<span class="text-gray-700 dark:text-gray-300">ปิด Modal / ยกเลิก</span>
+				<!-- System Shortcuts -->
+				<div>
+					<h4 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">ระบบ (System)</h4>
+					<div class="space-y-2">
+						<div class="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700">
+							<div class="flex items-center gap-3">
+								<kbd class="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-sm font-mono text-gray-700 dark:text-gray-300">Esc</kbd>
+								<span class="text-gray-700 dark:text-gray-300">ปิด Modal / ยกเลิก</span>
+							</div>
+							<span class="text-xs text-gray-400">Close modal</span>
 						</div>
-						<span class="text-xs text-gray-400">Close modal</span>
-					</div>
-
-					<div class="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700">
-						<div class="flex items-center gap-3">
-							<kbd class="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-sm font-mono text-gray-700 dark:text-gray-300">?</kbd>
-							<span class="text-gray-700 dark:text-gray-300">แสดงคีย์ลัดทั้งหมด</span>
+						<div class="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700">
+							<div class="flex items-center gap-3">
+								<kbd class="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-sm font-mono text-gray-700 dark:text-gray-300">?</kbd>
+								<span class="text-gray-700 dark:text-gray-300">แสดงคีย์ลัดทั้งหมด</span>
+							</div>
+							<span class="text-xs text-gray-400">Show shortcuts</span>
 						</div>
-						<span class="text-xs text-gray-400">Show shortcuts</span>
 					</div>
 				</div>
 

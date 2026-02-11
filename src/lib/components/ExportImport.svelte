@@ -1,12 +1,16 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
-	import { Download, Upload, FileSpreadsheet, FileText, ChevronDown } from 'lucide-svelte';
+	import { Download, Upload, FileSpreadsheet, FileText, Image as ImageIcon, FileCode, ChevronDown, Video } from 'lucide-svelte';
+	import { toPng } from 'html-to-image';
 
 	const dispatch = createEventDispatcher<{
 		exportCSV: void;
 		exportPDF: void;
+		exportPNG: void;
+		exportMarkdown: void;
+		exportVideo: void;
 		importCSV: string;
-	}>();
+	}>()
 
 	let fileInput: HTMLInputElement;
 	let showImportConfirm = false;
@@ -58,6 +62,64 @@
 		showExportDropdown = false;
 	}
 
+	async function handleExportPNG() {
+		// Find the main content container
+		const element = document.querySelector('.space-y-6') as HTMLElement;
+		if (!element) {
+			alert('ไม่พบเนื้อหาที่จะส่งออก');
+			return;
+		}
+
+		try {
+			showExportDropdown = false;
+			
+			// Show loading feedback
+			const originalTitle = document.title;
+			document.title = 'กำลังสร้างรูปภาพ...';
+			
+			// Wait a bit for dropdown to close
+			await new Promise(r => setTimeout(r, 100));
+			
+			const dataUrl = await toPng(element, {
+				quality: 0.95,
+				backgroundColor: document.documentElement.classList.contains('dark') ? '#1f2937' : '#ffffff',
+				pixelRatio: 2,
+				filter: (node) => {
+					// Exclude certain elements from screenshot
+					if (node.tagName === 'BUTTON' && node.closest('.fixed')) return false;
+					if (node.classList?.contains('fixed')) return false;
+					return true;
+				}
+			});
+			
+			// Create download link
+			const link = document.createElement('a');
+			const now = new Date();
+			const dateStr = now.toISOString().split('T')[0];
+			const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '-');
+			link.download = `khu-phaen-tasks_${dateStr}_${timeStr}.png`;
+			link.href = dataUrl;
+			link.click();
+			
+			document.title = originalTitle;
+			dispatch('exportPNG');
+			
+		} catch (error) {
+			console.error('PNG export failed:', error);
+			alert('ส่งออก PNG ไม่สำเร็จ กรุณาลองใหม่');
+		}
+	}
+
+	function handleExportMarkdown() {
+		dispatch('exportMarkdown');
+		showExportDropdown = false;
+	}
+
+	function handleExportVideo() {
+		dispatch('exportVideo');
+		showExportDropdown = false;
+	}
+
 	function toggleExportDropdown() {
 		showExportDropdown = !showExportDropdown;
 	}
@@ -90,20 +152,41 @@
 		</button>
 
 		{#if showExportDropdown}
-			<div class="absolute top-full left-0 mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 min-w-[160px] z-20 animate-fade-in">
+			<div class="absolute top-full left-0 mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 min-w-[220px] z-20 animate-fade-in">
 				<button
 					on:click={handleExportCSV}
-					class="w-full flex items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+					class="w-full flex items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors whitespace-nowrap"
 				>
 					<FileSpreadsheet size={16} class="text-green-600" />
 					ส่งออก CSV
 				</button>
 				<button
 					on:click={handleExportPDF}
-					class="w-full flex items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+					class="w-full flex items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors whitespace-nowrap"
 				>
 					<FileText size={16} class="text-red-600" />
 					ส่งออก PDF
+				</button>
+				<button
+					on:click={handleExportPNG}
+					class="w-full flex items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors whitespace-nowrap"
+				>
+					<ImageIcon size={16} class="text-purple-600" />
+					ส่งออก PNG
+				</button>
+				<button
+					on:click={handleExportMarkdown}
+					class="w-full flex items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors whitespace-nowrap"
+				>
+					<FileCode size={16} class="text-blue-600" />
+					ส่งออก Markdown
+				</button>
+				<button
+					on:click={handleExportVideo}
+					class="w-full flex items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors whitespace-nowrap"
+				>
+					<Video size={16} class="text-orange-500" />
+					ส่งออก Video (WebM)
 				</button>
 			</div>
 		{/if}

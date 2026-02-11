@@ -2,6 +2,15 @@ import { writable, get } from 'svelte/store';
 import { base } from '$app/paths';
 import type { Task } from '$lib/types';
 import { exportAllData, importAllData } from '$lib/db';
+import { 
+    initCRDT, 
+    exportCRDTDocument, 
+    mergeCRDTDocument, 
+    clearCRDTOperations,
+    syncTasksToCRDT,
+    getCRDTTasks,
+    crdtReady
+} from './crdt-sync';
 
 // Auto-import flag
 let autoImportEnabled = false;
@@ -31,14 +40,31 @@ export function enableAutoImport() {
         startHealthCheckPing();
     }
     
-    // Set up default callbacks for auto-import (sync from server)
+    // Initialize CRDT
+    initCRDT();
+    
+    // Set up CRDT-based callbacks for auto-import (sync from server)
     if (!onDocumentReceived) {
-        onDocumentReceived = async (csvData: string) => {
-            console.log('📥 Auto-importing data from sync...');
+        onDocumentReceived = async (data: string) => {
+            console.log('📥 Auto-importing data from CRDT sync...');
             try {
-                // Use useExistingIds: true for sync to preserve IDs from server
-                const result = await importAllData(csvData, { clearExisting: true, useExistingIds: true });
-                console.log(`✅ Auto-imported ${result.tasks} tasks, ${result.projects} projects, ${result.assignees} assignees, ${result.sprints} sprints`);
+                // Check if data is CRDT format (starts with {) or CSV
+                if (data.trim().startsWith('{')) {
+                    // CRDT format - merge directly
+                    const result = mergeCRDTDocument(data);
+                    console.log(`✅ CRDT merge: +${result.added} ~${result.updated} tasks`);
+                    
+                    // Sync merged CRDT tasks back to SQLite
+                    if ($crdtReady) {
+                        const crdtTasks = getCRDTTasks();
+                        // This will be handled by the app reloading data
+                        console.log(`📊 ${crdtTasks.length} tasks in CRDT after merge`);
+                    }
+                } else {
+                    // Legacy CSV format - use old method
+                    const result = await importAllData(data, { clearExisting: true, useExistingIds: true });
+                    console.log(`✅ CSV import: ${result.tasks} tasks`);
+                }
                 
                 // Reload page to refresh data
                 window.location.reload();
@@ -51,7 +77,21 @@ export function enableAutoImport() {
     
     if (!onSyncRequest) {
         onSyncRequest = async () => {
-            console.log('📤 Auto-exporting data...');
+            console.log('📤 Auto-exporting CRDT data...');
+            
+            // Ensure CRDT is up to date with SQLite
+            if (!get(crdtReady)) {
+                await initCRDT();
+            }
+            
+            // Export CRDT document
+            const crdtDoc = exportCRDTDocument();
+            if (crdtDoc) {
+                return crdtDoc;
+            }
+            
+            // Fallback to CSV if CRDT not ready
+            console.log('⚠️ CRDT not ready, falling back to CSV');
             return await exportAllData();
         };
     }
@@ -73,6 +113,7 @@ export const isServerHost = writable<boolean>(false);
 export const serverPeers = writable<{ id: string; name: string }[]>([]);
 export const lastServerSync = writable<Date | null>(null);
 export const syncMessage = writable<string>('');
+export const currentPeerIdStore = writable<string>('');
 
 // Callbacks for sync operations
 let onDocumentReceived: ((data: string) => Promise<void>) | null = null;
@@ -188,6 +229,7 @@ export async function autoReconnect(): Promise<boolean> {
     // Set the saved URL
     serverUrl.set(saved.url);
     currentPeerId = saved.peerId;
+    currentPeerIdStore.set(saved.peerId);
     
     // Connect to server
     connectToServer(saved.url);
@@ -409,6 +451,7 @@ export async function createServerRoom(url: string): Promise<string | null> {
         if (data.success) {
             // Save settings
             currentPeerId = data.host_id;
+            currentPeerIdStore.set(data.host_id);
             saveConnectionSettings(url, data.room_code, true, data.host_id);
             
             // Connect to WebSocket
@@ -445,6 +488,7 @@ export async function joinServerRoom(url: string, roomCode: string, peerName: st
         // Generate or reuse peer ID
         const peerId = currentPeerId || 'peer_' + Math.random().toString(36).substring(2, 8);
         currentPeerId = peerId;
+        currentPeerIdStore.set(peerId);
         
         // Save settings
         saveConnectionSettings(url, roomCode.toUpperCase(), false, peerId);
@@ -484,6 +528,7 @@ export function leaveServerRoom() {
     // Clear saved settings
     clearConnectionSettings();
     currentPeerId = null;
+    currentPeerIdStore.set('');
     
     serverRoomCode.set('');
     isServerHost.set(false);
