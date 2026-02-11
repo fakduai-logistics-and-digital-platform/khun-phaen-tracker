@@ -117,15 +117,19 @@
 	}
 
 	function slugifyBranchSegment(input: string): string {
+		if (!input || !input.trim()) return "";
+		
 		return input
-			.normalize('NFKD')
-			.replace(/[\u0300-\u036f]/g, '')
-			.replace(/['’]/g, '')
+			.normalize("NFKD")
+			.replace(/[\u0300-\u036f]/g, "")
+			.replace(/["']/g, "")
 			.toLowerCase()
-			.replace(/&/g, ' and ')
-			.replace(/[^a-z0-9]+/g, '-')
-			.replace(/-{2,}/g, '-')
-			.replace(/^-|-$/g, '');
+			.trim()
+			.replace(/&/g, " and ")
+			.replace(/\s+/g, "-")              // Replace spaces with hyphens explicitly
+			.replace(/[^a-z0-9-]+/g, "-")       // Replace other non-alphanumeric (except hyphens)
+			.replace(/-{2,}/g, "-")             // Collapse multiple hyphens
+			.replace(/^-+|-+$/g, "");           // Trim leading/trailing hyphens
 	}
 
 	function getBranchMessageClass(): string {
