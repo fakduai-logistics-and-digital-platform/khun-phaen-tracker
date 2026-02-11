@@ -20,7 +20,7 @@
         updateServerUrl
     } from '$lib/stores/server-sync';
     import { exportAllData, importAllData, getTasks } from '$lib/db';
-    import { Server, Link, LogOut, Users, RefreshCw, Copy, CheckCircle2, AlertCircle, Globe, Save, Edit2 } from 'lucide-svelte';
+    import { Server, Link, LogOut, Users, RefreshCw, Copy, CheckCircle2, AlertCircle, Globe, Save, Edit2, Crown } from 'lucide-svelte';
     
     const dispatch = createEventDispatcher<{
         dataImported: { count: number };
@@ -338,8 +338,12 @@
                     {/if}
                 </div>
                 {#if $serverStatus === 'connected'}
-                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        กด ✎ เพื่อเปลี่ยน URL หรือ 🔌 เพื่อออกจากห้อง
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 flex items-center gap-1.5 flex-wrap">
+                        <span>กด</span>
+                        <Edit2 size={12} class="shrink-0" />
+                        <span>เพื่อเปลี่ยน URL หรือ</span>
+                        <LogOut size={12} class="shrink-0" />
+                        <span>เพื่อออกจากห้อง</span>
                     </p>
                 {/if}
             </div>
@@ -413,11 +417,13 @@
                     <div class="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
                         {#if $isServerHost}
                             <p class="text-sm text-green-700 dark:text-green-400 mb-2 flex items-center gap-1">
-                                🏠 คุณเป็น Host
+                                <Crown size={14} class="shrink-0" />
+                                คุณเป็น Host
                             </p>
                         {:else}
                             <p class="text-sm text-green-700 dark:text-green-400 mb-2 flex items-center gap-1">
-                                🔗 เชื่อมต่อกับห้อง
+                                <Link size={14} class="shrink-0" />
+                                เชื่อมต่อกับห้อง
                             </p>
                         {/if}
                         
