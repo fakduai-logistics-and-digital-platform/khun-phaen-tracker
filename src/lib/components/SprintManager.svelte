@@ -2,15 +2,18 @@
 	import { createEventDispatcher } from 'svelte';
 	import type { Sprint } from '$lib/types';
 	import { sprints } from '$lib/stores/sprintStore';
-	import { Flag, Plus, X, Edit2, CheckCircle2, Play, Calendar, AlertCircle, Archive } from 'lucide-svelte';
+	import { Flag, Plus, X, Edit2, CheckCircle2, Play, Calendar, AlertCircle, Archive, FileCode, Video } from 'lucide-svelte';
 	import CustomDatePicker from './CustomDatePicker.svelte';
 
 	const dispatch = createEventDispatcher<{
 		close: void;
 		complete: number; // sprint id
+		completeAndExport: { sprintId: number; format: 'markdown' | 'video' };
 		deleteSprint: number; // sprint id
 		createSprint: { name: string; start_date: string; end_date: string };
 		moveTasksToSprint: { sprintId: number; taskIds: number[] };
+		exportMarkdown: number; // sprint id
+		exportVideo: number; // sprint id
 	}>();
 
 	export let tasks: { id?: number; status: string; sprint_id?: number | null }[] = [];
@@ -212,6 +215,27 @@
 
 	function cancelComplete() {
 		completeConfirmId = null;
+	}
+
+	function confirmCompleteWithExport(format: 'markdown' | 'video') {
+		if (!completeConfirmId) return;
+		const sprintId = completeConfirmId;
+		// Keep local UI behavior identical to normal complete flow,
+		// but skip dispatch('complete') because parent will handle it in completeAndExport.
+		const incompleteTasks = tasks.filter(
+			t => t.sprint_id === sprintId && t.status !== 'done'
+		);
+		sprints.complete(sprintId);
+		if (incompleteTasks.length > 0) {
+			dispatch('moveTasksToSprint', {
+				sprintId: -1,
+				taskIds: incompleteTasks
+					.filter(t => t.id !== undefined)
+					.map(t => t.id as number)
+			});
+		}
+		completeConfirmId = null;
+		dispatch('completeAndExport', { sprintId, format });
 	}
 
 	function handleDelete(id: number) {
@@ -521,6 +545,23 @@
 
 									<!-- Actions -->
 									<div class="flex items-center gap-1">
+										{#if sprint.status === 'completed'}
+											<button
+												on:click={() => dispatch('exportMarkdown', sprint.id!)}
+												class="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+												title="ส่งออก Markdown จากงานที่ Archive ใน Sprint นี้"
+											>
+												<FileCode size={16} />
+											</button>
+											<button
+												on:click={() => dispatch('exportVideo', sprint.id!)}
+												class="p-2 text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-lg transition-colors"
+												title="ส่งออก Video จากงานที่ Archive ใน Sprint นี้"
+											>
+												<Video size={16} />
+											</button>
+										{/if}
+
 										{#if sprint.status === 'planned'}
 											<button
 												on:click={() => handleStartSprint(sprint.id!)}
@@ -672,20 +713,38 @@
 					{/if}
 				</div>
 
-				<div class="flex gap-3">
-					<button
-						on:click={confirmComplete}
-						class="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
-					>
-						<CheckCircle2 size={16} />
-						ยืนยันจบ Sprint
-					</button>
-					<button
-						on:click={cancelComplete}
-						class="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-					>
-						ยกเลิก
-					</button>
+				<div class="space-y-2">
+					<div class="flex gap-3">
+						<button
+							on:click={confirmComplete}
+							class="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+						>
+							<CheckCircle2 size={16} />
+							ยืนยันจบ Sprint
+						</button>
+						<button
+							on:click={cancelComplete}
+							class="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+						>
+							ยกเลิก
+						</button>
+					</div>
+					<div class="grid grid-cols-2 gap-2">
+						<button
+							on:click={() => confirmCompleteWithExport('markdown')}
+							class="px-3 py-2 border border-blue-200 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors text-sm flex items-center justify-center gap-2"
+						>
+							<FileCode size={14} />
+							จบและส่งออก MD
+						</button>
+						<button
+							on:click={() => confirmCompleteWithExport('video')}
+							class="px-3 py-2 border border-orange-200 dark:border-orange-700 bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 rounded-lg hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors text-sm flex items-center justify-center gap-2"
+						>
+							<Video size={14} />
+							จบและส่งออกวิดีโอ
+						</button>
+					</div>
 				</div>
 			</div>
 		</div>

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, onDestroy, createEventDispatcher } from 'svelte';
+	import { onMount, onDestroy, createEventDispatcher, tick } from 'svelte';
 	import type { Task } from '$lib/types';
 	import { Calendar as CalendarIcon, Clock } from 'lucide-svelte';
 	
@@ -20,7 +20,10 @@
 	let selectedDate: string | null = null;
 	let selectedCellEl: HTMLElement | null = null;
 	let gridContainerEl: HTMLDivElement | null = null;
+	let popoverEl: HTMLDivElement | null = null;
 	let popoverPosition = { top: 0, left: 0 };
+	let popoverPlacement: 'top' | 'bottom' = 'bottom';
+	let popoverArrowLeft = 28;
 
 	function restoreCalendarState() {
 		if (typeof localStorage === 'undefined') return;
@@ -139,10 +142,26 @@
 
 		const cellRect = selectedCellEl.getBoundingClientRect();
 		const containerRect = gridContainerEl.getBoundingClientRect();
-		const popoverWidth = 320;
+		const popoverWidth = popoverEl?.offsetWidth || 320;
+		const popoverHeight = popoverEl?.offsetHeight || 320;
 		const offset = 10;
 
-		const relativeTop = cellRect.top - containerRect.top + cellRect.height + offset;
+		const belowTop = cellRect.top - containerRect.top + cellRect.height + offset;
+		const aboveTop = cellRect.top - containerRect.top - popoverHeight - offset;
+		const availableBelow = containerRect.bottom - cellRect.bottom;
+		const availableAbove = cellRect.top - containerRect.top;
+
+		let relativeTop = belowTop;
+		if (availableBelow < popoverHeight && availableAbove > availableBelow) {
+			popoverPlacement = 'top';
+			relativeTop = aboveTop;
+		} else {
+			popoverPlacement = 'bottom';
+		}
+
+		const maxTop = containerRect.height - popoverHeight - 8;
+		if (relativeTop < 8) relativeTop = 8;
+		if (relativeTop > maxTop) relativeTop = Math.max(8, maxTop);
 		let relativeLeft = cellRect.left - containerRect.left - 8;
 
 		const maxLeft = containerRect.width - popoverWidth - 12;
@@ -150,9 +169,16 @@
 		if (relativeLeft < 12) relativeLeft = 12;
 
 		popoverPosition = { top: relativeTop, left: relativeLeft };
+
+		const cellCenterRelativeToContainer =
+			cellRect.left - containerRect.left + cellRect.width / 2;
+		const desiredArrowLeft = cellCenterRelativeToContainer - relativeLeft;
+		const minArrowLeft = 18;
+		const maxArrowLeft = popoverWidth - 18;
+		popoverArrowLeft = Math.min(Math.max(desiredArrowLeft, minArrowLeft), maxArrowLeft);
 	}
 
-	function selectDate(date: string, event: MouseEvent) {
+	async function selectDate(date: string, event: MouseEvent) {
 		const dayTasks = getTasksByDate(date);
 		if (dayTasks.length === 0) {
 			selectedDate = null;
@@ -168,6 +194,7 @@
 
 		selectedDate = date;
 		selectedCellEl = event.currentTarget as HTMLElement;
+		await tick();
 		updatePopoverPosition();
 	}
 	
@@ -208,6 +235,12 @@
 	function handleWindowResize() {
 		if (!selectedDate) return;
 		updatePopoverPosition();
+	}
+
+	$: if (selectedDate && selectedDateTasks.length > 0) {
+		tick().then(() => {
+			updatePopoverPosition();
+		});
 	}
 
 	onMount(() => {
@@ -255,7 +288,7 @@
 	</div>
 
 	<!-- Calendar Grid -->
-	<div bind:this={gridContainerEl} class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden transition-colors relative">
+	<div bind:this={gridContainerEl} class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-visible transition-colors relative">
 		<!-- Day Headers -->
 		<div class="grid grid-cols-7 border-b border-gray-200 dark:border-gray-700">
 			{#each ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'] as day}
@@ -313,11 +346,15 @@
 
 		{#if selectedDate && selectedDateTasks.length > 0}
 			<div
+				bind:this={popoverEl}
 				class="absolute z-20 w-[320px] max-w-[calc(100%-24px)]"
 				style="top: {popoverPosition.top}px; left: {popoverPosition.left}px;"
 			>
 				<div class="relative rounded-2xl border border-gray-200/90 dark:border-white/15 bg-white/95 dark:bg-gray-900/85 backdrop-blur-xl shadow-2xl p-3 text-gray-800 dark:text-gray-100">
-					<div class="absolute -top-1.5 left-7 w-3 h-3 rotate-45 border-l border-t border-gray-200/90 dark:border-white/15 bg-white/95 dark:bg-gray-900/85"></div>
+					<div
+						class="absolute w-3 h-3 rotate-45 bg-white/95 dark:bg-gray-900/85 {popoverPlacement === 'bottom' ? '-top-1.5 border-l border-t border-gray-200/90 dark:border-white/15' : '-bottom-1.5 border-r border-b border-gray-200/90 dark:border-white/15'}"
+						style="left: {popoverArrowLeft}px;"
+					></div>
 					<div class="flex items-center justify-between rounded-xl px-3 py-2 bg-gray-100/80 dark:bg-white/5 border border-gray-200 dark:border-white/10">
 						<p class="font-semibold text-base tracking-tight line-clamp-1">
 							งานวันที่เลือก

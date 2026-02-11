@@ -43,7 +43,7 @@ async function doInit(): Promise<boolean> {
         console.log('🔄 Initializing CRDT WASM...');
         
         // Load WASM module
-        const wasm = await import(`${base}/wasm-crdt/wasm_crdt.js`);
+        const wasm = await import(/* @vite-ignore */ `${base}/wasm-crdt/wasm_crdt.js`);
         await wasm.default();
         wasmModule = wasm;
         

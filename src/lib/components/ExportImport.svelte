@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
-	import { Download, Upload, FileSpreadsheet, FileText, Image as ImageIcon, FileCode, ChevronDown, Video } from 'lucide-svelte';
+	import { Download, Upload, FileSpreadsheet, FileText, Image as ImageIcon, FileCode, ChevronDown, ChevronRight, Video } from 'lucide-svelte';
 	import { toPng } from 'html-to-image';
 
 	const dispatch = createEventDispatcher<{
@@ -9,6 +9,12 @@
 		exportPNG: void;
 		exportMarkdown: void;
 		exportVideo: void;
+		exportDatabase: {
+			database: 'SQLite' | 'MongoDB/NoSQL' | 'PostgreSQL';
+			extensions: string[];
+			primaryExtension: string;
+			note: string;
+		};
 		importCSV: string;
 	}>()
 
@@ -18,6 +24,34 @@
 	let importError = '';
 	let showExportDropdown = false;
 	let dropdownRef: HTMLDivElement;
+
+	type DatabaseTarget = {
+		database: 'SQLite' | 'MongoDB/NoSQL' | 'PostgreSQL';
+		extensions: string[];
+		primaryExtension: string;
+		note: string;
+	};
+
+	const databaseTargets: DatabaseTarget[] = [
+		{
+			database: 'SQLite',
+			extensions: ['.db', '.sqlite'],
+			primaryExtension: '.sqlite',
+			note: 'Relational แบบเบา ๆ'
+		},
+		{
+			database: 'MongoDB/NoSQL',
+			extensions: ['.json', '.bson'],
+			primaryExtension: '.json',
+			note: 'Document database'
+		},
+		{
+			database: 'PostgreSQL',
+			extensions: ['.sql'],
+			primaryExtension: '.sql',
+			note: 'Relational SQL script'
+		}
+	];
 
 	
 	function handleFileSelect(event: Event) {
@@ -120,6 +154,16 @@
 		showExportDropdown = false;
 	}
 
+	function handleExportDatabase(target: DatabaseTarget) {
+		dispatch('exportDatabase', {
+			database: target.database,
+			extensions: target.extensions,
+			primaryExtension: target.primaryExtension,
+			note: target.note
+		});
+		showExportDropdown = false;
+	}
+
 	function toggleExportDropdown() {
 		showExportDropdown = !showExportDropdown;
 	}
@@ -188,6 +232,27 @@
 					<Video size={16} class="text-orange-500" />
 					ส่งออก Video (WebM)
 				</button>
+				<div class="my-1 border-t border-gray-200 dark:border-gray-700"></div>
+				<div class="relative group">
+					<button
+						class="w-full flex items-center justify-between gap-2 px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors whitespace-nowrap"
+					>
+						<span class="font-medium">Export to Database</span>
+						<ChevronRight size={14} class="text-gray-500 dark:text-gray-400" />
+					</button>
+
+					<div class="hidden group-hover:block group-focus-within:block absolute left-full top-0 ml-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 min-w-[280px] z-30 animate-fade-in">
+						{#each databaseTargets as target}
+							<button
+								on:click={() => handleExportDatabase(target)}
+								class="w-full flex items-center justify-between gap-2 px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+							>
+								<span>{target.database}</span>
+								<span class="text-xs text-gray-500 dark:text-gray-400">{target.extensions.join(' / ')}</span>
+							</button>
+						{/each}
+					</div>
+				</div>
 			</div>
 		{/if}
 	</div>

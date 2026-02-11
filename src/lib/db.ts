@@ -1289,6 +1289,52 @@ export async function exportAllData(): Promise<string> {
 	return csvRows.join('\n');
 }
 
+export async function exportSQLiteBinary(): Promise<Uint8Array> {
+	if (!db) throw new Error('DB not initialized');
+	return db.export();
+}
+
+export async function exportFilteredSQLiteBinary(taskIds: number[]): Promise<Uint8Array> {
+	if (!db) throw new Error('DB not initialized');
+	if (taskIds.length === 0) {
+		const tempDb = new SQL.Database(db.export());
+		try {
+			tempDb.run('DELETE FROM tasks');
+			tempDb.run('DELETE FROM projects');
+			tempDb.run('DELETE FROM assignees');
+			return tempDb.export();
+		} finally {
+			tempDb.close();
+		}
+	}
+
+	const tempDb = new SQL.Database(db.export());
+	try {
+		const placeholders = taskIds.map(() => '?').join(',');
+		tempDb.run(`DELETE FROM tasks WHERE id NOT IN (${placeholders})`, taskIds);
+
+		tempDb.run(`
+			DELETE FROM assignees
+			WHERE id NOT IN (
+				SELECT DISTINCT assignee_id FROM tasks WHERE assignee_id IS NOT NULL
+			)
+		`);
+
+		tempDb.run(`
+			DELETE FROM projects
+			WHERE name NOT IN (
+				SELECT DISTINCT project
+				FROM tasks
+				WHERE project IS NOT NULL AND project != ''
+			)
+		`);
+
+		return tempDb.export();
+	} finally {
+		tempDb.close();
+	}
+}
+
 export async function importAllData(csvContent: string, options: { clearExisting?: boolean; useExistingIds?: boolean } = {}): Promise<{ tasks: number; projects: number; assignees: number; sprints: number }> {
 	if (!db) throw new Error('DB not initialized');
 	
