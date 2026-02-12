@@ -93,25 +93,25 @@ body {
   @apply cursor-pointer border-0 rounded px-2 py-1;
 }
 
-/* Dark mode form styles */
-.dark input,
-.dark select,
-.dark textarea {
+/* Dark mode form styles (scoped to app UI only) */
+.dark .app-surface input,
+.dark .app-surface select,
+.dark .app-surface textarea {
   @apply bg-gray-800 border-gray-600 text-gray-100;
 }
 
-.dark input:focus,
-.dark select:focus,
-.dark textarea:focus {
+.dark .app-surface input:focus,
+.dark .app-surface select:focus,
+.dark .app-surface textarea:focus {
   @apply border-primary ring-primary/20;
 }
 
-.dark input::placeholder,
-.dark textarea::placeholder {
+.dark .app-surface input::placeholder,
+.dark .app-surface textarea::placeholder {
   @apply text-gray-500;
 }
 
-/* Dark mode button styles */
-.dark button:not(.bg-primary):not(.bg-success):not(.bg-warning):not(.bg-danger) {
+/* Dark mode button styles (scoped to app UI only) */
+.dark .app-surface button:not(.bg-primary):not(.bg-success):not(.bg-warning):not(.bg-danger) {
   @apply text-gray-100;
 }

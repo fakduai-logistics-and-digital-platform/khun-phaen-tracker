@@ -1,12 +1,13 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
-	import { Play, Pause, RotateCcw, Timer, HelpCircle, Bookmark, Save, History } from 'lucide-svelte';
+	import { Play, Pause, RotateCcw, Timer, HelpCircle, Bookmark, Save, History, PenTool } from 'lucide-svelte';
 	import { showKeyboardShortcuts } from '$lib/stores/keyboardShortcuts';
 	import { timeLogs, formatDuration } from '$lib/stores/timeLogs';
 	import { createEventDispatcher } from 'svelte';
 
 	const dispatch = createEventDispatcher<{
 		showBookmarks: void;
+		showWhiteboard: void;
 	}>();
 
 	let elapsed = 0;
@@ -102,6 +103,10 @@
 		dispatch('showBookmarks');
 	}
 
+	function openWhiteboard() {
+		dispatch('showWhiteboard');
+	}
+
 	function toggleLogs() {
 		showLogs = !showLogs;
 	}
@@ -127,6 +132,15 @@
 		title="ที่คั่นลิงก์"
 	>
 		<Bookmark size={18} />
+	</button>
+
+	<!-- Whiteboard Button -->
+	<button
+		on:click={openWhiteboard}
+		class="flex items-center justify-center w-10 h-10 rounded-full bg-sky-600 hover:bg-sky-500 text-white shadow-lg transition-all duration-200 hover:scale-105"
+		title="Whiteboard"
+	>
+		<PenTool size={18} />
 	</button>
 
 	<!-- Timer Wrapper -->

@@ -7,12 +7,16 @@
 	import favicon from '$lib/assets/favicon.svg';
 	import DevTimer from '$lib/components/DevTimer.svelte';
 	import BookmarkManager from '$lib/components/BookmarkManager.svelte';
+	import WhiteboardModal from '$lib/components/WhiteboardModal.svelte';
 
 	let loading = true;
 	let error = '';
 	let currentTime = new Date();
 	let timeInterval: ReturnType<typeof setInterval>;
 	let showBookmarkManager = false;
+	let showWhiteboard = false;
+	let whiteboardMessage = '';
+	let whiteboardMessageType: 'success' | 'error' = 'success';
 
 	onMount(async () => {
 		try {
@@ -60,13 +64,21 @@
 			hour12: false 
 		});
 	}
+
+	function showWhiteboardToast(message: string, type: 'success' | 'error' = 'success') {
+		whiteboardMessage = message;
+		whiteboardMessageType = type;
+		setTimeout(() => {
+			whiteboardMessage = '';
+		}, 2500);
+	}
 </script>
 
 <svelte:head>
 	<link rel="icon" href={favicon} type="image/svg+xml" />
 </svelte:head>
 
-<div class="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors flex flex-col">
+<div class="app-surface min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors flex flex-col">
 	{#if loading}
 		<div class="fixed inset-0 bg-white dark:bg-gray-900 flex flex-col items-center justify-center z-50 transition-colors">
 			<div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
@@ -139,16 +151,25 @@
 			<slot />
 		</main>
 
+		{#if whiteboardMessage}
+			<div class="fixed top-20 right-4 z-[110] animate-fade-in">
+				<div class="{whiteboardMessageType === 'success' ? 'bg-success' : 'bg-danger'} text-white px-4 py-2.5 rounded-lg shadow-lg text-sm font-medium">
+					{whiteboardMessage}
+				</div>
+			</div>
+		{/if}
+
 		<!-- Dev Timer - Fixed Bottom Right -->
 		<DevTimer 
 			on:showBookmarks={() => showBookmarkManager = true}
+			on:showWhiteboard={() => showWhiteboard = true}
 		/>
 		
 		<!-- Bookmark Manager Modal -->
 		{#if showBookmarkManager}
 			<BookmarkManager on:close={() => showBookmarkManager = false} />
 		{/if}
-		
+
 		<!-- Spacer for fixed timer -->
 		<div class="h-10"></div>
 
@@ -172,3 +193,11 @@
 		</footer>
 	{/if}
 </div>
+
+{#if showWhiteboard}
+	<WhiteboardModal
+		open={showWhiteboard}
+		on:close={() => showWhiteboard = false}
+		on:notify={(event) => showWhiteboardToast(event.detail.message, event.detail.type)}
+	/>
+{/if}
