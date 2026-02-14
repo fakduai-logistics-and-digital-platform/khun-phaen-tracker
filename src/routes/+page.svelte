@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
+	import { _ } from 'svelte-i18n';
 	import type { Task, Project, Assignee, ViewMode, FilterOptions } from '$lib/types';
 	import { getTasks, getTasksBySprint, addTask, updateTask, deleteTask, getStats, exportToCSV, importFromCSV, importAllData, mergeAllData, getCategories, getAssignees, getProjects, getProjectsList, addProject, updateProject, deleteProject, getProjectStats, addAssignee as addAssigneeDB, getAssigneeStats, updateAssignee, deleteAssignee, archiveTasksBySprint, exportFilteredSQLiteBinary } from '$lib/db';
 	import TaskForm from '$lib/components/TaskForm.svelte';
@@ -311,10 +312,10 @@
 		try {
 			await addAssigneeDB({ name: event.detail.name, color: event.detail.color });
 			await loadData();
-			showMessage('เพิ่มผู้รับผิดชอบสำเร็จ');
+			showMessage($_('page__add_worker_success'));
 			queueHostRealtimeSync('add-worker');
 		} catch (e) {
-			showMessage('เกิดข้อผิดพลาดในการเพิ่มผู้รับผิดชอบ', 'error');
+			showMessage($_('page__add_worker_error'), 'error');
 		}
 	}
 	
@@ -322,10 +323,10 @@
 		try {
 			await updateAssignee(event.detail.id, { name: event.detail.name, color: event.detail.color });
 			await loadData();
-			showMessage('แก้ไขผู้รับผิดชอบสำเร็จ');
+			showMessage($_('page__update_worker_success'));
 			queueHostRealtimeSync('update-worker');
 		} catch (e) {
-			showMessage('เกิดข้อผิดพลาดในการแก้ไข', 'error');
+			showMessage($_('page__update_worker_error'), 'error');
 		}
 	}
 	
@@ -333,10 +334,10 @@
 		try {
 			await deleteAssignee(event.detail);
 			await loadData();
-			showMessage('ลบผู้รับผิดชอบสำเร็จ');
+			showMessage($_('page__delete_worker_success'));
 			queueHostRealtimeSync('delete-worker');
 		} catch (e) {
-			showMessage('เกิดข้อผิดพลาดในการลบ', 'error');
+			showMessage($_('page__delete_worker_error'), 'error');
 		}
 	}
 	
@@ -345,10 +346,10 @@
 		try {
 			await addProject({ name: event.detail.name });
 			await loadData();
-			showMessage('เพิ่มโปรเจคสำเร็จ');
+			showMessage($_('page__add_project_success'));
 			queueHostRealtimeSync('add-project');
 		} catch (e) {
-			showMessage('เกิดข้อผิดพลาดในการเพิ่มโปรเจค', 'error');
+			showMessage($_('page__add_project_error'), 'error');
 		}
 	}
 	
@@ -356,10 +357,10 @@
 		try {
 			await updateProject(event.detail.id, { name: event.detail.name });
 			await loadData();
-			showMessage('แก้ไขโปรเจคสำเร็จ');
+			showMessage($_('page__update_project_success'));
 			queueHostRealtimeSync('update-project');
 		} catch (e) {
-			showMessage('เกิดข้อผิดพลาดในการแก้ไขโปรเจค', 'error');
+			showMessage($_('page__update_project_error'), 'error');
 		}
 	}
 	
@@ -367,10 +368,10 @@
 		try {
 			await deleteProject(event.detail);
 			await loadData();
-			showMessage('ลบโปรเจคสำเร็จ');
+			showMessage($_('page__delete_project_success'));
 			queueHostRealtimeSync('delete-project');
 		} catch (e) {
-			showMessage('เกิดข้อผิดพลาดในการลบโปรเจค', 'error');
+			showMessage($_('page__delete_project_error'), 'error');
 		}
 	}
 	
@@ -434,11 +435,11 @@
 			}
 			
 			await loadData();
-			showMessage(`จบ Sprint สำเร็จ: Archive ${archivedCount} งาน, นำ ${incompleteTasks.length} งานที่ไม่เสร็จออกจาก Sprint`);
+			showMessage($_('page__complete_sprint_success', { values: { archived: archivedCount, incomplete: incompleteTasks.length } }));
 			queueHostRealtimeSync('complete-sprint');
 			return true;
 		} catch (e) {
-			showMessage('เกิดข้อผิดพลาดในการจบ Sprint', 'error');
+			showMessage($_('page__complete_sprint_error'), 'error');
 			return false;
 		}
 	}
@@ -458,14 +459,14 @@
 			}
 			await loadData();
 			if (sprintId === -1) {
-				showMessage(`นำ ${movedCount} งานออกจาก Sprint แล้ว`);
+				showMessage($_('page__move_tasks_from_sprint_success', { values: { count: movedCount } }));
 			} else {
-				showMessage(`ย้าย ${movedCount} งานเข้า Sprint ใหม่แล้ว`);
+				showMessage($_('page__move_tasks_to_sprint_success', { values: { count: movedCount } }));
 			}
 			queueHostRealtimeSync('move-tasks-to-sprint');
 		} catch (e) {
 			await loadData();
-			showMessage('เกิดข้อผิดพลาดในการย้ายงาน', 'error');
+			showMessage($_('page__move_tasks_error'), 'error');
 		}
 	}
 
@@ -487,7 +488,7 @@
 				await loadData();
 			}
 		} catch (e) {
-			showMessage('เกิดข้อผิดพลาดในการอัปเดตงานหลังลบ Sprint', 'error');
+			showMessage($_('page__delete_sprint_error'), 'error');
 		}
 	}
 	
@@ -496,18 +497,18 @@
 			const isEditing = Boolean(editingTask);
 			if (editingTask) {
 				await updateTask(editingTask.id!, event.detail);
-				showMessage('แก้ไขงานสำเร็จ');
+				showMessage($_('page__update_task_success'));
 				editingTask = null;
 			} else {
 				await addTask(event.detail);
-				showMessage('เพิ่มงานสำเร็จ');
+				showMessage($_('page__add_task_success'));
 			}
 			await loadData();
 			showForm = false;
 			queueHostRealtimeSync(isEditing ? 'update-task' : 'add-task');
 		} catch (e) {
 			console.error('❌ handleAddTask failed:', e);
-			showMessage(`เกิดข้อผิดพลาด: ${e instanceof Error ? e.message : 'Unknown error'}`, 'error');
+			showMessage($_('page__add_task_error'), 'error');
 		}
 	}
 	
@@ -515,30 +516,30 @@
 		try {
 			await addAssigneeDB({ name: event.detail.name, color: event.detail.color });
 			assignees = await getAssignees();
-			showMessage('เพิ่มผู้รับผิดชอบสำเร็จ');
+			showMessage($_('page__add_assignee_success'));
 			queueHostRealtimeSync('add-assignee');
 		} catch (e) {
-			showMessage('เกิดข้อผิดพลาดในการเพิ่มผู้รับผิดชอบ', 'error');
+			showMessage($_('page__add_assignee_error'), 'error');
 		}
 	}
 	
 	async function handleDeleteTask(event: CustomEvent<number>) {
 		const id = event.detail;
-		if (!confirm('คุณแน่ใจหรือไม่ที่จะลบงานนี้?')) return;
+		if (!confirm($_('page__delete_task_confirm'))) return;
 		try {
 			await deleteTask(id);
 			await loadData();
-			showMessage('ลบงานสำเร็จ');
+			showMessage($_('page__delete_task_success'));
 			queueHostRealtimeSync('delete-task');
 		} catch (e) {
-			showMessage('เกิดข้อผิดพลาด', 'error');
+			showMessage($_('page__delete_task_error'), 'error');
 		}
 	}
 
 	async function handleDeleteSelectedTasks(event: CustomEvent<number[]>) {
 		const ids = event.detail;
 		if (ids.length === 0) return;
-		if (!confirm(`คุณแน่ใจหรือไม่ที่จะลบงานที่เลือก ${ids.length} รายการ?`)) return;
+		if (!confirm($_('page__delete_tasks_confirm', { values: { count: ids.length } }))) return;
 
 		try {
 			const deleteResults = await Promise.allSettled(ids.map(id => deleteTask(id)));
@@ -548,15 +549,15 @@
 			await loadData();
 
 			if (failedCount === 0) {
-				showMessage(`ลบงานสำเร็จ ${deletedCount} รายการ`);
+				showMessage($_('page__delete_tasks_success', { values: { count: deletedCount } }));
 			} else {
-				showMessage(`ลบสำเร็จ ${deletedCount} รายการ, ล้มเหลว ${failedCount} รายการ`, 'error');
+				showMessage($_('page__delete_tasks_error', { values: { count: deletedCount, failed: failedCount } }), 'error');
 			}
 			if (deletedCount > 0) {
 				queueHostRealtimeSync('delete-selected-tasks');
 			}
 		} catch (e) {
-			showMessage('เกิดข้อผิดพลาดในการลบหลายรายการ', 'error');
+			showMessage($_('page__delete_tasks_error'), 'error');
 		}
 	}
 
@@ -616,9 +617,10 @@
 			document.body.appendChild(link);
 			link.click();
 			document.body.removeChild(link);
-			showMessage('ส่งออก CSV สำเร็จ (ตามข้อมูลที่กรอง/ที่เห็น)');
+			URL.revokeObjectURL(url);
+			showMessage($_('page__export_csv_success'));
 		} catch (e) {
-			showMessage('เกิดข้อผิดพลาดในการส่งออก', 'error');
+			showMessage($_('page__export_csv_error'), 'error');
 		}
 	}
 
@@ -831,7 +833,7 @@
 				const binary = await exportFilteredSQLiteBinary(visibleTaskIds);
 				const sqliteBytes = new Uint8Array(binary);
 				downloadBlob(`tasks_${timestamp}.sqlite`, new Blob([sqliteBytes], { type: 'application/vnd.sqlite3' }));
-				showMessage('ส่งออก SQLite สำเร็จ (.sqlite ตาม filter)');
+				showMessage($_('page__export_sqlite_success'));
 				return;
 			}
 
@@ -839,7 +841,7 @@
 			if (database === 'PostgreSQL') {
 				const sqlScript = buildPostgresSqlFromSnapshot(taskSnapshot, relatedProjects, relatedAssignees, relatedSprints);
 				downloadBlob(`tasks_${timestamp}_postgres.sql`, new Blob([sqlScript], { type: 'application/sql;charset=utf-8' }));
-				showMessage('ส่งออก PostgreSQL สำเร็จ (.sql ตาม filter)');
+				showMessage($_('page__export_postgres_success'));
 				return;
 			}
 
@@ -859,10 +861,10 @@
 				`tasks_${timestamp}.json`,
 				new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' })
 			);
-			showMessage('ส่งออก MongoDB/NoSQL สำเร็จ (.json ตาม filter)');
+			showMessage($_('page__export_nosql_success'));
 		} catch (e) {
 			console.error('Database export failed:', e);
-			showMessage('ส่งออกฐานข้อมูลล้มเหลว', 'error');
+			showMessage($_('page__export_db_error'), 'error');
 		}
 	}
 
@@ -1179,7 +1181,7 @@
 			const { taskSnapshot, scopeLabel } = contextOverride || await getExportTaskContext(event);
 
 			if (event?.detail && taskSnapshot.length === 0) {
-				showMessage('Sprint นี้ยังไม่มีงานที่ Archive สำหรับส่งออก', 'error');
+				showMessage($_('page__export_markdown_no_data'), 'error');
 				return;
 			}
 
@@ -1245,10 +1247,10 @@
 			document.body.removeChild(link);
 			URL.revokeObjectURL(url);
 
-			showMessage('ส่งออก Markdown สำเร็จ');
+			showMessage($_('page__export_markdown_success'));
 		} catch (e) {
 			console.error('Markdown Export Error:', e);
-			showMessage('เกิดข้อผิดพลาดในการส่งออก Markdown', 'error');
+			showMessage($_('page__export_markdown_error'), 'error');
 		}
 	}
 
@@ -1453,7 +1455,7 @@
 	async function handleExportVideo(event?: CustomEvent<number | void>, contextOverride?: { taskSnapshot: Task[]; scopeLabel: string }) {
 		try {
 			if (typeof MediaRecorder === 'undefined') {
-				showMessage('เบราว์เซอร์นี้ยังไม่รองรับการส่งออกวิดีโอ', 'error');
+				showMessage($_('page__export_video_browser_not_supported'), 'error');
 				return;
 			}
 
@@ -1461,7 +1463,7 @@
 			const reportDate = formatDateISO(now);
 			const { taskSnapshot, scopeLabel } = contextOverride || await getExportTaskContext(event);
 			if (event?.detail && taskSnapshot.length === 0) {
-				showMessage('Sprint นี้ยังไม่มีงานที่ Archive สำหรับส่งออก', 'error');
+				showMessage($_('page__export_video_no_data'), 'error');
 				return;
 			}
 			const doneTasks = sortTasksForReport(taskSnapshot.filter((task) => task.status === 'done'));
@@ -1528,7 +1530,7 @@
 			canvas.height = 720;
 			const ctx = canvas.getContext('2d');
 			if (!ctx) {
-				showMessage('ไม่สามารถสร้าง canvas สำหรับวิดีโอได้', 'error');
+				showMessage($_('page__export_video_canvas_error'), 'error');
 				return;
 			}
 
@@ -1610,7 +1612,7 @@
 				clearInterval(videoExportTimer);
 				videoExportTimer = null;
 			}
-			showMessage('ส่งออกวิดีโอสำเร็จ');
+			showMessage($_('page__export_video_success'));
 		} catch (error) {
 			console.error('Video export failed:', error);
 			videoExportInProgress = false;
@@ -1618,7 +1620,7 @@
 				clearInterval(videoExportTimer);
 				videoExportTimer = null;
 			}
-			showMessage('ส่งออกวิดีโอไม่สำเร็จ กรุณาลองใหม่', 'error');
+			showMessage($_('page__export_video_error'), 'error');
 		}
 	}
 
@@ -1628,11 +1630,11 @@
 			const reportDate = formatDateISO(now);
 			const { taskSnapshot, scopeLabel } = contextOverride || await getExportTaskContext(event);
 			if (event?.detail && taskSnapshot.length === 0) {
-				showMessage('Sprint นี้ยังไม่มีงานที่ Archive สำหรับส่งออก', 'error');
+				showMessage($_('page__export_slide_no_data'), 'error');
 				return;
 			}
 			if (taskSnapshot.length === 0) {
-				showMessage('ยังไม่มีงานสำหรับส่งออกสไลด์', 'error');
+				showMessage($_('page__export_slide_no_data'), 'error');
 				return;
 			}
 
@@ -1719,10 +1721,10 @@
 			addTaskSlide('Todo Tasks', todoTasks);
 
 			await pptx.writeFile({ fileName: `task_report_${reportDate}_${formatExportTimestamp().split('_')[1]}.pptx` });
-			showMessage('ส่งออก Slide (PPTX) สำเร็จ');
+			showMessage($_('page__export_slide_success'));
 		} catch (error) {
 			console.error('Slide export failed:', error);
-			showMessage('ส่งออก Slide (PPTX) ไม่สำเร็จ', 'error');
+			showMessage($_('page__export_slide_error'), 'error');
 		}
 	}
 
@@ -1867,20 +1869,20 @@
 					// printWindow.close();
 				}, 1000);
 				
-				showMessage('เปิดหน้าต่างพิมพ์ PDF แล้ว (เลือก "Save as PDF")');
+				showMessage($_('page__export_pdf_success'));
 			} else {
-				showMessage('กรุณาอนุญาตให้เปิดหน้าต่างใหม่', 'error');
+				showMessage($_('page__export_pdf_browser_not_supported'), 'error');
 			}
 		} catch (e) {
 			console.error('PDF Export Error:', e);
-			showMessage('เกิดข้อผิดพลาดในการส่งออก', 'error');
+			showMessage($_('page__export_pdf_error'), 'error');
 		}
 	}
 
 	async function handleExportMonthlyPDF() {
 		const context = getMonthlyExportTaskContext();
 		if (context.taskSnapshot.length === 0) {
-			showMessage('ยังไม่มีงานในช่วง 30 วันสำหรับส่งออก', 'error');
+			showMessage($_('page__export_monthly_pdf_no_data'), 'error');
 			return;
 		}
 		try {
@@ -1909,20 +1911,20 @@
 				printWindow.document.write(htmlContent);
 				printWindow.document.close();
 				setTimeout(() => printWindow.print(), 800);
-				showMessage('เปิดหน้าต่างพิมพ์ PDF แล้ว (Monthly Summary)');
+				showMessage($_('page__export_monthly_pdf_success'));
 			} else {
-				showMessage('กรุณาอนุญาตให้เปิดหน้าต่างใหม่', 'error');
+				showMessage($_('page__export_monthly_pdf_browser_not_supported'), 'error');
 			}
 		} catch (error) {
 			console.error('Monthly PDF export failed:', error);
-			showMessage('ส่งออก PDF รายเดือนไม่สำเร็จ', 'error');
+			showMessage($_('page__export_monthly_pdf_error'), 'error');
 		}
 	}
 
 	async function handleExportMonthlyXlsx() {
 		const context = getMonthlyExportTaskContext();
 		if (context.taskSnapshot.length === 0) {
-			showMessage('ยังไม่มีงานในช่วง 30 วันสำหรับส่งออก', 'error');
+			showMessage($_('page__export_monthly_xlsx_no_data'), 'error');
 			return;
 		}
 		try {
@@ -1951,21 +1953,21 @@
 			XLSX.utils.book_append_sheet(wb, summarySheet, 'Summary');
 			XLSX.utils.book_append_sheet(wb, tasksSheet, 'Tasks');
 			XLSX.writeFile(wb, `monthly_summary_${formatExportTimestamp()}.xlsx`);
-			showMessage('ส่งออก XLSX รายเดือนสำเร็จ');
+			showMessage($_('page__export_monthly_xlsx_success'));
 		} catch (error) {
 			console.error('Monthly XLSX export failed:', error);
-			showMessage('ส่งออก XLSX รายเดือนไม่สำเร็จ', 'error');
+			showMessage($_('page__export_monthly_xlsx_error'), 'error');
 		}
 	}
 
 	async function handleExportMonthlyPng() {
 		const context = getMonthlyExportTaskContext();
 		if (context.taskSnapshot.length === 0) {
-			showMessage('ยังไม่มีงานในช่วง 30 วันสำหรับส่งออก', 'error');
+			showMessage($_('page__export_monthly_png_no_data'), 'error');
 			return;
 		}
 		if (!monthlySummaryRef) {
-			showMessage('ไม่พบหน้าสรุปรายเดือนสำหรับจับภาพ', 'error');
+			showMessage($_('page__export_monthly_png_no_data'), 'error');
 			return;
 		}
 		try {
@@ -1975,22 +1977,22 @@
 			link.href = dataUrl;
 			link.download = `monthly_summary_${formatExportTimestamp()}.png`;
 			link.click();
-			showMessage('ส่งออก PNG รายเดือนสำเร็จ');
+			showMessage($_('page__export_monthly_png_success'));
 		} catch (error) {
 			console.error('Monthly PNG export failed:', error);
-			showMessage('ส่งออก PNG รายเดือนไม่สำเร็จ', 'error');
+			showMessage($_('page__export_monthly_png_error'), 'error');
 		}
 	}
 
 	async function handleExportMonthlyVideo() {
 		const context = getMonthlyExportTaskContext();
 		if (context.taskSnapshot.length === 0) {
-			showMessage('ยังไม่มีงานในช่วง 30 วันสำหรับส่งออก', 'error');
+			showMessage($_('page__export_monthly_video_no_data'), 'error');
 			return;
 		}
 		try {
 			if (typeof MediaRecorder === 'undefined') {
-				showMessage('เบราว์เซอร์นี้ยังไม่รองรับการส่งออกวิดีโอ', 'error');
+				showMessage($_('page__export_monthly_video_browser_not_supported'), 'error');
 				return;
 			}
 
@@ -2041,7 +2043,7 @@
 			canvas.height = 720;
 			const ctx = canvas.getContext('2d');
 			if (!ctx) {
-				showMessage('ไม่สามารถสร้าง canvas สำหรับวิดีโอได้', 'error');
+				showMessage($_('page__export_monthly_video_canvas_error'), 'error');
 				return;
 			}
 
@@ -2172,6 +2174,10 @@
 					ctx.fillStyle = '#475569';
 					ctx.font = '500 16px "Trebuchet MS", "Noto Sans Thai", sans-serif';
 					ctx.fillText(normalizeTaskDate(task.date), 1120, y + 35);
+					if ((task.duration_minutes || 0) > 0) {
+						const mins = task.duration_minutes || 0;
+						ctx.fillText(`${Math.floor(mins / 60)}ชม ${mins % 60}น`, 1120, y + 50);
+					}
 				});
 			};
 
@@ -2378,7 +2384,7 @@
 				clearInterval(videoExportTimer);
 				videoExportTimer = null;
 			}
-			showMessage('ส่งออกวิดีโอสรุปผลรายเดือนสำเร็จ');
+			showMessage($_('page__export_monthly_video_success'));
 		} catch (error) {
 			console.error('Monthly Video export failed:', error);
 			videoExportInProgress = false;
@@ -2386,14 +2392,14 @@
 				clearInterval(videoExportTimer);
 				videoExportTimer = null;
 			}
-			showMessage('ส่งออกวิดีโอรายเดือนไม่สำเร็จ', 'error');
+			showMessage($_('page__export_monthly_video_error'), 'error');
 		}
 	}
 
 	async function handleExportMonthlySlide() {
 		const context = getMonthlyExportTaskContext();
 		if (context.taskSnapshot.length === 0) {
-			showMessage('ยังไม่มีงานในช่วง 30 วันสำหรับส่งออก', 'error');
+			showMessage($_('page__export_monthly_slide_no_data'), 'error');
 			return;
 		}
 		await handleExportSlide(undefined, context);
@@ -2424,11 +2430,11 @@
 			sprints.refresh();
 			
 			const actualAdded = afterStats.total - beforeStats.total;
-			showMessage(`นำเข้าสำเร็จ ${result.tasks} งาน (เพิ่มใหม่ ${actualAdded} งาน), ${result.projects} โปรเจค, ${result.assignees} ผู้รับผิดชอบ, ${result.sprints} sprint`);
+			showMessage($_('page__import_success', { values: { tasks: result.tasks, added: actualAdded, projects: result.projects, assignees: result.assignees, sprints: result.sprints } }));
 			queueHostRealtimeSync('import-csv');
 		} catch (e) {
 			console.error('❌ Import error:', e);
-			showMessage('เกิดข้อผิดพลาดในการนำเข้า: ' + (e instanceof Error ? e.message : 'Unknown error'), 'error');
+			showMessage($_('page__import_error') + ': ' + (e instanceof Error ? e.message : 'Unknown error'), 'error');
 		}
 	}
 
@@ -2592,8 +2598,8 @@
 				<path d="M22 12a10 10 0 0 1-10 10"></path>
 			</svg>
 			<div class="flex-1">
-				<div class="text-sm font-semibold">กำลังสร้างวิดีโอรายงาน {videoExportPercent}%</div>
-				<div class="text-xs text-blue-100">ใช้เวลาแล้ว {formatElapsedTime(videoExportElapsedMs)}</div>
+				<div class="text-sm font-semibold">{$_('page__video_export_progress', { values: { percent: videoExportPercent } })}</div>
+				<div class="text-xs text-blue-100">{$_('page__video_export_time', { values: { time: formatElapsedTime(videoExportElapsedMs) } })}</div>
 			</div>
 		</div>
 	</div>
@@ -2626,7 +2632,7 @@
 				type="text"
 				value={searchInput}
 				on:input={handleSearchInput}
-				placeholder="ค้นหางาน... (กด / เพื่อค้นหา)"
+				placeholder={$_('page__search_placeholder')}
 				class="w-full pl-10 pr-10 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none dark:bg-gray-700 dark:text-white text-base"
 			/>
 			{#if searchInput}
@@ -2639,7 +2645,7 @@
 			{:else}
 				<span 
 					class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-green-600 flex items-center gap-0.5"
-					title="WASM Full-text Search Active"
+					title={$_('page__search_wasm_active')}
 				>
 					{#if $wasmLoading}
 						<span class="text-gray-400">⏳</span>
@@ -2658,7 +2664,7 @@
 				class="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors {showFilters ? 'bg-gray-100 dark:bg-gray-700' : ''}"
 			>
 				<Filter size={16} />
-				<span class="hidden sm:inline">ตัวกรอง</span>
+				<span class="hidden sm:inline">{$_('page__filters')}</span>
 			</button>
 
 			<!-- Worker Management -->
@@ -2667,7 +2673,7 @@
 				class="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
 			>
 				<Users size={16} />
-				<span class="hidden sm:inline">ทีมงาน</span>
+				<span class="hidden sm:inline">{$_('page__team')}</span>
 			</button>
 
 			<!-- Project Management -->
@@ -2676,7 +2682,7 @@
 				class="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
 			>
 				<Folder size={16} />
-				<span class="hidden sm:inline">โปรเจค</span>
+				<span class="hidden sm:inline">{$_('page__projects')}</span>
 			</button>
 			
 			<!-- Sprint Management -->
@@ -2685,22 +2691,22 @@
 				class="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
 			>
 				<Flag size={16} />
-				<span class="hidden sm:inline">Sprint</span>
+				<span class="hidden sm:inline">{$_('page__sprint')}</span>
 			</button>
 
 			<button
 				on:click={() => showMonthlySummary = true}
 				class="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
-				title="ดูสรุปงานย้อนหลัง 30 วัน"
+				title={$_('page__summary_30_days')}
 			>
 				<CalendarDays size={16} />
-				<span class="hidden sm:inline">สรุป 30 วัน</span>
+				<span class="hidden sm:inline">{$_('page__summary_30_days')}</span>
 			</button>
 
 			<ExportImport
 				on:exportCSV={handleExportCSV}
 				on:exportPDF={handleExportPDF}
-				on:exportPNG={() => showMessage('ส่งออก PNG สำเร็จ')}
+				on:exportPNG={() => showMessage($_('page__export_png_success'))}
 				on:exportMarkdown={handleExportMarkdown}
 				on:exportVideo={handleExportVideo}
 				on:exportSlide={handleExportSlide}
@@ -2713,11 +2719,11 @@
 				on:dataImported={async (e) => {
 					console.log('🔄 Data imported from sync, reloading...');
 					await loadData();
-					showMessage(`ซิงค์สำเร็จ ${e.detail.count} รายการ`);
+					showMessage($_('page__sync_success', { values: { count: e.detail.count } }));
 				}}
 				on:error={(e) => {
 					console.error('Sync error:', e.detail.message);
-					showMessage('ซิงค์ล้มเหลว: ' + e.detail.message);
+					showMessage($_('page__sync_error') + ': ' + e.detail.message);
 				}}
 			/>
 		</div>
@@ -2726,12 +2732,12 @@
 	{#if $wasmReady && searchInput}
 		<div class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 -mt-4">
 			<Sparkles size={14} class="text-green-500" />
-			<span>พบ {filteredTasks.length} รายการ จากการค้นหา "{searchInput}"</span>
+			<span>{$_('page__search_results', { values: { count: filteredTasks.length, query: searchInput } })}</span>
 			<button 
 				on:click={handleClearSearch}
 				class="text-primary hover:underline ml-2"
 			>
-				ล้างการค้นหา
+				{$_('page__search_clear')}
 			</button>
 		</div>
 	{/if}
@@ -2763,7 +2769,7 @@
 			<button
 				on:click={() => showTabSettings = !showTabSettings}
 				class="flex items-center justify-center gap-2 px-4 py-2 h-10 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
-				title="ตั้งค่าแท็บ"
+				title={$_('page__tab_settings')}
 			>
 				<Settings2 size={16} />
 			</button>
@@ -2783,7 +2789,7 @@
 			class="flex items-center justify-center gap-2 px-4 py-2 h-10 bg-primary hover:bg-primary-dark text-white rounded-lg font-medium transition-colors sm:w-auto w-full"
 		>
 			<Plus size={18} />
-			<span class="hidden sm:inline">เพิ่มงาน</span>
+			<span class="hidden sm:inline">{$_('page__add_task')}</span>
 		</button>
 	</div>
 	<!-- Filters Panel -->
@@ -2792,7 +2798,7 @@
 			<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
 
 				<div>
-					<label for="startDate" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Due Date ตั้งแต่</label>
+					<label for="startDate" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{$_('page__filter_start_date')}</label>
 					<CustomDatePicker
 						id="startDate"
 						bind:value={filters.startDate}
@@ -2801,7 +2807,7 @@
 				</div>
 
 				<div>
-					<label for="endDate" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Due Date ถึง</label>
+					<label for="endDate" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{$_('page__filter_end_date')}</label>
 					<CustomDatePicker
 						id="endDate"
 						bind:value={filters.endDate}
@@ -2810,16 +2816,16 @@
 				</div>
 
 				<div>
-					<label for="status" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">สถานะ</label>
+					<label for="status" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{$_('page__filter_status')}</label>
 					<SearchableSelect
 						id="status"
 						bind:value={filters.status}
 						options={[
-							{ value: 'all', label: 'ทั้งหมด' },
-							{ value: 'todo', label: 'รอดำเนินการ', badge: true, badgeColor: 'bg-gray-400' },
-							{ value: 'in-progress', label: 'กำลังทำ', badge: true, badgeColor: 'bg-blue-500' },
-							{ value: 'done', label: 'เสร็จแล้ว', badge: true, badgeColor: 'bg-green-500' },
-							{ value: 'archived', label: 'Archived (Sprint เก่า)', badge: true, badgeColor: 'bg-gray-600' }
+							{ value: 'all', label: $_('page__filter_status_all') },
+							{ value: 'todo', label: $_('page__filter_status_todo'), badge: true, badgeColor: 'bg-gray-400' },
+							{ value: 'in-progress', label: $_('page__filter_status_in_progress'), badge: true, badgeColor: 'bg-blue-500' },
+							{ value: 'done', label: $_('page__filter_status_done'), badge: true, badgeColor: 'bg-green-500' },
+							{ value: 'archived', label: $_('page__filter_status_archived'), badge: true, badgeColor: 'bg-gray-600' }
 						]}
 						placeholder="ค้นหาสถานะ..."
 						showSearch={false}
@@ -2827,12 +2833,12 @@
 				</div>
 
 				<div>
-					<label for="category" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">หมวดหมู่</label>
+					<label for="category" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{$_('page__filter_category')}</label>
 					<SearchableSelect
 						id="category"
 						bind:value={filters.category}
 						options={[
-							{ value: 'all', label: 'ทั้งหมด' },
+							{ value: 'all', label: $_('page__filter_category_all') },
 							...categories.map(cat => ({ value: cat, label: cat }))
 						]}
 						placeholder="ค้นหาหมวดหมู่..."
@@ -2840,12 +2846,12 @@
 				</div>
 
 				<div>
-					<label for="project" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">โปรเจค</label>
+					<label for="project" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{$_('page__filter_project')}</label>
 					<SearchableSelect
 						id="project"
 						bind:value={filters.project}
 						options={[
-							{ value: 'all', label: 'ทั้งหมด' },
+							{ value: 'all', label: $_('page__filter_project_all') },
 							...projects.map(proj => ({ value: proj, label: proj }))
 						]}
 						placeholder="ค้นหาโปรเจค..."
@@ -2853,13 +2859,13 @@
 				</div>
 
 				<div>
-					<label for="assignee" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ผู้รับผิดชอบ</label>
+					<label for="assignee" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{$_('page__filter_assignee')}</label>
 					<SearchableSelect
 						id="assignee"
 						bind:value={filters.assignee_id}
 						options={[
-							{ value: 'all', label: 'ทั้งหมด' },
-							{ value: null, label: 'ไม่ระบุผู้รับผิดชอบ', badge: true, badgeColor: 'bg-gray-300' },
+							{ value: 'all', label: $_('page__filter_assignee_all') },
+							{ value: null, label: $_('page__unassigned'), badge: true, badgeColor: 'bg-gray-300' },
 							...assignees
 							.filter((a) => a.id !== undefined)
 							.map(a => ({ 
@@ -2874,7 +2880,7 @@
 				</div>
 				
 				<div>
-					<label for="sprint" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Sprint</label>
+					<label for="sprint" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{$_('page__filter_sprint')}</label>
 					<SearchableSprintSelect
 						id="sprint"
 						sprints={$sprints}
@@ -2888,13 +2894,13 @@
 					on:click={applyFilters}
 					class="px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg font-medium transition-colors"
 				>
-					ใช้ตัวกรอง
+					{$_('page__btn_apply')}
 				</button>
 				<button
 					on:click={clearFilters}
 					class="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
 				>
-					ล้าง
+					{$_('page__btn_clear')}
 				</button>
 			</div>
 		</div>

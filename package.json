@@ -59,6 +59,7 @@
 		"react": "^19.2.4",
 		"react-dom": "^19.2.4",
 		"svelte-dnd-action": "^0.9.69",
+		"svelte-i18n": "^4.0.1",
 		"tailwindcss": "^4.1.18",
 		"tldraw": "^4.3.1",
 		"xlsx": "^0.18.5"

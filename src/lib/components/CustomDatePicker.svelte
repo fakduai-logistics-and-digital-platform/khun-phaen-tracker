@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
 	import { ChevronLeft, ChevronRight, Calendar } from 'lucide-svelte';
+	import { _, locale } from 'svelte-i18n';
 
 	const dispatch = createEventDispatcher<{ select: string }>();
 
@@ -13,21 +14,13 @@
 	let currentYear = new Date().getFullYear();
 	let viewMode: 'days' | 'months' | 'years' = 'days';
 
-	const monthNames = [
-		'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
-		'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
-	];
-
-	const shortMonthNames = [
-		'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
-		'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'
-	];
-
-	const dayNames = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'];
+	$: monthNames = $_('calendarView__months') as unknown as string[];
+	$: shortMonthNames = $_('calendarView__short_months') as unknown as string[];
+	$: dayNames = $locale === 'th' ? ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'] : ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
 	$: selectedDate = value ? parseDate(value) : null;
 	$: displayValue = selectedDate 
-		? `${selectedDate.getDate()} ${shortMonthNames[selectedDate.getMonth()]} ${selectedDate.getFullYear() + 543}`
+		? `${selectedDate.getDate()} ${shortMonthNames[selectedDate.getMonth()]} ${selectedDate.getFullYear() + ($locale === 'th' ? 543 : 0)}`
 		: placeholder;
 
 	function parseDate(dateStr: string): Date | null {
@@ -236,7 +229,7 @@
 							class="text-lg font-semibold text-gray-800 dark:text-white hover:text-primary dark:hover:text-primary transition-colors"
 							on:click={showYearSelector}
 						>
-							{currentYear + 543}
+							{currentYear + ($locale === 'th' ? 543 : 0)}
 						</button>
 					{:else if viewMode === 'months'}
 						<button
@@ -244,11 +237,11 @@
 							class="text-lg font-semibold text-gray-800 dark:text-white hover:text-primary transition-colors"
 							on:click={() => viewMode = 'years'}
 						>
-							{currentYear + 543}
+							{currentYear + ($locale === 'th' ? 543 : 0)}
 						</button>
-						<span class="text-lg font-semibold text-gray-800 dark:text-white">เลือกเดือน</span>
+						<span class="text-lg font-semibold text-gray-800 dark:text-white">{$locale === 'th' ? 'เลือกเดือน' : 'Select Month'}</span>
 					{:else}
-						<span class="text-lg font-semibold text-gray-800 dark:text-white">เลือกปี</span>
+						<span class="text-lg font-semibold text-gray-800 dark:text-white">{$locale === 'th' ? 'เลือกปี' : 'Select Year'}</span>
 					{/if}
 					
 					{#if viewMode === 'days'}
@@ -322,7 +315,7 @@
 								selectDate({ date: today.getDate(), month: today.getMonth(), year: today.getFullYear() });
 							}}
 						>
-							วันนี้
+							{$locale === 'th' ? 'วันนี้' : 'Today'}
 						</button>
 						<button
 							type="button"
@@ -333,7 +326,7 @@
 								selectDate({ date: tomorrow.getDate(), month: tomorrow.getMonth(), year: tomorrow.getFullYear() });
 							}}
 						>
-							พรุ่งนี้
+							{$locale === 'th' ? 'พรุ่งนี้' : 'Tomorrow'}
 						</button>
 						<button
 							type="button"
@@ -344,7 +337,7 @@
 								selectDate({ date: nextWeek.getDate(), month: nextWeek.getMonth(), year: nextWeek.getFullYear() });
 							}}
 						>
-							อาทิตย์หน้า
+							{$locale === 'th' ? 'อาทิตย์หน้า' : 'Next Week'}
 						</button>
 					</div>
 				</div>
@@ -383,7 +376,7 @@
 										: 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}"
 								on:click={() => selectYear(year)}
 							>
-								{year + 543}
+								{year + ($locale === 'th' ? 543 : 0)}
 							</button>
 						{/each}
 					</div>

@@ -2,6 +2,7 @@
 	import { createEventDispatcher } from 'svelte';
 	import type { Assignee } from '$lib/types';
 	import { Users, Plus, X, Edit2, Trash2, User, Briefcase, Check } from 'lucide-svelte';
+	import { _ } from 'svelte-i18n';
 	
 	const dispatch = createEventDispatcher<{
 		close: void;
@@ -104,8 +105,8 @@
 					<Users size={20} class="text-primary" />
 				</div>
 				<div>
-					<h2 class="text-xl font-bold text-gray-900 dark:text-white">จัดการผู้รับผิดชอบ</h2>
-					<p class="text-sm text-gray-500 dark:text-gray-400">{assignees.length} คน</p>
+					<h2 class="text-xl font-bold text-gray-900 dark:text-white">{$_('workerManager__title')}</h2>
+					<p class="text-sm text-gray-500 dark:text-gray-400">{assignees.length} {$_('workerManager__count_suffix')}</p>
 				</div>
 			</div>
 			<button
@@ -123,25 +124,25 @@
 				<div class="bg-gray-50 dark:bg-gray-700 rounded-xl p-4 mb-6 space-y-4">
 					<div>
 						<label for="worker-name-input" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-							{editingWorker ? 'แก้ไขชื่อ' : 'ชื่อผู้รับผิดชอบ'}
+							{editingWorker ? $_('workerManager__edit_name') : $_('workerManager__name_label')}
 						</label>
 						<input
 							id="worker-name-input"
 							type="text"
 							bind:value={newWorkerName}
-							placeholder="เช่น สมชาย, สมหญิง..."
+							placeholder={$_('workerManager__name_placeholder')}
 							class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none"
 						/>
 					</div>
 
 					<div>
-						<label for="worker-color-picker" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">สีประจำตัว</label>
+						<label for="worker-color-picker" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{$_('workerManager__color_label')}</label>
 						<div class="flex flex-wrap gap-2 mb-3">
 							{#each colorOptions as color}
 								<button
 									type="button"
 									on:click={() => newWorkerColor = color}
-									aria-label={`เลือกสี ${color}`}
+									aria-label={`${$_('workerManager__select_color')} ${color}`}
 									class="w-8 h-8 rounded-full border-2 transition-all flex items-center justify-center"
 									class:border-gray-800={newWorkerColor === color}
 									class:border-white={newWorkerColor === color}
@@ -155,11 +156,11 @@
 								</button>
 							{/each}
 						</div>
-							<div class="flex items-center gap-2">
-								<input
-									id="worker-color-picker"
-									type="color"
-									bind:value={newWorkerColor}
+						<div class="flex items-center gap-2">
+							<input
+								id="worker-color-picker"
+								type="color"
+								bind:value={newWorkerColor}
 								class="w-10 h-8 rounded cursor-pointer border border-gray-300 dark:border-gray-600"
 							/>
 							<input
@@ -184,17 +185,17 @@
 						>
 							{#if editingWorker}
 								<Check size={16} />
-								บันทึก
+								{$_('workerManager__btn_save')}
 							{:else}
 								<Plus size={16} />
-								เพิ่ม
+								{$_('workerManager__btn_add')}
 							{/if}
 						</button>
 						<button
 							on:click={cancelEdit}
 							class="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
 						>
-							ยกเลิก
+							{$_('workerManager__btn_cancel')}
 						</button>
 					</div>
 				</div>
@@ -205,19 +206,19 @@
 					class="w-full mb-6 py-3 px-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl text-gray-600 dark:text-gray-400 hover:border-primary hover:text-primary hover:bg-primary/5 transition-colors flex items-center justify-center gap-2"
 				>
 					<Plus size={18} />
-					เพิ่มผู้รับผิดชอบใหม่
+					{$_('workerManager__add_new')}
 				</button>
 			{/if}
 
 			<!-- Worker List -->
 			<div class="space-y-3">
-				<h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">รายชื่อ</h3>
+				<h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">{$_('workerManager__list_title')}</h3>
 
 				{#if assignees.length === 0}
 					<div class="text-center py-8 text-gray-400 dark:text-gray-500">
 						<User size={48} class="mx-auto mb-3 opacity-50" />
-						<p>ยังไม่มีผู้รับผิดชอบ</p>
-						<p class="text-sm">คลิกปุ่มด้านบนเพื่อเพิ่ม</p>
+						<p>{$_('workerManager__no_workers')}</p>
+						<p class="text-sm">{$_('workerManager__add_hint')}</p>
 					</div>
 				{:else}
 					{#each assignees as worker (worker.id)}
@@ -235,7 +236,7 @@
 								<h4 class="font-medium text-gray-900 dark:text-white truncate">{worker.name}</h4>
 								<div class="flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400">
 									<Briefcase size={12} />
-									<span>{getTaskCount(worker.id!)} งาน</span>
+									<span>{getTaskCount(worker.id!)} {$_('workerManager__task_count_suffix')}</span>
 								</div>
 							</div>
 
@@ -244,14 +245,14 @@
 								<button
 									on:click={() => startEdit(worker)}
 									class="p-2 text-gray-400 dark:text-gray-500 hover:text-primary hover:bg-white dark:hover:bg-gray-600 rounded-lg transition-colors"
-									title="แก้ไข"
+									title={$_('workerManager__btn_edit')}
 								>
 									<Edit2 size={14} />
 								</button>
 								<button
 									on:click={() => confirmDelete(worker.id!)}
 									class="p-2 text-gray-400 dark:text-gray-500 hover:text-danger hover:bg-white dark:hover:bg-gray-600 rounded-lg transition-colors"
-									title="ลบ"
+									title={$_('workerManager__btn_delete')}
 								>
 									<Trash2 size={14} />
 								</button>
@@ -262,9 +263,9 @@
 						{#if deleteConfirmId === worker.id}
 							<div class="bg-danger/10 border border-danger/20 rounded-xl p-3 mt-2">
 								<p class="text-sm text-danger mb-2">
-									ลบ "{worker.name}"?
+									{$_('workerManager__delete_confirm', { values: { name: worker.name } })}
 									{#if getTaskCount(worker.id!) > 0}
-										<br><span class="text-xs">งานที่มอบหมายให้คนนี้จะกลายเป็น "ไม่ระบุ"</span>
+										<br><span class="text-xs">{$_('workerManager__delete_warning')}</span>
 									{/if}
 								</p>
 								<div class="flex gap-2">
@@ -272,13 +273,13 @@
 										on:click={() => handleDelete(worker.id!)}
 										class="px-3 py-1.5 bg-danger text-white rounded-lg text-sm font-medium hover:bg-danger-dark transition-colors"
 									>
-										ยืนยันลบ
+										{$_('workerManager__confirm_delete')}
 									</button>
 									<button
 										on:click={() => deleteConfirmId = null}
 										class="px-3 py-1.5 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg text-sm transition-colors"
 									>
-										ยกเลิก
+										{$_('workerManager__btn_cancel')}
 									</button>
 								</div>
 							</div>
@@ -291,7 +292,7 @@
 		<!-- Footer -->
 		<div class="p-4 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded-b-2xl">
 			<p class="text-xs text-gray-500 dark:text-gray-400 text-center">
-				ผู้รับผิดชอบจะถูกแสดงในฟอร์มเพิ่มงานเพื่อมอบหมายงาน
+				{$_('workerManager__footer_hint')}
 			</p>
 		</div>
 	</div>

@@ -3,6 +3,7 @@
 	import { createEventDispatcher } from 'svelte';
 	import type { Task, Sprint } from '$lib/types';
 	import { Edit2, Trash2, MoreVertical, Folder, Clock3, Hammer, CheckCircle2, Flag } from 'lucide-svelte';
+	import { _ } from 'svelte-i18n';
 
 	const dispatch = createEventDispatcher<{
 		move: { id: number; newStatus: Task['status'] };
@@ -27,9 +28,9 @@
 	$: doneItems = tasks.filter((t): t is TaskWithRequiredId => t.status === 'done' && t.id !== undefined);
 
 	const columns = [
-		{ id: 'todo', title: 'รอดำเนินการ', color: 'bg-warning/10 border-warning/30', textColor: 'text-warning', icon: Clock3 },
-		{ id: 'in-progress', title: 'กำลังทำ', color: 'bg-primary/10 border-primary/30', textColor: 'text-primary', icon: Hammer },
-		{ id: 'done', title: 'เสร็จแล้ว', color: 'bg-success/10 border-success/30', textColor: 'text-success', icon: CheckCircle2 }
+		{ id: 'todo', title: $_('kanbanBoard__column_todo'), color: 'bg-warning/10 border-warning/30', textColor: 'text-warning', icon: Clock3 },
+		{ id: 'in-progress', title: $_('kanbanBoard__column_in_progress'), color: 'bg-primary/10 border-primary/30', textColor: 'text-primary', icon: Hammer },
+		{ id: 'done', title: $_('kanbanBoard__column_done'), color: 'bg-success/10 border-success/30', textColor: 'text-success', icon: CheckCircle2 }
 	] as const;
 
 	function handleDndConsider(e: CustomEvent<DndEvent<TaskWithRequiredId>>, status: Task['status']) {
@@ -70,7 +71,7 @@
 		<div class="flex items-center justify-between mb-3 px-1">
 			<div class="flex items-center gap-2">
 				<Clock3 size={18} class="text-warning" />
-				<h3 class="font-semibold text-gray-700 dark:text-gray-200">รอดำเนินการ</h3>
+				<h3 class="font-semibold text-gray-700 dark:text-gray-200">{$_('kanbanBoard__column_todo')}</h3>
 				<span class="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-full text-xs font-medium">
 					{todoItems.length}
 				</span>
@@ -124,14 +125,14 @@
 								class="w-full px-3 py-1.5 text-left text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-1.5"
 							>
 								<Edit2 size={12} />
-								แก้ไข
+								{$_('kanbanBoard__edit')}
 							</button>
 							<button
 								on:click={() => { dispatch('delete', task.id!); openMenuId = null; }}
 								class="w-full px-3 py-1.5 text-left text-xs text-danger hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-1.5"
 							>
 								<Trash2 size={12} />
-								ลบ
+								{$_('kanbanBoard__delete')}
 							</button>
 						</div>
 					{/if}
@@ -145,7 +146,7 @@
 		<div class="flex items-center justify-between mb-3 px-1">
 			<div class="flex items-center gap-2">
 				<Hammer size={18} class="text-primary" />
-				<h3 class="font-semibold text-primary">กำลังทำ</h3>
+				<h3 class="font-semibold text-primary">{$_('kanbanBoard__column_in_progress')}</h3>
 				<span class="bg-primary/20 text-primary px-2 py-0.5 rounded-full text-xs font-medium">
 					{inProgressItems.length}
 				</span>
@@ -199,14 +200,14 @@
 								class="w-full px-3 py-1.5 text-left text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-1.5"
 							>
 								<Edit2 size={12} />
-								แก้ไข
+								{$_('kanbanBoard__edit')}
 							</button>
 							<button
 								on:click={() => { dispatch('delete', task.id!); openMenuId = null; }}
 								class="w-full px-3 py-1.5 text-left text-xs text-danger hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-1.5"
 							>
 								<Trash2 size={12} />
-								ลบ
+								{$_('kanbanBoard__delete')}
 							</button>
 						</div>
 					{/if}
@@ -220,7 +221,7 @@
 		<div class="flex items-center justify-between mb-3 px-1">
 			<div class="flex items-center gap-2">
 				<CheckCircle2 size={18} class="text-success" />
-				<h3 class="font-semibold text-success">เสร็จแล้ว</h3>
+				<h3 class="font-semibold text-success">{$_('kanbanBoard__column_done')}</h3>
 				<span class="bg-success/20 text-success px-2 py-0.5 rounded-full text-xs font-medium">
 					{doneItems.length}
 				</span>
@@ -274,14 +275,14 @@
 								class="w-full px-3 py-1.5 text-left text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-1.5"
 							>
 								<Edit2 size={12} />
-								แก้ไข
+								{$_('kanbanBoard__edit')}
 							</button>
 							<button
 								on:click={() => { dispatch('delete', task.id!); openMenuId = null; }}
 								class="w-full px-3 py-1.5 text-left text-xs text-danger hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-1.5"
 							>
 								<Trash2 size={12} />
-								ลบ
+								{$_('kanbanBoard__delete')}
 							</button>
 						</div>
 					{/if}
@@ -297,6 +298,6 @@
 		class="fixed inset-0 z-0"
 		on:click={() => openMenuId = null}
 		tabindex="-1"
-		aria-label="ปิดเมนู"
+		aria-label={$_('kanbanBoard__close_menu')}
 	></button>
 {/if}

@@ -4,6 +4,7 @@
 	import { CATEGORIES } from '$lib/types';
 	import { Calendar, FileText, Tag, CheckCircle, User, Plus, Folder, X, Flag, GitBranch, Copy, Check } from 'lucide-svelte';
 	import { taskDefaults } from '$lib/stores/taskDefaults';
+	import { _ } from 'svelte-i18n';
 	import SearchableSelect from './SearchableSelect.svelte';
 	import CustomDatePicker from './CustomDatePicker.svelte';
 	import SearchableSprintSelect from './SearchableSprintSelect.svelte';
@@ -436,7 +437,7 @@
 			<div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
 				<h2 class="text-lg font-semibold text-gray-800 dark:text-white flex items-center gap-2">
 					<CheckCircle size={20} class="text-primary" />
-					{editingTask ? 'แก้ไขงาน' : 'เพิ่มงานใหม่'}
+					{editingTask ? $_('taskForm__edit_task_title') : $_('taskForm__add_task_title')}
 				</h2>
 				<div class="flex items-center gap-2">
 					<button
@@ -463,13 +464,13 @@
 			<form on:submit|preventDefault={handleSubmit} class="p-6 space-y-4">
 				<div>
 					<label for="title" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-						ชื่องาน <span class="text-danger">*</span>
+						{$_('taskForm__task_title_label')} <span class="text-danger">*</span>
 					</label>
 					<input
 						id="title"
 						type="text"
 						bind:value={title}
-						placeholder="เช่น ออกแบบโลโก้, เขียนรายงาน..."
+						placeholder={$_('taskForm__task_title_placeholder')}
 						class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none dark:bg-gray-700 dark:text-white"
 						required
 					/>
@@ -478,16 +479,16 @@
 				<div>
 					<label for="project" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1">
 						<Folder size={14} />
-						โปรเจค
+						{$_('taskForm__project_label')}
 					</label>
 					<SearchableSelect
 						id="project"
 						bind:value={project}
 						options={[
-							{ value: '', label: '-- ไม่ระบุ --' },
+							{ value: '', label: '-- ' + $_('taskForm__unassigned') + ' --' },
 							...projects.map(proj => ({ value: proj.name, label: proj.name }))
 						]}
-						placeholder="ค้นหาโปรเจค..."
+						placeholder={$_('taskForm__project_placeholder')}
 					/>
 				</div>
 
@@ -495,11 +496,11 @@
 					<div>
 						<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1">
 							<Calendar size={14} />
-							วันที่นัดหมาย (Due Date)
+							{$_('taskForm__date_label')}
 						</label>
 						<CustomDatePicker
 							bind:value={date}
-							placeholder="เลือกวันที่..."
+							placeholder={$_('taskForm__date_placeholder')}
 							on:select={(e) => date = e.detail}
 						/>
 					</div>
@@ -507,12 +508,12 @@
 					<div>
 						<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1">
 							<Tag size={14} />
-							หมวดหมู่
+							{$_('taskForm__category_label')}
 						</label>
 						<SearchableSelect
 							bind:value={category}
 							options={CATEGORIES.map(cat => ({ value: cat, label: cat }))}
-							placeholder="เลือกหมวดหมู่..."
+							placeholder={$_('taskForm__category_placeholder')}
 							showSearch={false}
 						/>
 					</div>
@@ -522,71 +523,65 @@
 				<div>
 					<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1">
 						<User size={14} />
-						ผู้รับผิดชอบ
+						{$_('taskForm__assignee_label')}
 					</label>
 
 					{#if showAddAssigneeForm}
 						<div class="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg space-y-3">
 							<div>
-								<label for="new-assignee-name" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">ชื่อ</label>
+								<label for="new-assignee-name" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{$_('taskForm__new_assignee_name')}</label>
 								<input
 									id="new-assignee-name"
 									type="text"
 									bind:value={newAssigneeName}
-									placeholder="ชื่อผู้รับผิดชอบ..."
+									placeholder={$_('taskForm__new_assignee_placeholder')}
 									class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none text-sm dark:bg-gray-700 dark:text-white"
 								/>
 							</div>
 							<div>
-								<label for="new-assignee-color-picker" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">สีประจำตัว</label>
+								<label for="new-assignee-color-picker" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">{$_('taskForm__color_label')}</label>
 								<div class="flex flex-wrap gap-1.5 mb-2">
 									{#each colorOptions as color}
 										<button
 											type="button"
 											on:click={() => newAssigneeColor = color}
-											aria-label={`เลือกสี ${color}`}
+											aria-label={$_('taskForm__select_color', { values: { color } })}
 											class="w-6 h-6 rounded-full border-2 transition-all {newAssigneeColor === color ? 'border-gray-800 dark:border-white scale-110' : 'border-transparent hover:scale-105'}"
 											style="background-color: {color}"
 										></button>
 									{/each}
 								</div>
-								<div class="flex items-center gap-2">
-									<input
-										id="new-assignee-color-picker"
-										type="color"
-										bind:value={newAssigneeColor}
-										class="w-10 h-8 rounded cursor-pointer border border-gray-300 dark:border-gray-600"
-									/>
-									<input
-										type="text"
-										bind:value={newAssigneeColor}
-										placeholder="#6366F1"
-										class="flex-1 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none dark:bg-gray-700 dark:text-white"
-										maxlength="7"
-									/>
-									<div
-										class="w-8 h-8 rounded-full border-2 border-gray-300 dark:border-gray-600"
-										style="background-color: {newAssigneeColor}"
-									></div>
-								</div>
+								<input
+									id="new-assignee-color-picker"
+									type="color"
+									bind:value={newAssigneeColor}
+									class="w-10 h-8 rounded cursor-pointer border border-gray-300 dark:border-gray-600"
+								/>
+								<input
+									type="text"
+									bind:value={newAssigneeColor}
+									placeholder="#6366F1"
+									class="flex-1 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none dark:bg-gray-700 dark:text-white"
+									maxlength="7"
+								/>
 							</div>
-							<div class="flex gap-2 pt-1">
-								<button
-									type="button"
-									on:click={handleAddAssignee}
-									disabled={!newAssigneeName.trim()}
-									class="flex-1 bg-primary hover:bg-primary-dark disabled:bg-gray-300 dark:disabled:bg-gray-600 text-white py-1.5 px-3 rounded-lg text-sm font-medium transition-colors"
-								>
-									เพิ่ม
-								</button>
-								<button
-									type="button"
-									on:click={cancelAddAssignee}
-									class="px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
-								>
-									ยกเลิก
-								</button>
-							</div>
+						</div>
+						<div class="flex gap-2 pt-1">
+							<button
+								type="button"
+								on:click={handleAddAssignee}
+								disabled={!newAssigneeName.trim()}
+								class="flex-1 bg-primary hover:bg-primary-dark disabled:bg-gray-300 dark:disabled:bg-gray-600 text-white py-1.5 px-3 rounded-lg text-sm font-medium transition-colors"
+							>
+								{$_('taskForm__btn_add')}
+							</button>
+							<button
+								type="button"
+								on:click={cancelAddAssignee}
+								class="px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+							>
+								{$_('taskForm__btn_cancel')}
+							</button>
 						</div>
 					{:else}
 						<div class="flex gap-2">
@@ -594,7 +589,7 @@
 								<SearchableSelect
 									bind:value={assignee_id}
 									options={[
-										{ value: null, label: '-- ไม่ระบุ --' },
+										{ value: null, label: $_('taskForm__unassigned') },
 										...assignees
 										.filter((assignee): assignee is typeof assignee & { id: number } => assignee.id !== undefined)
 										.map(assignee => ({ 
@@ -604,107 +599,66 @@
 											badgeColor: assignee.color
 										}))
 									]}
-									placeholder="ค้นหาผู้รับผิดชอบ..."
+									placeholder={$_('taskForm__assignee_placeholder')}
 								/>
 							</div>
 							<button
 								type="button"
 								on:click={() => showAddAssigneeForm = true}
 								class="px-3 py-2 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-1"
-								title="เพิ่มผู้รับผิดชอบใหม่"
+								title={$_('taskForm__add_assignee')}
 							>
 								<Plus size={16} />
 							</button>
 						</div>
 
-							{#if assignee_id}
-								{@const selectedAssignee = getAssigneeById(assignee_id)}
-								{#if selectedAssignee}
-									<div class="mt-2 flex items-center gap-2 text-sm">
-										<span class="w-3 h-3 rounded-full" style="background-color: {selectedAssignee.color}"></span>
-										<span class="text-gray-600 dark:text-gray-400">{selectedAssignee.name}</span>
-									</div>
-								{/if}
+						{#if assignee_id}
+							{@const selectedAssignee = getAssigneeById(assignee_id)}
+							{#if selectedAssignee}
+								<div class="mt-2 flex items-center gap-2 text-sm">
+									<span class="w-3 h-3 rounded-full" style="background-color: {selectedAssignee.color}"></span>
+									<span class="text-gray-600 dark:text-gray-400">{selectedAssignee.name}</span>
+								</div>
 							{/if}
+						{/if}
 					{/if}
 				</div>
 
-				<!-- Sprint Section -->
-				{#if sprints.length > 0}
-					<div>
-						<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1">
-							<Flag size={14} />
-							Sprint
-						</label>
-						<SearchableSprintSelect
-							sprints={sprints.filter(s => s.status !== 'completed')}
-							bind:value={sprint_id}
-							id="task-sprint"
-							formMode={true}
-						/>
-					</div>
-				{/if}
-
-				<div>
-					<label for="status" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">สถานะ</label>
-					<div class="flex gap-2">
-						<button
-							type="button"
-							on:click={() => status = 'todo'}
-							class="flex-1 py-2 px-3 rounded-lg border-2 text-sm font-medium transition-colors {status === 'todo' ? 'border-warning bg-warning/10 text-warning' : 'border-gray-200 dark:border-gray-600 hover:border-warning/50 dark:text-gray-300'}"
-						>
-							รอดำเนินการ
-						</button>
-						<button
-							type="button"
-							on:click={() => status = 'in-progress'}
-							class="flex-1 py-2 px-3 rounded-lg border-2 text-sm font-medium transition-colors {status === 'in-progress' ? 'border-primary bg-primary/10 text-primary' : 'border-gray-200 dark:border-gray-600 hover:border-primary/50 dark:text-gray-300'}"
-						>
-							กำลังทำ
-						</button>
-						<button
-							type="button"
-							on:click={() => status = 'done'}
-							class="flex-1 py-2 px-3 rounded-lg border-2 text-sm font-medium transition-colors {status === 'done' ? 'border-success bg-success/10 text-success' : 'border-gray-200 dark:border-gray-600 hover:border-success/50 dark:text-gray-300'}"
-						>
-							เสร็จแล้ว
-						</button>
-					</div>
-				</div>
-
-				<div>
-					<label for="notes" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1">
-						<FileText size={14} />
-						หมายเหตุ
-					</label>
-					<textarea
-						id="notes"
-						bind:value={notes}
-						rows="3"
-						placeholder="รายละเอียดเพิ่มเติม..."
-						class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none resize-none dark:bg-gray-700 dark:text-white"
-					></textarea>
-				</div>
-
-				<div class="flex gap-3 pt-2">
-					<button
-						type="button"
-						on:click={handleClose}
-						class="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium"
-					>
-						ยกเลิก
-					</button>
-					<button
-						type="submit"
-						class="flex-1 bg-primary hover:bg-primary-dark text-white py-2 px-4 rounded-lg font-medium transition-colors"
-					>
-						{editingTask ? 'บันทึกการแก้ไข' : 'เพิ่มงาน'}
-					</button>
-				</div>
-			</form>
+		<!-- Notes -->
+		<div>
+			<label for="notes" class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1">
+				<FileText size={14} />
+				{$_('taskForm__notes_label')}
+			</label>
+			<textarea
+				id="notes"
+				bind:value={notes}
+				rows="3"
+				placeholder={$_('taskForm__notes_placeholder')}
+				class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none resize-none dark:bg-gray-700 dark:text-white"
+			></textarea>
 		</div>
 
-		{#if showBranchDialog}
+		<!-- Buttons -->
+		<div class="flex gap-3 pt-2">
+			<button
+				type="button"
+				on:click={handleClose}
+				class="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium"
+			>
+				{$_('taskForm__btn_cancel')}
+			</button>
+			<button
+				type="submit"
+				class="flex-1 bg-primary hover:bg-primary-dark text-white py-2 px-4 rounded-lg font-medium transition-colors"
+			>
+				{editingTask ? $_('taskForm__btn_save') : $_('taskForm__btn_add')}
+			</button>
+		</div>
+	</form>
+		</div>
+
+	{#if showBranchDialog}
 			<!-- svelte-ignore a11y-click-events-have-key-events -->
 			<!-- svelte-ignore a11y-no-static-element-interactions -->
 			<div

@@ -2,6 +2,7 @@
 	import { createEventDispatcher } from 'svelte';
 	import type { Project } from '$lib/types';
 	import { Folder, Plus, X, Edit2, Trash2, Check, Briefcase } from 'lucide-svelte';
+	import { _ } from 'svelte-i18n';
 	
 	const dispatch = createEventDispatcher<{
 		close: void;
@@ -91,8 +92,8 @@
 					<Folder size={20} class="text-primary" />
 				</div>
 				<div>
-					<h2 class="text-xl font-bold text-gray-900 dark:text-white">จัดการโปรเจค</h2>
-					<p class="text-sm text-gray-500 dark:text-gray-400">{projects.length} โปรเจค</p>
+					<h2 class="text-xl font-bold text-gray-900 dark:text-white">{$_('projectManager__title')}</h2>
+					<p class="text-sm text-gray-500 dark:text-gray-400">{projects.length} {$_('projectManager__count_suffix')}</p>
 				</div>
 			</div>
 			<button
@@ -110,13 +111,13 @@
 				<div class="bg-gray-50 dark:bg-gray-700 rounded-xl p-4 mb-6 space-y-4">
 					<div>
 						<label for="project-name-input" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-							{editingProject ? 'แก้ไขชื่อโปรเจค' : 'ชื่อโปรเจค'}
+							{editingProject ? $_('projectManager__edit_name') : $_('projectManager__name_label')}
 						</label>
 						<input
 							id="project-name-input"
 							type="text"
 							bind:value={newProjectName}
-							placeholder="เช่น โปรเจค A, งานลูกค้า XYZ..."
+							placeholder={$_('projectManager__name_placeholder')}
 							class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none"
 						/>
 					</div>
@@ -129,17 +130,17 @@
 						>
 							{#if editingProject}
 								<Check size={16} />
-								บันทึก
+								{$_('projectManager__btn_save')}
 							{:else}
 								<Plus size={16} />
-								เพิ่ม
+								{$_('projectManager__btn_add')}
 							{/if}
 						</button>
 						<button
 							on:click={cancelEdit}
 							class="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
 						>
-							ยกเลิก
+							{$_('projectManager__btn_cancel')}
 						</button>
 					</div>
 				</div>
@@ -150,19 +151,19 @@
 					class="w-full mb-6 py-3 px-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl text-gray-600 dark:text-gray-400 hover:border-primary hover:text-primary hover:bg-primary/5 transition-colors flex items-center justify-center gap-2"
 				>
 					<Plus size={18} />
-					เพิ่มโปรเจคใหม่
+					{$_('projectManager__add_new')}
 				</button>
 			{/if}
 
 			<!-- Project List -->
 			<div class="space-y-3">
-				<h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">รายชื่อโปรเจค</h3>
+				<h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">{$_('projectManager__list_title')}</h3>
 
 				{#if projects.length === 0}
 					<div class="text-center py-8 text-gray-400 dark:text-gray-500">
 						<Folder size={48} class="mx-auto mb-3 opacity-50" />
-						<p>ยังไม่มีโปรเจค</p>
-						<p class="text-sm">คลิกปุ่มด้านบนเพื่อเพิ่ม</p>
+						<p>{$_('projectManager__no_projects')}</p>
+						<p class="text-sm">{$_('projectManager__add_hint')}</p>
 					</div>
 				{:else}
 					{#each projects as project (project.id)}
@@ -177,7 +178,7 @@
 								<h4 class="font-medium text-gray-900 dark:text-white truncate">{project.name}</h4>
 								<div class="flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400">
 									<Briefcase size={12} />
-									<span>{getTaskCount(project.id!)} งาน</span>
+									<span>{getTaskCount(project.id!)} {$_('projectManager__task_count_suffix')}</span>
 								</div>
 							</div>
 
@@ -186,14 +187,14 @@
 								<button
 									on:click={() => startEdit(project)}
 									class="p-2 text-gray-400 dark:text-gray-500 hover:text-primary hover:bg-white dark:hover:bg-gray-600 rounded-lg transition-colors"
-									title="แก้ไข"
+									title={$_('projectManager__btn_edit')}
 								>
 									<Edit2 size={14} />
 								</button>
 								<button
 									on:click={() => confirmDelete(project.id!)}
 									class="p-2 text-gray-400 dark:text-gray-500 hover:text-danger hover:bg-white dark:hover:bg-gray-600 rounded-lg transition-colors"
-									title="ลบ"
+									title={$_('projectManager__btn_delete')}
 								>
 									<Trash2 size={14} />
 								</button>
@@ -204,9 +205,9 @@
 						{#if deleteConfirmId === project.id}
 							<div class="bg-danger/10 border border-danger/20 rounded-xl p-3 mt-2">
 								<p class="text-sm text-danger mb-2">
-									ลบ "{project.name}"?
+									{$_('projectManager__delete_confirm', { values: { name: project.name } })}
 									{#if getTaskCount(project.id!) > 0}
-										<br><span class="text-xs">งานในโปรเจคนี้จะกลายเป็น "ไม่ระบุ"</span>
+										<br><span class="text-xs">{$_('projectManager__delete_warning')}</span>
 									{/if}
 								</p>
 								<div class="flex gap-2">
@@ -214,13 +215,13 @@
 										on:click={() => handleDelete(project.id!)}
 										class="px-3 py-1.5 bg-danger text-white rounded-lg text-sm font-medium hover:bg-danger-dark transition-colors"
 									>
-										ยืนยันลบ
+										{$_('projectManager__confirm_delete')}
 									</button>
 									<button
 										on:click={() => deleteConfirmId = null}
 										class="px-3 py-1.5 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg text-sm transition-colors"
 									>
-										ยกเลิก
+										{$_('projectManager__btn_cancel')}
 									</button>
 								</div>
 							</div>
@@ -233,7 +234,7 @@
 		<!-- Footer -->
 		<div class="p-4 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 rounded-b-2xl">
 			<p class="text-xs text-gray-500 dark:text-gray-400 text-center">
-				โปรเจคจะถูกแสดงในฟอร์มเพิ่มงานเพื่อจัดหมวดหมู่งาน
+				{$_('projectManager__footer_hint')}
 			</p>
 		</div>
 	</div>

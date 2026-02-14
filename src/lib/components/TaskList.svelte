@@ -3,6 +3,7 @@
 	import type { Task, Sprint } from '$lib/types';
 	import { Calendar, Tag, FileText, Edit2, Trash2, MoreVertical, User, Folder, Flag, Archive } from 'lucide-svelte';
 	import Pagination from './Pagination.svelte';
+	import { _ } from 'svelte-i18n';
 
 	const dispatch = createEventDispatcher<{
 		edit: Task;
@@ -43,11 +44,11 @@
 	}
 
 	function getStatusText(status: Task['status'], isArchived: boolean = false): string {
-		if (isArchived) return 'Archived';
+		if (isArchived) return $_('taskList__archived');
 		switch (status) {
-			case 'todo': return 'รอดำเนินการ';
-			case 'in-progress': return 'กำลังทำ';
-			case 'done': return 'เสร็จแล้ว';
+			case 'todo': return $_('taskList__status_todo');
+			case 'in-progress': return $_('taskList__status_in_progress');
+			case 'done': return $_('taskList__status_done');
 		}
 	}
 
@@ -57,8 +58,8 @@
 <div class="space-y-3">
 	{#if tasks.length === 0}
 		<div class="text-center py-12 text-gray-500 dark:text-gray-400">
-			<p>ไม่มีงานในช่วงเวลานี้</p>
-			<p class="text-sm mt-1">ลองเพิ่มงานใหม่ดูสิ!</p>
+			<p>{$_('taskList__no_tasks')}</p>
+			<p class="text-sm mt-1">{$_('taskList__add_task_hint')}</p>
 		</div>
 	{:else}
 		{#each paginatedTasks as task (task.id)}
@@ -127,7 +128,7 @@
 									class="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2"
 								>
 									<Edit2 size={14} />
-									แก้ไข
+									{$_('taskList__edit')}
 								</button>
 								{#if task.status !== 'done'}
 									<button
@@ -138,7 +139,7 @@
 										class="w-full px-4 py-2 text-left text-sm text-success hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2"
 									>
 										<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
-										ทำเสร็จแล้ว
+										{$_('taskList__mark_done')}
 									</button>
 								{/if}
 								<div class="border-t border-gray-100 dark:border-gray-700 my-1"></div>
@@ -150,7 +151,7 @@
 									class="w-full px-4 py-2 text-left text-sm text-danger hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2"
 								>
 									<Trash2 size={14} />
-									ลบ
+									{$_('taskList__delete')}
 								</button>
 							</div>
 						{/if}
@@ -177,6 +178,6 @@
 		class="fixed inset-0 z-0"
 		on:click={() => openMenuId = null}
 		tabindex="-1"
-		aria-label="ปิดเมนู"
+		aria-label={$_('taskList__close_menu')}
 	></button>
 {/if}

@@ -2,6 +2,7 @@
 	import { createEventDispatcher } from 'svelte';
 	import { Download, Upload, FileSpreadsheet, FileText, Image as ImageIcon, FileCode, ChevronDown, ChevronRight, Video, Presentation } from 'lucide-svelte';
 	import { toPng } from 'html-to-image';
+	import { _ } from 'svelte-i18n';
 
 	const dispatch = createEventDispatcher<{
 		exportCSV: void;
@@ -38,19 +39,19 @@
 			database: 'SQLite',
 			extensions: ['.db', '.sqlite'],
 			primaryExtension: '.sqlite',
-			note: 'Relational แบบเบา ๆ'
+			note: $_('exportImport__sqlite_note')
 		},
 		{
 			database: 'MongoDB/NoSQL',
 			extensions: ['.json', '.bson'],
 			primaryExtension: '.json',
-			note: 'Document database'
+			note: $_('exportImport__nosql_note')
 		},
 		{
 			database: 'PostgreSQL',
 			extensions: ['.sql'],
 			primaryExtension: '.sql',
-			note: 'Relational SQL script'
+			note: $_('exportImport__postgres_note')
 		}
 	];
 
@@ -141,7 +142,7 @@
 			
 		} catch (error) {
 			console.error('PNG export failed:', error);
-			alert('ส่งออก PNG ไม่สำเร็จ กรุณาลองใหม่');
+			alert($_('exportImport__error_export_png'));
 		}
 	}
 
@@ -197,7 +198,7 @@
 			class="flex items-center justify-center gap-2 h-10 px-3 sm:px-4 bg-success/10 hover:bg-success/20 text-success rounded-lg font-medium transition-colors"
 		>
 			<Download size={16} />
-			<span class="hidden sm:inline">ส่งออก</span>
+			<span class="hidden sm:inline">{$_('exportImport__export')}</span>
 			<ChevronDown size={16} class="transition-transform {showExportDropdown ? 'rotate-180' : ''}" />
 		</button>
 
@@ -208,49 +209,49 @@
 					class="w-full flex items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors whitespace-nowrap"
 				>
 					<FileSpreadsheet size={16} class="text-green-600" />
-					ส่งออก CSV
+					{$_('exportImport__export_csv')}
 				</button>
 				<button
 					on:click={handleExportPDF}
 					class="w-full flex items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors whitespace-nowrap"
 				>
 					<FileText size={16} class="text-red-600" />
-					ส่งออก PDF
+					{$_('exportImport__export_pdf')}
 				</button>
 				<button
 					on:click={handleExportPNG}
 					class="w-full flex items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors whitespace-nowrap"
 				>
 					<ImageIcon size={16} class="text-purple-600" />
-					ส่งออก PNG
+					{$_('exportImport__export_png')}
 				</button>
 				<button
 					on:click={handleExportMarkdown}
 					class="w-full flex items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors whitespace-nowrap"
 				>
 					<FileCode size={16} class="text-blue-600" />
-					ส่งออก Markdown
+					{$_('exportImport__export_markdown')}
 				</button>
 				<button
 					on:click={handleExportVideo}
 					class="w-full flex items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors whitespace-nowrap"
 				>
 					<Video size={16} class="text-orange-500" />
-					ส่งออก Video (WebM)
+					{$_('exportImport__export_video')}
 				</button>
 				<button
 					on:click={handleExportSlide}
 					class="w-full flex items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors whitespace-nowrap"
 				>
 					<Presentation size={16} class="text-indigo-600" />
-					ส่งออก Slide (PPTX)
+					{$_('exportImport__export_slide')}
 				</button>
 				<div class="my-1 border-t border-gray-200 dark:border-gray-700"></div>
 				<div class="relative group">
 					<button
 						class="w-full flex items-center justify-between gap-2 px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors whitespace-nowrap"
 					>
-						<span class="font-medium">Export to Database</span>
+						<span class="font-medium">{$_('exportImport__export_database')}</span>
 						<ChevronRight size={14} class="text-gray-500 dark:text-gray-400" />
 					</button>
 
@@ -261,7 +262,7 @@
 								class="w-full flex items-center justify-between gap-2 px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
 							>
 								<span>{target.database}</span>
-								<span class="text-xs text-gray-500 dark:text-gray-400">{target.extensions.join(' / ')}</span>
+								<span class="text-xs text-gray-500 dark:text-gray-400">{target.note}</span>
 							</button>
 						{/each}
 					</div>
@@ -283,17 +284,17 @@
 		class="flex items-center justify-center gap-2 h-10 px-3 sm:px-4 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg font-medium transition-colors"
 	>
 		<Upload size={16} />
-		<span class="hidden sm:inline">นำเข้า CSV</span>
-		<span class="sm:hidden">นำเข้า</span>
+		<span class="hidden sm:inline">{$_('exportImport__import')}</span>
+		<span class="sm:hidden">{$_('exportImport__import_short')}</span>
 	</button>
 </div>
 
 {#if showImportConfirm}
 	<div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
 		<div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full p-6 transition-colors">
-			<h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">ยืนยันการนำเข้าข้อมูล</h3>
+			<h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">{$_('exportImport__import_confirm_title')}</h3>
 			<p class="text-gray-600 dark:text-gray-400 mb-4">
-				คุณต้องการนำเข้าข้อมูลจากไฟล์ CSV หรือไม่? ข้อมูลที่มีอยู่จะไม่ถูกแทนที่
+				{$_('exportImport__import_confirm_message')}
 			</p>
 
 			{#if importError}
@@ -307,13 +308,13 @@
 					on:click={confirmImport}
 					class="flex-1 bg-primary hover:bg-primary-dark text-white py-2 px-4 rounded-lg font-medium transition-colors"
 				>
-					นำเข้า
+					{$_('exportImport__btn_import')}
 				</button>
 				<button
 					on:click={cancelImport}
 					class="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
 				>
-					ยกเลิก
+					{$_('exportImport__btn_cancel')}
 				</button>
 			</div>
 		</div>

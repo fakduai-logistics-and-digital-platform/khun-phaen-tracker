@@ -1,13 +1,15 @@
 <script lang="ts">
 	import '../app.css';
+	import { changeLocale, locale } from '$lib/i18n';
 	import { initDB } from '$lib/db';
 	import { onMount, onDestroy } from 'svelte';
-	import { CheckSquare, Sun, Moon, Github, Calendar, Clock } from 'lucide-svelte';
+	import { CheckSquare, Sun, Moon, Github, Calendar, Clock, Globe } from 'lucide-svelte';
 	import { theme } from '$lib/stores/theme';
 	import favicon from '$lib/assets/favicon.svg';
 	import DevTimer from '$lib/components/DevTimer.svelte';
 	import BookmarkManager from '$lib/components/BookmarkManager.svelte';
 	import WhiteboardModal from '$lib/components/WhiteboardModal.svelte';
+	import { _ } from 'svelte-i18n';
 
 	let loading = true;
 	let error = '';
@@ -15,6 +17,7 @@
 	let timeInterval: ReturnType<typeof setInterval>;
 	let showBookmarkManager = false;
 	let showWhiteboard = false;
+	let showLanguageDropdown = false;
 	let whiteboardMessage = '';
 	let whiteboardMessageType: 'success' | 'error' = 'success';
 
@@ -23,7 +26,7 @@
 			await initDB();
 			loading = false;
 		} catch (e) {
-			error = 'ไม่สามารถโหลดฐานข้อมูลได้ กรุณารีเฟรชหน้า';
+			error = $_('layout__db_error');
 			loading = false;
 		}
 		
@@ -41,23 +44,32 @@
 		theme.toggle();
 	}
 	
-	// Format date in Thai
+	// Format date based on locale
 	function formatDate(date: Date): string {
-		const days = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
-		const months = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 
-						'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+		if ($locale === 'th') {
+			const days = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
+			const months = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 
+							'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+			
+			const dayName = days[date.getDay()];
+			const day = date.getDate();
+			const month = months[date.getMonth()];
+			const year = date.getFullYear() + 543; // Buddhist year
+			
+			return `วัน${dayName}ที่ ${day} ${month} พ.ศ. ${year}`;
+		}
 		
-		const dayName = days[date.getDay()];
-		const day = date.getDate();
-		const month = months[date.getMonth()];
-		const year = date.getFullYear() + 543; // Buddhist year
-		
-		return `วัน${dayName}ที่ ${day} ${month} พ.ศ. ${year}`;
+		return new Intl.DateTimeFormat('en-US', {
+			weekday: 'long',
+			day: 'numeric',
+			month: 'long',
+			year: 'numeric'
+		}).format(date);
 	}
 	
-	// Format time
+	// Format time based on locale
 	function formatTime(date: Date): string {
-		return date.toLocaleTimeString('th-TH', { 
+		return date.toLocaleTimeString($locale === 'th' ? 'th-TH' : 'en-US', { 
 			hour: '2-digit', 
 			minute: '2-digit', 
 			second: '2-digit',
@@ -82,8 +94,8 @@
 	{#if loading}
 		<div class="fixed inset-0 bg-white dark:bg-gray-900 flex flex-col items-center justify-center z-50 transition-colors">
 			<div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
-			<p class="text-gray-600 dark:text-gray-400">กำลังโหลดฐานข้อมูล...</p>
-			<p class="text-sm text-gray-400 dark:text-gray-500 mt-2">ครั้งแรกอาจใช้เวลาสักครู่</p>
+			<p class="text-gray-600 dark:text-gray-400">{$_('layout__loading_db')}</p>
+			<p class="text-sm text-gray-400 dark:text-gray-500 mt-2">{$_('layout__loading_first_time')}</p>
 		</div>
 	{:else if error}
 		<div class="fixed inset-0 bg-white dark:bg-gray-900 flex flex-col items-center justify-center z-50 p-4 text-center transition-colors">
@@ -99,7 +111,7 @@
 				on:click={() => window.location.reload()}
 				class="mt-4 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors"
 			>
-				รีเฟรชหน้า
+				{$_('layout__refresh_page')}
 			</button>
 		</div>
 	{:else}
@@ -111,8 +123,8 @@
 							<CheckSquare class="text-primary" size={24} />
 						</div>
 						<div>
-							<h1 class="text-xl font-bold text-gray-900 dark:text-white">Khu Phaen</h1>
-							<p class="text-xs text-gray-500 dark:text-gray-400">ระบบจัดการงานแบบออฟไลน์</p>
+							<h1 class="text-xl font-bold text-gray-900 dark:text-white">{$_('layout__app_name')}</h1>
+							<p class="text-xs text-gray-500 dark:text-gray-400">{$_('layout__app_subtitle')}</p>
 						</div>
 					</div>
 					<div class="flex items-center gap-4">
@@ -127,11 +139,53 @@
 							</span>
 						</div>
 						
+						<!-- Language Switcher -->
+						<div class="relative">
+							<button
+								type="button"
+								on:click={() => showLanguageDropdown = !showLanguageDropdown}
+								class="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-2"
+								title={$_('layout__change_language')}
+							>
+								<Globe size={20} />
+								<span class="text-xs font-medium uppercase">{$locale}</span>
+							</button>
+
+							{#if showLanguageDropdown}
+								<!-- svelte-ignore a11y-click-events-have-key-events -->
+								<div 
+									class="fixed inset-0 z-10"
+									role="presentation"
+									on:click={() => showLanguageDropdown = false}
+								></div>
+								<div class="absolute right-0 mt-2 w-32 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-20 animate-fade-in">
+									<button
+										class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 {$locale === 'th' ? 'text-primary font-medium' : ''}"
+										on:click={() => {
+											changeLocale('th');
+											showLanguageDropdown = false;
+										}}
+									>
+										<span>🇹🇭</span> ไทย
+									</button>
+									<button
+										class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 {$locale === 'en' ? 'text-primary font-medium' : ''}"
+										on:click={() => {
+											changeLocale('en');
+											showLanguageDropdown = false;
+										}}
+									>
+										<span>🇺🇸</span> English
+									</button>
+								</div>
+							{/if}
+						</div>
+
 						<!-- Theme Toggle -->
 						<button
 							on:click={toggleTheme}
 							class="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-							title="เปลี่ยนธีม"
+							title={$_('layout__change_theme')}
 						>
 							{#if $theme === 'light'}
 								<Sun size={20} />
@@ -140,7 +194,7 @@
 							{/if}
 						</button>
 						<div class="text-sm text-gray-500 dark:text-gray-400 hidden sm:inline">
-							ข้อมูลจัดเก็บในเครื่อง
+							{$_('layout__local_storage')}
 						</div>
 					</div>
 				</div>
@@ -177,7 +231,7 @@
 			<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 				<div class="flex flex-col sm:flex-row items-center justify-between gap-4">
 					<p class="text-sm text-gray-500 dark:text-gray-400">
-						© {new Date().getFullYear()} Khu Phaen. All rights reserved.
+						{$_('layout__footer_copyright', { values: { year: new Date().getFullYear() } })}
 					</p>
 					<a
 						href="https://github.com/watchakorn-18k/khun-phaen-tracker-offline"
@@ -186,7 +240,7 @@
 						class="text-sm text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-primary transition-colors flex items-center gap-2"
 					>
 						<Github size={20} class="fill-current" />
-						<span>GitHub</span>
+						<span>{$_('layout__github')}</span>
 					</a>
 				</div>
 			</div>
