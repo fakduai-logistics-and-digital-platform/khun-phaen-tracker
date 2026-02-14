@@ -306,6 +306,7 @@
 	"timer__save_note_placeholder": "หมายเหตุ (optional)...",
 	"timer__save_confirm": "บันทึกเวลา {time}",
 	"timer__btn_save_action": "บันทึก",
+	"timer__btn_save": "บันทึก",
 	"timer__btn_cancel": "ยกเลิก",
 	"timer__btn_pause": "หยุด",
 	"timer__btn_resume": "ต่อ",
@@ -346,5 +347,14 @@
 	"dailyReflect__temp2": "สรุปงานประจำวันที่ {date}:\n- {tasksList}\n✅ {count} งานเสร็จสมบูรณ์!",
 	"dailyReflect__temp3": "Standup {date}:\n- {tasksList}\n🚀 สำเร็จไปแล้ว {count} งาน!",
 	"dailyReflect__temp4": "รายงานความคืบหน้า {date}:\n- {tasksList}\n✨ เคลียร์ไปได้ {count} งานครับ",
-	"dailyReflect__temp5": "สรุปผลงานวันนี้ ({date}):\n- {tasksList}\n🔥 ทำเสร็จไป {count} งาน สู้ต่อไป!"
+	"dailyReflect__temp5": "สรุปผลงานวันนี้ ({date}):\n- {tasksList}\n🔥 ทำเสร็จไป {count} งาน สู้ต่อไป!",
+	"dailyReflect__webhook_label": "Discord Webhook URL",
+	"dailyReflect__webhook_placeholder": "ใส่ URL ของ Discord Webhook ตรงนี้...",
+	"dailyReflect__btn_send_discord": "ส่งไปยัง Discord",
+	"dailyReflect__send_success": "ส่งข้อมูลสำเร็จ!",
+	"dailyReflect__send_error": "การส่งข้อมูลล้มเหลว",
+	"dailyReflect__settings_title": "ตั้งค่า Webhook",
+	"dailyReflect__webhook_help": "* กรุณาตั้งค่า Discord Webhook ในเมนูตั้งค่าก่อน",
+	"dailyReflect__footer_text": "เหมาะสำหรับสร้างสรุปงาน Standup ของคุณ",
+	"layout__stats_syncing": "กำลังส่งข้อมูล"
 }

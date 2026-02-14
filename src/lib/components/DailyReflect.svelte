@@ -1,18 +1,25 @@
 <script lang="ts">
 	import { _ } from 'svelte-i18n';
-	import { CheckCircle2, Clock, ClipboardCopy, RefreshCcw, X, Sparkles, MessageSquareQuote } from 'lucide-svelte';
-	import { fade, scale, fly } from 'svelte/transition';
+	import { CheckCircle2, Clock, ClipboardCopy, RefreshCcw, X, Sparkles, MessageSquareQuote, Settings, Send, Save, AlertCircle } from 'lucide-svelte';
+	import { fade, scale, fly, slide } from 'svelte/transition';
 	import { timeLogs, formatDuration } from '$lib/stores/timeLogs';
 	import type { Task } from '$lib/types';
 	import { getTasks } from '$lib/db';
+	import { browser } from '$app/environment';
 
 	export let show = false;
 
 	let todayTasks: Task[] = [];
-	let totalSecondsToday = 0;
 	let generatedText = '';
 	let isLoading = false;
 	let copied = false;
+	
+	// Discord Webhook State
+	let webhookUrl = browser ? localStorage.getItem('discordWebhookUrl') || '' : '';
+	let showSettings = false;
+	let isSending = false;
+	let sendSuccess = false;
+	let sendError = '';
 
 	// Variety of template keys
 	const templateKeys = [
@@ -89,6 +96,43 @@
 		}, 2000);
 	}
 
+	function saveWebhookSettings() {
+		if (browser) {
+			localStorage.setItem('discordWebhookUrl', webhookUrl);
+			showSettings = false;
+		}
+	}
+
+	async function sendToDiscord() {
+		if (!generatedText || !webhookUrl) return;
+		
+		isSending = true;
+		sendError = '';
+		try {
+			const response = await fetch(webhookUrl, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					content: generatedText
+				})
+			});
+
+			if (!response.ok) throw new Error('Failed to send');
+
+			sendSuccess = true;
+			setTimeout(() => {
+				sendSuccess = false;
+			}, 3000);
+		} catch (err) {
+			console.error('Discord Webhook Error:', err);
+			sendError = $_('dailyReflect__send_error');
+		} finally {
+			isSending = false;
+		}
+	}
+
 	$: if (show) {
 		loadTodayData();
 	}
@@ -117,13 +161,43 @@
 							<p class="text-sm text-gray-500 dark:text-gray-400 font-medium">{$_('dailyReflect__subtitle')}</p>
 						</div>
 					</div>
-					<button 
-						on:click={() => (show = false)}
-						class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors group"
-					>
-						<X size={24} class="text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-200" />
-					</button>
+					<div class="flex items-center gap-2">
+						<button 
+							on:click={() => (showSettings = !showSettings)}
+							class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors text-gray-400 hover:text-primary"
+							title={$_('dailyReflect__settings_title')}
+						>
+							<Settings size={20} />
+						</button>
+						<button 
+							on:click={() => (show = false)}
+							class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors group"
+						>
+							<X size={24} class="text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-200" />
+						</button>
+					</div>
 				</div>
+
+				<!-- Settings Panel -->
+				{#if showSettings}
+					<div class="mt-4 p-4 bg-gray-50/80 dark:bg-gray-800/80 rounded-2xl border border-gray-100 dark:border-gray-700" transition:slide>
+						<div class="flex flex-col gap-3">
+							<div class="flex items-center justify-between">
+								<label for="webhook" class="text-xs font-bold uppercase tracking-wider text-gray-500">{$_('dailyReflect__webhook_label')}</label>
+								<button on:click={saveWebhookSettings} class="text-xs font-bold text-primary flex items-center gap-1 hover:underline">
+									<Save size={12} /> {$_('timer__btn_save')}
+								</button>
+							</div>
+							<input 
+								id="webhook"
+								type="text" 
+								bind:value={webhookUrl}
+								placeholder={$_('dailyReflect__webhook_placeholder')}
+								class="w-full px-4 py-2 text-sm bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-primary/50 outline-none"
+							/>
+						</div>
+					</div>
+				{/if}
 			</div>
 
 			<div class="px-6 pb-6 space-y-6">
@@ -164,17 +238,24 @@
 									<MessageSquareQuote size={18} class="text-primary" />
 									{$_('dailyReflect__generated_text')}
 								</label>
-								<button 
-									on:click={() => { generate(); }}
-									class="group flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-primary hover:bg-primary/10 rounded-full transition-all active:scale-95"
-								>
-									<RefreshCcw size={14} class="group-hover:rotate-180 transition-transform duration-500" />
-									{$_('dailyReflect__btn_refresh')}
-								</button>
+								<div class="flex items-center gap-2">
+									{#if sendError}
+										<span class="text-[10px] font-bold text-red-500 flex items-center gap-1" in:fade>
+											<AlertCircle size={12} /> {sendError}
+										</span>
+									{/if}
+									<button 
+										on:click={() => { generate(); }}
+										class="group flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-primary hover:bg-primary/10 rounded-full transition-all active:scale-95"
+									>
+										<RefreshCcw size={14} class="group-hover:rotate-180 transition-transform duration-500" />
+										{$_('dailyReflect__btn_refresh')}
+									</button>
+								</div>
 							</div>
 							
 							<div class="relative group">
-								<div class="absolute -inset-0.5 bg-gradient-to-r from-primary/20 to-secondary/20 rounded-2xl blur opacity-0 group-hover:opacity-100 transition duration-500"></div>
+								<div class="absolute -inset-0.5 bg-gradient-to-r from-primary/20 to-secondary/20 rounded-2xl blur opacity-0 group-hover:opacity-10 transition duration-500"></div>
 								<div class="relative">
 									<textarea 
 										bind:value={generatedText}
@@ -182,21 +263,48 @@
 										rows="6"
 										class="w-full p-5 bg-gray-50/80 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-2xl text-gray-800 dark:text-gray-200 font-medium leading-relaxed resize-none focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all shadow-inner"
 									></textarea>
-																		<button 
-											on:click={copyToClipboard}
-											disabled={!generatedText}
-											class="absolute bottom-3 right-3 p-2.5 rounded-xl transition-all active:scale-90 disabled:opacity-50 {copied ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-primary hover:text-white hover:shadow-lg hover:shadow-primary/20'}"
-											title={$_('dailyReflect__btn_copy')}
-										>
-											{#if copied}
-												<div in:scale={{ duration: 200, start: 0.5 }}>
-													<CheckCircle2 size={20} />
-												</div>
-											{:else}
-												<ClipboardCopy size={20} />
-											{/if}
-										</button>
+									
+									<button 
+										on:click={copyToClipboard}
+										disabled={!generatedText}
+										class="absolute bottom-3 right-3 p-2.5 rounded-xl transition-all active:scale-90 disabled:opacity-50 {copied ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm text-gray-600 dark:text-gray-300 hover:bg-primary hover:text-white hover:shadow-lg hover:shadow-primary/20 border border-gray-100 dark:border-gray-700'}"
+										title={$_('dailyReflect__btn_copy')}
+									>
+										{#if copied}
+											<div in:scale={{ duration: 200, start: 0.5 }}>
+												<CheckCircle2 size={20} />
+											</div>
+										{:else}
+											<ClipboardCopy size={20} />
+										{/if}
+									</button>
 								</div>
+							</div>
+
+							<!-- Discord Send Action Row -->
+							<div class="flex flex-col gap-2">
+								<button 
+									on:click={sendToDiscord}
+									disabled={!generatedText || !webhookUrl || isSending}
+									class="w-full py-4 rounded-2xl font-bold flex items-center justify-center gap-3 transition-all active:scale-[0.98] disabled:opacity-50 disabled:grayscale {sendSuccess ? 'bg-emerald-500 text-white' : 'bg-[#5865F2] text-white shadow-xl shadow-[#5865F2]/20 hover:shadow-2xl hover:shadow-[#5865F2]/30 hover:-translate-y-0.5'}"
+								>
+									{#if isSending}
+										<RefreshCcw size={20} class="animate-spin" />
+										<span>{$_('layout__stats_syncing')}...</span>
+									{:else if sendSuccess}
+										<CheckCircle2 size={20} />
+										<span>{$_('dailyReflect__send_success')}</span>
+									{:else}
+										<Send size={20} />
+										<span>{$_('dailyReflect__btn_send_discord')}</span>
+									{/if}
+								</button>
+								
+								{#if !webhookUrl}
+									<p class="text-[10px] text-center text-gray-400 font-medium italic">
+										{$_('dailyReflect__webhook_help')}
+									</p>
+								{/if}
 							</div>
 						</div>
 					</div>
@@ -207,7 +315,7 @@
 			<div class="px-6 py-4 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800/30 dark:to-gray-800/50 border-t border-gray-100 dark:border-gray-700 flex justify-center">
 				<div class="text-[10px] items-center flex gap-1.5 text-gray-400 dark:text-gray-500 font-black uppercase tracking-[0.2em]">
 					<div class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
-					Perfect for your morning standup report
+					{$_('dailyReflect__footer_text')}
 					<div class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
 				</div>
 			</div>

@@ -306,6 +306,7 @@
 	"timer__save_note_placeholder": "Optional note...",
 	"timer__save_confirm": "Save {time}",
 	"timer__btn_save_action": "Save",
+	"timer__btn_save": "Save",
 	"timer__btn_cancel": "Cancel",
 	"timer__btn_pause": "Pause",
 	"timer__btn_resume": "Resume",
@@ -346,5 +347,14 @@
 	"dailyReflect__temp2": "Daily Standup {date}:\n- {tasksList}\n✅ {count} tasks completed today!",
 	"dailyReflect__temp3": "Standup {date}:\n- {tasksList}\n🚀 {count} tasks done!",
 	"dailyReflect__temp4": "Progress Report {date}:\n- {tasksList}\n✨ {count} tasks finished!",
-	"dailyReflect__temp5": "Today's Summary ({date}):\n- {tasksList}\n🔥 {count} tasks done. Keep it up!"
+	"dailyReflect__temp5": "Today's Summary ({date}):\n- {tasksList}\n🔥 {count} tasks done. Keep it up!",
+	"dailyReflect__webhook_label": "Discord Webhook URL",
+	"dailyReflect__webhook_placeholder": "Paste Discord Webhook URL here...",
+	"dailyReflect__btn_send_discord": "Send to Discord",
+	"dailyReflect__send_success": "Sent successfully!",
+	"dailyReflect__send_error": "Failed to send",
+	"dailyReflect__settings_title": "Webhook Settings",
+	"dailyReflect__webhook_help": "* Please configure Discord Webhook in settings first",
+	"dailyReflect__footer_text": "Perfect for your morning standup report",
+	"layout__stats_syncing": "Sending"
 }
