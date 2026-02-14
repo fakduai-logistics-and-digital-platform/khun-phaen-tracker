@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
+	import { browser } from '$app/environment';
 	import { Play, Pause, RotateCcw, Timer, HelpCircle, Bookmark, Save, History, PenTool, FileText } from 'lucide-svelte';
 	import { showKeyboardShortcuts } from '$lib/stores/keyboardShortcuts';
 	import { timeLogs, formatDuration } from '$lib/stores/timeLogs';
@@ -125,7 +126,9 @@
 		if (interval) clearInterval(interval);
 		if (expandTimeout) clearTimeout(expandTimeout);
 		if (hideTimeout) clearTimeout(hideTimeout);
-		window.removeEventListener('beforeunload', handleBeforeUnload);
+		if (browser) {
+			window.removeEventListener('beforeunload', handleBeforeUnload);
+		}
 	});
 </script>
 

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { createEventDispatcher, onMount, onDestroy } from 'svelte';
+	import { browser } from '$app/environment';
 	import type { Task, Project, Assignee, Sprint } from '$lib/types';
 	import { CATEGORIES } from '$lib/types';
 	import { Calendar, FileText, Tag, CheckCircle, User, Plus, Folder, X, Flag, GitBranch, Copy, Check } from 'lucide-svelte';
@@ -415,7 +416,9 @@
 	});
 
 	onDestroy(() => {
-		document.removeEventListener('keydown', handleKeydown);
+		if (browser) {
+			document.removeEventListener('keydown', handleKeydown);
+		}
 		clearBranchDebounceTimer();
 		clearCopyFeedbackTimer();
 		if (translator?.destroy) {

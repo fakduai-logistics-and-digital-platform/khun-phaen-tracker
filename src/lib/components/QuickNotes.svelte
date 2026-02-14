@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { createEventDispatcher, onMount } from 'svelte';
+	import { browser } from '$app/environment';
 	import { FileText, X, Trash2, Copy, Check } from 'lucide-svelte';
 	import { quickNotes } from '$lib/stores/quickNotes';
 	import { _ } from 'svelte-i18n';
@@ -112,14 +113,16 @@
 
 		<!-- Content -->
 		<div class="flex-1 overflow-y-auto p-4 tipex-container prose dark:prose-invert max-w-none">
-			<Tipex 
-				body={content} 
-				onupdate={handleUpdate}
-				bind:tipex={tipexEditor}
-				floating={true} 
-				focal={true}
-				class="h-full border-none outline-none"
-			/>
+			{#if browser}
+				<Tipex 
+					body={content} 
+					onupdate={handleUpdate}
+					bind:tipex={tipexEditor}
+					floating={true} 
+					focal={true}
+					class="h-full border-none outline-none"
+				/>
+			{/if}
 		</div>
 
 		<!-- Footer -->

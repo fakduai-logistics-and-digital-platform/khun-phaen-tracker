@@ -3,6 +3,7 @@
 	import { changeLocale, locale } from '$lib/i18n';
 	import { initDB } from '$lib/db';
 	import { onMount, onDestroy } from 'svelte';
+	import { browser } from '$app/environment';
 	import { CheckSquare, Sun, Moon, Github, Calendar, Clock, Globe } from 'lucide-svelte';
 	import { theme } from '$lib/stores/theme';
 	import favicon from '$lib/assets/favicon.svg';
@@ -23,6 +24,22 @@
 	let whiteboardMessage = '';
 	let whiteboardMessageType: 'success' | 'error' = 'success';
 
+	function handleOpenUtilityModal(event: Event) {
+		const customEvent = event as CustomEvent<{ kind?: string }>;
+		const kind = customEvent.detail?.kind;
+		if (kind === 'bookmark') {
+			showBookmarkManager = true;
+			return;
+		}
+		if (kind === 'whiteboard') {
+			showWhiteboard = true;
+			return;
+		}
+		if (kind === 'quick-notes') {
+			showQuickNotes = true;
+		}
+	}
+
 	onMount(async () => {
 		try {
 			await initDB();
@@ -36,10 +53,15 @@
 		timeInterval = setInterval(() => {
 			currentTime = new Date();
 		}, 1000);
+
+		document.addEventListener('open-utility-modal', handleOpenUtilityModal);
 	});
 	
 	onDestroy(() => {
 		if (timeInterval) clearInterval(timeInterval);
+		if (browser) {
+			document.removeEventListener('open-utility-modal', handleOpenUtilityModal);
+		}
 	});
 
 	function toggleTheme() {

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy, createEventDispatcher, tick } from 'svelte';
+	import { browser } from '$app/environment';
 	import type { Task } from '$lib/types';
 	import { Calendar as CalendarIcon, Clock } from 'lucide-svelte';
 	
@@ -249,7 +250,9 @@
 	});
 
 	onDestroy(() => {
-		window.removeEventListener('resize', handleWindowResize);
+		if (browser) {
+			window.removeEventListener('resize', handleWindowResize);
+		}
 	});
 </script>
 

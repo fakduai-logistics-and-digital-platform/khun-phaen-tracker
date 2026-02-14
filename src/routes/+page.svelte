@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, onDestroy, tick } from 'svelte';
+	import { browser } from '$app/environment';
 	import { _ } from 'svelte-i18n';
 	import type { Task, Project, Assignee, ViewMode, FilterOptions } from '$lib/types';
 	import { getTasks, getTasksBySprint, addTask, updateTask, deleteTask, getStats, exportToCSV, importFromCSV, importAllData, mergeAllData, getCategories, getAssignees, getProjects, getProjectsList, addProject, updateProject, deleteProject, getProjectStats, addAssignee as addAssigneeDB, getAssigneeStats, updateAssignee, deleteAssignee, archiveTasksBySprint, exportFilteredSQLiteBinary } from '$lib/db';
@@ -123,6 +124,10 @@
 		}
 	}
 
+	function openUtilityModalFromCommand(kind: 'bookmark' | 'whiteboard' | 'quick-notes') {
+		document.dispatchEvent(new CustomEvent('open-utility-modal', { detail: { kind } }));
+	}
+
 	function openCommandPalette() {
 		showCommandPalette = true;
 		commandQuery = '';
@@ -212,26 +217,29 @@
 			description: $_('commandPalette__toggle_theme_desc'),
 			keywords: ['theme', 'dark mode', 'light mode'],
 			run: () => theme.toggle()
+		},
+		{
+			id: 'open-quick-notes',
+			label: $_('commandPalette__quick_notes_label'),
+			description: $_('commandPalette__quick_notes_desc'),
+			keywords: ['quick note', 'note', 'memo', 'sticky'],
+			run: () => openUtilityModalFromCommand('quick-notes')
+		},
+		{
+			id: 'open-bookmarks',
+			label: $_('commandPalette__bookmarks_label'),
+			description: $_('commandPalette__bookmarks_desc'),
+			keywords: ['bookmark', 'link', 'saved links'],
+			run: () => openUtilityModalFromCommand('bookmark')
+		},
+		{
+			id: 'open-whiteboard',
+			label: $_('commandPalette__whiteboard_label'),
+			description: $_('commandPalette__whiteboard_desc'),
+			keywords: ['whiteboard', 'draw', 'sketch', 'canvas'],
+			run: () => openUtilityModalFromCommand('whiteboard')
 		}
 	];
-
-	$: sprintCommandPaletteItems = $sprints
-		.filter((sprint) => sprint.id !== undefined)
-		.map((sprint, index) => ({
-			id: `go-to-sprint-${sprint.id}`,
-			label: $_('commandPalette__go_to_sprint_label', { values: { name: sprint.name } }),
-			description: $_('commandPalette__go_to_sprint_desc', { values: { name: sprint.name } }),
-			keywords: [
-				'go to sprint',
-				`sprint ${index + 1}`,
-				`go to sprint ${index + 1}`,
-				sprint.name.toLowerCase()
-			],
-			run: () => {
-				filters = { ...filters, sprint_id: sprint.id ?? 'all' };
-				applyFilters();
-			}
-		}));
 
 	$: normalizedCommandQuery = normalizeForCommandSearch(commandQuery.trim());
 
@@ -266,8 +274,8 @@
 					score,
 					item: {
 						id: `task-${task.id}`,
-						label: `Open Task: ${task.title}`,
-						description: `${task.project || 'No project'} · ${task.status}`,
+						label: $_('commandPalette__open_task_label', { values: { title: task.title } }),
+						description: `${task.project || $_('commandPalette__no_project')} · ${task.status}`,
 						keywords: [task.title, task.project || '', task.category || '', task.assignee?.name || '', sprintName],
 						run: () => {
 							editingTask = task;
@@ -289,8 +297,8 @@
 					score,
 					item: {
 						id: `project-${project.id ?? project.name}`,
-						label: `Filter by Project: ${project.name}`,
-						description: 'Apply project filter',
+						label: $_('commandPalette__filter_project_label', { values: { name: project.name } }),
+						description: $_('commandPalette__filter_project_desc'),
 						keywords: [project.name, 'project', 'filter'],
 						run: () => {
 							filters = { ...filters, project: project.name };
@@ -313,8 +321,8 @@
 					score,
 					item: {
 						id: `assignee-${assignee.id}`,
-						label: `Filter by Assignee: ${assignee.name}`,
-						description: 'Apply assignee filter',
+						label: $_('commandPalette__filter_assignee_label', { values: { name: assignee.name } }),
+						description: $_('commandPalette__filter_assignee_desc'),
 						keywords: [assignee.name, 'assignee', 'worker', 'filter'],
 						run: () => {
 							filters = { ...filters, assignee_id: assignee.id ?? 'all' };
@@ -330,8 +338,8 @@
 
 		const quickSearchItem: CommandPaletteItem = {
 			id: `search-all-${normalizedCommandQuery}`,
-			label: `Search tasks for: ${commandQuery.trim()}`,
-			description: 'Run task search in the main search bar',
+			label: $_('commandPalette__search_tasks_label', { values: { query: commandQuery.trim() } }),
+			description: $_('commandPalette__search_tasks_desc'),
 			keywords: ['search', 'find', commandQuery.trim()],
 			run: () => applyGlobalTaskSearch(commandQuery.trim())
 		};
@@ -339,7 +347,7 @@
 		return [quickSearchItem, ...taskItems, ...projectItems, ...assigneeItems];
 	})();
 
-	$: commandPaletteItems = [...baseCommandPaletteItems, ...sprintCommandPaletteItems, ...dynamicCommandPaletteItems];
+	$: commandPaletteItems = [...baseCommandPaletteItems, ...dynamicCommandPaletteItems];
 
 	$: commandPaletteFilteredItems = (() => {
 		if (!normalizedCommandQuery) return commandPaletteItems;
@@ -579,7 +587,9 @@
 	});
 
 	onDestroy(() => {
-		document.removeEventListener('keydown', handleKeydown);
+		if (browser) {
+			document.removeEventListener('keydown', handleKeydown);
+		}
 	});
 	
 	async function loadData() {
@@ -3491,7 +3501,7 @@
 						bind:this={commandInputRef}
 						bind:value={commandQuery}
 						type="text"
-						placeholder="Try command, task title, project, assignee, sprint..."
+						placeholder={$_('commandPalette__placeholder_dynamic')}
 						class="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary"
 					/>
 				</div>
@@ -3499,7 +3509,7 @@
 				<div class="max-h-[48vh] overflow-y-auto p-2">
 					{#if commandPaletteFilteredItems.length === 0}
 						<div class="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
-							No result. Try task title, project name, assignee, or sprint.
+							{$_('commandPalette__no_results_dynamic')}
 						</div>
 					{:else}
 						{#each commandPaletteFilteredItems as item, index}
