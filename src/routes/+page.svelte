@@ -88,8 +88,8 @@
 	let selectedTaskIdsForSprintChange: number[] = [];
 	let showQRExport = false;
 	let qrExportTasks: Task[] = [];
-	let searchInputRef: HTMLInputElement;
-	let commandInputRef: HTMLInputElement;
+	let searchInputRef: HTMLInputElement | null = null;
+	let commandInputRef: HTMLInputElement | null = null;
 	let showCommandPalette = false;
 	let commandQuery = '';
 	let commandSelectedIndex = 0;
@@ -103,8 +103,21 @@
 		label: string;
 		description: string;
 		keywords: string[];
+		category: 'command' | 'search' | 'task' | 'project' | 'assignee' | 'sprint';
 		run: () => void | Promise<void>;
 	};
+
+	type CommandPaletteGroup = {
+		category: CommandPaletteItem['category'];
+		label: string;
+		items: CommandPaletteItem[];
+	};
+
+	let baseCommandPaletteItems: CommandPaletteItem[] = [];
+	let dynamicCommandPaletteItems: CommandPaletteItem[] = [];
+	let commandPaletteItems: CommandPaletteItem[] = [];
+	let commandPaletteFilteredItems: CommandPaletteItem[] = [];
+	let groupedCommandPaletteItems: CommandPaletteGroup[] = [];
 
 	async function startTimerFromCommandPalette() {
 		const taskToStart = tasks.find((task) => !task.is_archived && task.status === 'todo' && task.id !== undefined);
@@ -121,6 +134,23 @@
 		} catch (error) {
 			console.error('Failed to start timer from command palette:', error);
 			showMessage('Failed to start timer', 'error');
+		}
+	}
+
+	function getCommandCategoryLabel(category: CommandPaletteItem['category']): string {
+		switch (category) {
+			case 'search':
+				return $_('commandPalette__cat_search');
+			case 'task':
+				return $_('commandPalette__cat_task');
+			case 'project':
+				return $_('commandPalette__cat_project');
+			case 'assignee':
+				return $_('commandPalette__cat_assignee');
+			case 'sprint':
+				return $_('commandPalette__cat_sprint');
+			default:
+				return $_('commandPalette__cat_command');
 		}
 	}
 
@@ -199,6 +229,7 @@
 			label: $_('commandPalette__create_task_label'),
 			description: $_('commandPalette__create_task_desc'),
 			keywords: ['new task', 'add task', 'create task'],
+			category: 'command',
 			run: () => {
 				showForm = true;
 				editingTask = null;
@@ -209,6 +240,7 @@
 			label: $_('commandPalette__start_timer_label'),
 			description: $_('commandPalette__start_timer_desc'),
 			keywords: ['timer', 'start timer', 'in progress', 'focus'],
+			category: 'command',
 			run: () => startTimerFromCommandPalette()
 		},
 		{
@@ -216,6 +248,7 @@
 			label: $_('commandPalette__toggle_theme_label'),
 			description: $_('commandPalette__toggle_theme_desc'),
 			keywords: ['theme', 'dark mode', 'light mode'],
+			category: 'command',
 			run: () => theme.toggle()
 		},
 		{
@@ -223,6 +256,7 @@
 			label: $_('commandPalette__quick_notes_label'),
 			description: $_('commandPalette__quick_notes_desc'),
 			keywords: ['quick note', 'note', 'memo', 'sticky'],
+			category: 'command',
 			run: () => openUtilityModalFromCommand('quick-notes')
 		},
 		{
@@ -230,6 +264,7 @@
 			label: $_('commandPalette__bookmarks_label'),
 			description: $_('commandPalette__bookmarks_desc'),
 			keywords: ['bookmark', 'link', 'saved links'],
+			category: 'command',
 			run: () => openUtilityModalFromCommand('bookmark')
 		},
 		{
@@ -237,6 +272,7 @@
 			label: $_('commandPalette__whiteboard_label'),
 			description: $_('commandPalette__whiteboard_desc'),
 			keywords: ['whiteboard', 'draw', 'sketch', 'canvas'],
+			category: 'command',
 			run: () => openUtilityModalFromCommand('whiteboard')
 		}
 	];
@@ -252,86 +288,117 @@
 				.map((sprint) => [sprint.id as number, sprint.name])
 		);
 
-		const taskItems = monthlySummaryTasks
-			.filter((task) => task.id !== undefined)
-			.map((task) => {
-				const sprintName = task.sprint_id ? sprintNameById.get(task.sprint_id) || '' : '';
-				const taskSearchText = normalizeForCommandSearch(
-					[
-						task.title,
-						task.project || '',
-						task.category || '',
-						task.notes || '',
-						task.assignee?.name || '',
-						sprintName,
-						task.status
-					].join(' ')
-				);
-				const score = getFuzzyScore(normalizedCommandQuery, taskSearchText);
-				if (score === null) return null;
+		const taskItems: { score: number; item: CommandPaletteItem }[] = [];
+		for (const task of monthlySummaryTasks) {
+			if (task.id === undefined) continue;
+			const sprintName = task.sprint_id ? sprintNameById.get(task.sprint_id) || '' : '';
+			const taskSearchText = normalizeForCommandSearch(
+				[
+					task.title,
+					task.project || '',
+					task.category || '',
+					task.notes || '',
+					task.assignee?.name || '',
+					sprintName,
+					task.status
+				].join(' ')
+			);
+			const score = getFuzzyScore(normalizedCommandQuery, taskSearchText);
+			if (score === null) continue;
 
-				return {
-					score,
-					item: {
-						id: `task-${task.id}`,
-						label: $_('commandPalette__open_task_label', { values: { title: task.title } }),
-						description: `${task.project || $_('commandPalette__no_project')} · ${task.status}`,
-						keywords: [task.title, task.project || '', task.category || '', task.assignee?.name || '', sprintName],
-						run: () => {
-							editingTask = task;
-							showForm = true;
-						}
-					} satisfies CommandPaletteItem
-				};
-			})
-			.filter((entry): entry is { score: number; item: CommandPaletteItem } => entry !== null)
+			taskItems.push({
+				score,
+				item: {
+					id: `task-${task.id}`,
+					label: $_('commandPalette__open_task_label', { values: { title: task.title } }),
+					description: `${task.project || $_('commandPalette__no_project')} · ${task.status}`,
+					keywords: [task.title, task.project || '', task.category || '', task.assignee?.name || '', sprintName],
+					category: 'task',
+					run: () => {
+						editingTask = task;
+						showForm = true;
+					}
+				}
+			});
+		}
+
+		const topTaskItems = taskItems
 			.sort((a, b) => b.score - a.score)
 			.slice(0, 6)
 			.map((entry) => entry.item);
 
-		const projectItems = projectList
-			.map((project) => {
-				const score = getFuzzyScore(normalizedCommandQuery, normalizeForCommandSearch(project.name));
-				if (score === null) return null;
-				return {
-					score,
-					item: {
-						id: `project-${project.id ?? project.name}`,
-						label: $_('commandPalette__filter_project_label', { values: { name: project.name } }),
-						description: $_('commandPalette__filter_project_desc'),
-						keywords: [project.name, 'project', 'filter'],
-						run: () => {
-							filters = { ...filters, project: project.name };
-							applyFilters();
-						}
-					} satisfies CommandPaletteItem
-				};
-			})
-			.filter((entry): entry is { score: number; item: CommandPaletteItem } => entry !== null)
+		const projectItems: { score: number; item: CommandPaletteItem }[] = [];
+		for (const project of projectList) {
+			const score = getFuzzyScore(normalizedCommandQuery, normalizeForCommandSearch(project.name));
+			if (score === null) continue;
+			projectItems.push({
+				score,
+				item: {
+					id: `project-${project.id ?? project.name}`,
+					label: $_('commandPalette__filter_project_label', { values: { name: project.name } }),
+					description: $_('commandPalette__filter_project_desc'),
+					keywords: [project.name, 'project', 'filter'],
+					category: 'project',
+					run: () => {
+						filters = { ...filters, project: project.name };
+						applyFilters();
+					}
+				}
+			});
+		}
+
+		const topProjectItems = projectItems
 			.sort((a, b) => b.score - a.score)
 			.slice(0, 3)
 			.map((entry) => entry.item);
 
-		const assigneeItems = assignees
-			.filter((assignee) => assignee.id !== undefined)
-			.map((assignee) => {
-				const score = getFuzzyScore(normalizedCommandQuery, normalizeForCommandSearch(assignee.name));
-				if (score === null) return null;
-				return {
-					score,
-					item: {
-						id: `assignee-${assignee.id}`,
-						label: $_('commandPalette__filter_assignee_label', { values: { name: assignee.name } }),
-						description: $_('commandPalette__filter_assignee_desc'),
-						keywords: [assignee.name, 'assignee', 'worker', 'filter'],
-						run: () => {
-							filters = { ...filters, assignee_id: assignee.id ?? 'all' };
-							applyFilters();
-						}
-					} satisfies CommandPaletteItem
-				};
-			})
-			.filter((entry): entry is { score: number; item: CommandPaletteItem } => entry !== null)
+		const assigneeItems: { score: number; item: CommandPaletteItem }[] = [];
+		for (const assignee of assignees) {
+			if (assignee.id === undefined) continue;
+			const score = getFuzzyScore(normalizedCommandQuery, normalizeForCommandSearch(assignee.name));
+			if (score === null) continue;
+			assigneeItems.push({
+				score,
+				item: {
+					id: `assignee-${assignee.id}`,
+					label: $_('commandPalette__filter_assignee_label', { values: { name: assignee.name } }),
+					description: $_('commandPalette__filter_assignee_desc'),
+					keywords: [assignee.name, 'assignee', 'worker', 'filter'],
+					category: 'assignee',
+					run: () => {
+						filters = { ...filters, assignee_id: assignee.id ?? 'all' };
+						applyFilters();
+					}
+				}
+			});
+		}
+
+		const topAssigneeItems = assigneeItems
+			.sort((a, b) => b.score - a.score)
+			.slice(0, 3)
+			.map((entry) => entry.item);
+
+		const sprintItems: { score: number; item: CommandPaletteItem }[] = [];
+		for (const sprint of $sprints) {
+			const score = getFuzzyScore(normalizedCommandQuery, normalizeForCommandSearch(sprint.name));
+			if (score === null) continue;
+			sprintItems.push({
+				score,
+				item: {
+					id: `sprint-filter-${sprint.id}`,
+					label: $_('commandPalette__go_to_sprint_label', { values: { name: sprint.name } }),
+					description: $_('commandPalette__go_to_sprint_desc', { values: { name: sprint.name } }),
+					keywords: [sprint.name, 'sprint', 'filter'],
+					category: 'sprint',
+					run: () => {
+						filters = { ...filters, sprint_id: sprint.id ?? null };
+						applyFilters();
+					}
+				}
+			});
+		}
+
+		const topSprintItems = sprintItems
 			.sort((a, b) => b.score - a.score)
 			.slice(0, 3)
 			.map((entry) => entry.item);
@@ -341,13 +408,16 @@
 			label: $_('commandPalette__search_tasks_label', { values: { query: commandQuery.trim() } }),
 			description: $_('commandPalette__search_tasks_desc'),
 			keywords: ['search', 'find', commandQuery.trim()],
+			category: 'search',
 			run: () => applyGlobalTaskSearch(commandQuery.trim())
 		};
 
-		return [quickSearchItem, ...taskItems, ...projectItems, ...assigneeItems];
+		return [quickSearchItem, ...topTaskItems, ...topProjectItems, ...topAssigneeItems, ...topSprintItems];
 	})();
 
 	$: commandPaletteItems = [...baseCommandPaletteItems, ...dynamicCommandPaletteItems];
+
+	const commandPaletteCategoryOrder: CommandPaletteItem['category'][] = ['command', 'search', 'task', 'project', 'assignee', 'sprint'];
 
 	$: commandPaletteFilteredItems = (() => {
 		if (!normalizedCommandQuery) return commandPaletteItems;
@@ -372,6 +442,18 @@
 
 		return deduped;
 	})();
+
+	$: groupedCommandPaletteItems = commandPaletteCategoryOrder
+		.map((category) => ({
+			category,
+			label: getCommandCategoryLabel(category),
+			items: commandPaletteFilteredItems.filter((item) => item.category === category)
+		}))
+		.filter((group) => group.items.length > 0);
+
+	function getCommandItemIndex(itemId: string): number {
+		return commandPaletteFilteredItems.findIndex((item) => item.id === itemId);
+	}
 
 	$: {
 		if (commandPaletteFilteredItems.length === 0) {
@@ -3512,19 +3594,26 @@
 							{$_('commandPalette__no_results_dynamic')}
 						</div>
 					{:else}
-						{#each commandPaletteFilteredItems as item, index}
-							<button
-								on:click={() => runCommandPaletteItem(item)}
-								class="w-full text-left px-4 py-3 rounded-xl transition-colors mb-1 {index === commandSelectedIndex ? 'bg-primary/10 border border-primary/30' : 'hover:bg-gray-100 dark:hover:bg-gray-800 border border-transparent'}"
-							>
-								<div class="flex items-center justify-between gap-3">
-									<div class="min-w-0">
-										<p class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{item.label}</p>
-										<p class="text-xs text-gray-500 dark:text-gray-400 truncate">{item.description}</p>
+						{#each groupedCommandPaletteItems as group}
+							<div class="px-3 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+								{group.label}
+							</div>
+							{#each group.items as item}
+								{@const itemIndex = getCommandItemIndex(item.id)}
+								<button
+									on:click={() => runCommandPaletteItem(item)}
+									on:mouseenter={() => { if (itemIndex >= 0) commandSelectedIndex = itemIndex; }}
+									class="w-full text-left px-4 py-3 rounded-xl transition-colors mb-1 {itemIndex === commandSelectedIndex ? 'bg-primary/10 border border-primary/30' : 'hover:bg-gray-100 dark:hover:bg-gray-800 border border-transparent'}"
+								>
+									<div class="flex items-center justify-between gap-3">
+										<div class="min-w-0">
+											<p class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{item.label}</p>
+											<p class="text-xs text-gray-500 dark:text-gray-400 truncate">{item.description}</p>
+										</div>
+										<span class="text-[10px] uppercase tracking-wide text-gray-400">Enter</span>
 									</div>
-									<span class="text-[10px] uppercase tracking-wide text-gray-400">Enter</span>
-								</div>
-							</button>
+								</button>
+							{/each}
 						{/each}
 					{/if}
 				</div>
