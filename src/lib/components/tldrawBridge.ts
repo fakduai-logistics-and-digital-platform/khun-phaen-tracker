@@ -1,7 +1,8 @@
 import { useSync } from "@tldraw/sync";
 import { inlineBase64AssetStore } from "@tldraw/editor";
 import { createElement, useEffect, useMemo, useRef } from "react";
-import { createRoot, type Root, flushSync } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
+import { flushSync } from "react-dom";
 import {
   Tldraw,
   type Editor,
