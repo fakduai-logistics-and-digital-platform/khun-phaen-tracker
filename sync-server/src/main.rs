@@ -11,6 +11,7 @@ use std::{sync::Arc, time::Duration as StdDuration};
 use tokio::sync::broadcast;
 use tracing::{info, warn};
 use uuid::Uuid;
+use dotenv::dotenv; // Import dotenv
 
 type SharedState = Arc<AppState>;
 
@@ -92,6 +93,7 @@ pub enum ServerMessage {
 
 #[tokio::main]
 async fn main() {
+    dotenv().ok();
     tracing_subscriber::fmt::init();
 
     info!("🚀 Starting Khu Phaen Sync Server...");
