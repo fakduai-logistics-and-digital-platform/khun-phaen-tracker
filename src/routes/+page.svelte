@@ -13,7 +13,7 @@
 	import ExportImport from '$lib/components/ExportImport.svelte';
 	import WorkerManager from '$lib/components/WorkerManager.svelte';
 	import ProjectManager from '$lib/components/ProjectManager.svelte';
-	import { List, CalendarDays, Columns3, Table, Filter, Search, Plus, Users, Folder, Sparkles, Settings2, Flag, FileText, FileSpreadsheet, Image as ImageIcon, Video, Presentation } from 'lucide-svelte';
+	import { List, CalendarDays, Columns3, Table, Filter, Search, Plus, Users, Folder, Sparkles, Settings2, Flag, FileText, FileSpreadsheet, Image as ImageIcon, Video, Presentation, CheckCircle, Moon, Sun, Bookmark, Play } from 'lucide-svelte';
 	import { initWasmSearch, indexTasks, performSearch, clearSearch, searchQuery, wasmReady, wasmLoading } from '$lib/stores/search';
 	import { compressionReady, compressionStats, getStorageInfo } from '$lib/stores/storage';
 	import { enableAutoImport, setMergeCallback, scheduleHostRealtimeSync } from '$lib/stores/server-sync';
@@ -108,6 +108,7 @@
 		// Metadata for specialized rendering
 		project?: string;
 		status?: string;
+		icon?: any;
 	};
 
 	type CommandPaletteGroup = {
@@ -255,6 +256,7 @@
 			description: $_('commandPalette__create_task_desc'),
 			keywords: ['new task', 'add task', 'create task'],
 			category: 'command',
+			icon: Plus,
 			run: () => {
 				showForm = true;
 				editingTask = null;
@@ -266,6 +268,7 @@
 			description: $_('commandPalette__start_timer_desc'),
 			keywords: ['timer', 'start timer', 'in progress', 'focus'],
 			category: 'command',
+			icon: Play,
 			run: () => startTimerFromCommandPalette()
 		},
 		{
@@ -274,6 +277,7 @@
 			description: $_('commandPalette__toggle_theme_desc'),
 			keywords: ['theme', 'dark mode', 'light mode'],
 			category: 'command',
+			icon: Sparkles,
 			run: () => theme.toggle()
 		},
 		{
@@ -282,6 +286,7 @@
 			description: $_('commandPalette__quick_notes_desc'),
 			keywords: ['quick note', 'note', 'memo', 'sticky'],
 			category: 'command',
+			icon: FileText,
 			run: () => openUtilityModalFromCommand('quick-notes')
 		},
 		{
@@ -290,6 +295,7 @@
 			description: $_('commandPalette__bookmarks_desc'),
 			keywords: ['bookmark', 'link', 'saved links'],
 			category: 'command',
+			icon: Bookmark,
 			run: () => openUtilityModalFromCommand('bookmark')
 		},
 		{
@@ -298,6 +304,7 @@
 			description: $_('commandPalette__whiteboard_desc'),
 			keywords: ['whiteboard', 'draw', 'sketch', 'canvas'],
 			category: 'command',
+			icon: Presentation,
 			run: () => openUtilityModalFromCommand('whiteboard')
 		}
 	];
@@ -341,6 +348,7 @@
 					category: 'task',
 					project: task.project || $_('commandPalette__no_project'),
 					status: task.status,
+					icon: CheckCircle,
 					run: () => {
 						editingTask = task;
 						showForm = true;
@@ -367,6 +375,7 @@
 					keywords: [project.name, 'project', 'filter'],
 					category: 'project',
 					project: project.name,
+					icon: Folder,
 					run: () => {
 						filters = { ...filters, project: project.name };
 						applyFilters();
@@ -393,6 +402,7 @@
 					description: $_('commandPalette__filter_assignee_desc'),
 					keywords: [assignee.name, 'assignee', 'worker', 'filter'],
 					category: 'assignee',
+					icon: Users,
 					run: () => {
 						filters = { ...filters, assignee_id: assignee.id ?? 'all' };
 						applyFilters();
@@ -418,6 +428,7 @@
 					description: $_('commandPalette__go_to_sprint_desc', { values: { name: sprint.name } }),
 					keywords: [sprint.name, 'sprint', 'filter'],
 					category: 'sprint',
+					icon: Flag,
 					run: () => {
 						filters = { ...filters, sprint_id: sprint.id ?? null };
 						applyFilters();
@@ -437,6 +448,7 @@
 			description: $_('commandPalette__search_tasks_desc'),
 			keywords: ['search', 'find', commandQuery.trim()],
 			category: 'search',
+			icon: Search,
 			run: () => applyGlobalTaskSearch(commandQuery.trim())
 		};
 
@@ -3633,7 +3645,14 @@
 									on:mouseenter={() => { if (itemIndex >= 0) commandSelectedIndex = itemIndex; }}
 									class="w-full text-left px-4 py-3 rounded-xl transition-colors mb-1 {itemIndex === commandSelectedIndex ? 'bg-primary/10 border border-primary/30' : 'hover:bg-gray-100 dark:hover:bg-gray-800 border border-transparent'}"
 								>
-									<div class="flex items-center justify-between gap-3">
+									<div class="flex items-center gap-3">
+										<div class="flex-shrink-0 p-2 rounded-lg {itemIndex === commandSelectedIndex ? 'bg-primary/20 text-primary' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'}">
+											{#if item.icon}
+												<svelte:component this={item.icon} size={18} />
+											{:else}
+												<Sparkles size={18} />
+											{/if}
+										</div>
 										<div class="min-w-0 flex-1">
 											<p class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate mb-0.5">{item.label}</p>
 											{#if item.project}
