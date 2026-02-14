@@ -1,13 +1,15 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
-	import { Play, Pause, RotateCcw, Timer, HelpCircle, Bookmark, Save, History, PenTool } from 'lucide-svelte';
+	import { Play, Pause, RotateCcw, Timer, HelpCircle, Bookmark, Save, History, PenTool, FileText } from 'lucide-svelte';
 	import { showKeyboardShortcuts } from '$lib/stores/keyboardShortcuts';
 	import { timeLogs, formatDuration } from '$lib/stores/timeLogs';
 	import { createEventDispatcher } from 'svelte';
+	import { _ } from 'svelte-i18n';
 
 	const dispatch = createEventDispatcher<{
 		showBookmarks: void;
 		showWhiteboard: void;
+		showQuickNotes: void;
 	}>();
 
 	let elapsed = 0;
@@ -107,6 +109,10 @@
 		dispatch('showWhiteboard');
 	}
 
+	function openQuickNotes() {
+		dispatch('showQuickNotes');
+	}
+
 	function toggleLogs() {
 		showLogs = !showLogs;
 	}
@@ -125,6 +131,15 @@
 
 <!-- Floating Buttons Container -->
 <div class="fixed bottom-4 right-4 z-50 flex items-end gap-2">
+	<!-- Quick Notes Button -->
+	<button
+		on:click={openQuickNotes}
+		class="flex items-center justify-center w-10 h-10 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg transition-all duration-200 hover:scale-105"
+		title={$_('quickNotes__title')}
+	>
+		<FileText size={18} />
+	</button>
+
 	<!-- Bookmarks Button -->
 	<button
 		on:click={openBookmarks}

@@ -233,5 +233,12 @@
 	"pagination__showing": "Showing {from} to {to} of {total}",
 	"pagination__per_page": "per page",
 	"pagination__previous": "Previous",
-	"pagination__next": "Next"
+	"pagination__next": "Next",
+	"quickNotes__title": "Quick Notes",
+	"quickNotes__subtitle": "Capture ideas or temporary text",
+	"quickNotes__placeholder": "Type your notes here...",
+	"quickNotes__clear": "Clear all",
+	"quickNotes__clear_confirm": "Clear all notes?",
+	"quickNotes__copy": "Copy all",
+	"quickNotes__characters": "characters"
 }

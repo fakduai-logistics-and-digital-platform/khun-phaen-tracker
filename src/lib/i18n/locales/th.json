@@ -233,5 +233,12 @@
 	"pagination__showing": "แสดง {from} ถึง {to} จาก {total}",
 	"pagination__per_page": "ต่อหน้า",
 	"pagination__previous": "ก่อนหน้า",
-	"pagination__next": "ถัดไป"
+	"pagination__next": "ถัดไป",
+	"quickNotes__title": "สมุดทดด่วน",
+	"quickNotes__subtitle": "บันทึกไอเดียหรือข้อความชั่วคราว",
+	"quickNotes__placeholder": "พิมพ์บันทึกของคุณที่นี่...",
+	"quickNotes__clear": "ล้างทั้งหมด",
+	"quickNotes__clear_confirm": "ต้องการล้างบันทึกทั้งหมดหรือไม่?",
+	"quickNotes__copy": "คัดลอกทั้งหมด",
+	"quickNotes__characters": "ตัวอักษร"
 }

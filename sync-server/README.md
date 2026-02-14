@@ -1,6 +1,6 @@
-# Khu Phaen Sync Server
+# Khun Phaen Sync Server
 
-Rust-based WebSocket sync server for Khu Phaen Task Tracker
+Rust-based WebSocket sync server for Khun Phaen Task Tracker
 
 ## Features
 
@@ -239,7 +239,7 @@ Create `/etc/systemd/system/khu-phaen-sync.service`:
 
 ```ini
 [Unit]
-Description=Khu Phaen Sync Server
+Description=Khun Phaen Sync Server
 After=network.target
 
 [Service]

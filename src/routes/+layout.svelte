@@ -9,6 +9,7 @@
 	import DevTimer from '$lib/components/DevTimer.svelte';
 	import BookmarkManager from '$lib/components/BookmarkManager.svelte';
 	import WhiteboardModal from '$lib/components/WhiteboardModal.svelte';
+	import QuickNotes from '$lib/components/QuickNotes.svelte';
 	import { _ } from 'svelte-i18n';
 
 	let loading = true;
@@ -17,6 +18,7 @@
 	let timeInterval: ReturnType<typeof setInterval>;
 	let showBookmarkManager = false;
 	let showWhiteboard = false;
+	let showQuickNotes = false;
 	let showLanguageDropdown = false;
 	let whiteboardMessage = '';
 	let whiteboardMessageType: 'success' | 'error' = 'success';
@@ -217,11 +219,17 @@
 		<DevTimer 
 			on:showBookmarks={() => showBookmarkManager = true}
 			on:showWhiteboard={() => showWhiteboard = true}
+			on:showQuickNotes={() => showQuickNotes = true}
 		/>
 		
 		<!-- Bookmark Manager Modal -->
 		{#if showBookmarkManager}
 			<BookmarkManager on:close={() => showBookmarkManager = false} />
+		{/if}
+
+		<!-- Quick Notes Modal -->
+		{#if showQuickNotes}
+			<QuickNotes on:close={() => showQuickNotes = false} />
 		{/if}
 
 		<!-- Spacer for fixed timer -->

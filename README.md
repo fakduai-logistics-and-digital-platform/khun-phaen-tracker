@@ -1,10 +1,10 @@
-# Khu Phaen (ขุนแผน)
+# Khun Phaen (ขุนแผน)
 
 Offline Task Management System - Manage your tasks efficiently without needing an internet connection.
 
 [อ่านภาษาไทยที่นี่ (Read Thai version here)](README.th.md)
 
-> **Khu Phaen** (ขุนแผน) - Named after a legendary Thai literary figure known for being a master strategist who could manage complex situations effectively.
+> **Khun Phaen** (ขุนแผน) - Named after a legendary Thai literary figure known for being a master strategist who could manage complex situations effectively.
 
 ## ✨ Features
 

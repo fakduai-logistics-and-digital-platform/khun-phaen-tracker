@@ -1480,7 +1480,7 @@
 				{
 					kicker: 'TASK REPORT VIDEO',
 					title: `รายงานงาน ${reportDate}`,
-					subtitle: 'Khu Phaen Task Tracker',
+					subtitle: 'Khun Phaen Task Tracker',
 					accent: '#35d4ff',
 					lines: [
 						`ช่วงข้อมูล ${scopeLabel}`,
@@ -1652,7 +1652,7 @@
 
 			const pptx = new PptxGenJS();
 			pptx.layout = 'LAYOUT_WIDE';
-			pptx.author = 'Khu Phaen Task Tracker';
+			pptx.author = 'Khun Phaen Task Tracker';
 			pptx.subject = 'Task report summary';
 			pptx.title = `Task Report ${reportDate}`;
 
@@ -1793,7 +1793,7 @@
 						<h1>รายงานงาน (Task Report)</h1>
 						<div class="meta">
 							สร้างเมื่อ: ${new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })}<br>
-							ระบบ: Khu Phaen Task Tracker
+							ระบบ: Khun Phaen Task Tracker
 						</div>
 					</div>
 					
@@ -1850,7 +1850,7 @@
 					</table>
 					
 					<div class="footer">
-						© ${new Date().getFullYear()} Khu Phaen Task Tracker - สร้างด้วยความภาคภูมิใจ
+						© ${new Date().getFullYear()} Khun Phaen Task Tracker - สร้างด้วยความภาคภูมิใจ
 					</div>
 				</body>
 				</html>
