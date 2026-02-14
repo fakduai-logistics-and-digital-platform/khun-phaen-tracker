@@ -436,7 +436,12 @@
 			</button>
 
 			<!-- Time & Label Group -->
-			<div class="px-3 pr-4 flex flex-col justify-center select-none cursor-pointer" on:click={handleMouseEnter}>
+			<button 
+				type="button"
+				class="px-3 pr-4 flex flex-col justify-center select-none cursor-pointer border-none bg-transparent text-left focus:outline-none focus:ring-1 focus:ring-primary/30 rounded-lg" 
+				on:click={handleMouseEnter}
+				on:keydown={(e) => e.key === 'Enter' && handleMouseEnter()}
+			>
 				<div class="flex items-center gap-2">
 					<span class="font-mono text-xl font-bold text-white tabular-nums leading-none tracking-tight">
 						{formatTime(timerMode === 'countup' ? elapsed : remaining)}
@@ -455,7 +460,7 @@
 						</div>
 					{/if}
 				</div>
-			</div>
+			</button>
 		</div>
 	</div>
 </div>

@@ -13,7 +13,7 @@
 	import ExportImport from '$lib/components/ExportImport.svelte';
 	import WorkerManager from '$lib/components/WorkerManager.svelte';
 	import ProjectManager from '$lib/components/ProjectManager.svelte';
-	import { List, CalendarDays, Columns3, Table, Filter, Search, Plus, Users, Folder, Sparkles, Settings2, Flag, FileText, FileSpreadsheet, Image as ImageIcon, Video, Presentation, CheckCircle, Moon, Sun, Bookmark, Play } from 'lucide-svelte';
+	import { List, CalendarDays, Columns3, Table, Filter, Search, Plus, Users, Folder, Sparkles, MessageSquareQuote, Settings2, Flag, FileText, FileSpreadsheet, Image as ImageIcon, Video, Presentation, CheckCircle, Moon, Sun, Bookmark, Play } from 'lucide-svelte';
 	import { initWasmSearch, indexTasks, performSearch, clearSearch, searchQuery, wasmReady, wasmLoading } from '$lib/stores/search';
 	import { compressionReady, compressionStats, getStorageInfo } from '$lib/stores/storage';
 	import { enableAutoImport, setMergeCallback, scheduleHostRealtimeSync } from '$lib/stores/server-sync';
@@ -33,6 +33,7 @@
 	import { toPng } from 'html-to-image';
 	import * as XLSX from 'xlsx';
 	import PptxGenJS from 'pptxgenjs';
+	import DailyReflect from '$lib/components/DailyReflect.svelte';
 
 	const FILTER_STORAGE_KEY = 'task-filters';
 	const DEFAULT_FILTERS: FilterOptions = {
@@ -93,6 +94,7 @@
 	let showCommandPalette = false;
 	let commandQuery = '';
 	let commandSelectedIndex = 0;
+	let showDailyReflect = false;
 
 	let filters: FilterOptions = { ...DEFAULT_FILTERS };
 	let selectedSprint: Sprint | null = null;
@@ -306,6 +308,17 @@
 			category: 'command',
 			icon: Presentation,
 			run: () => openUtilityModalFromCommand('whiteboard')
+		},
+		{
+			id: 'daily-reflect',
+			label: $_('dailyReflect__title'),
+			description: $_('dailyReflect__subtitle'),
+			keywords: ['standup', 'daily report', 'summary', 'reflect'],
+			category: 'command',
+			icon: MessageSquareQuote,
+			run: () => {
+				showDailyReflect = true;
+			}
 		}
 	];
 
@@ -3168,6 +3181,15 @@
 				<span class="hidden sm:inline">{$_('page__summary_30_days')}</span>
 			</button>
 
+			<button
+				on:click={() => showDailyReflect = true}
+				class="flex items-center gap-2 px-4 py-2 border border-blue-300 dark:border-blue-600 rounded-lg bg-blue-50 dark:bg-blue-900/40 hover:bg-blue-100 dark:hover:bg-blue-800 text-blue-700 dark:text-blue-300 transition-colors"
+				title={$_('dailyReflect__title')}
+			>
+				<MessageSquareQuote size={16} />
+				<span class="hidden sm:inline">{$_('dailyReflect__btn_open')}</span>
+			</button>
+
 			<ExportImport
 				on:exportCSV={handleExportCSV}
 				on:exportPDF={handleExportPDF}
@@ -3593,13 +3615,15 @@
 
 	<!-- QR Export Modal -->
 	<QRExportModal
-		show={showQRExport}
+		bind:show={showQRExport}
 		selectedTasks={qrExportTasks}
 		allProjects={projectList}
 		allAssignees={assignees}
 		on:close={() => { showQRExport = false; qrExportTasks = []; }}
 		on:exportCSV={handleExportCSV}
 	/>
+
+	<DailyReflect bind:show={showDailyReflect} />
 
 	<!-- Keyboard Shortcuts Modal -->
 	{#if showCommandPalette}
