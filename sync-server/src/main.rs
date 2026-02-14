@@ -12,38 +12,26 @@ use tokio::sync::broadcast;
 use tracing::{info, warn};
 use uuid::Uuid;
 
-/// Type aliases for cleaner code
 type SharedState = Arc<AppState>;
 
-/// Application state shared across all connections
 pub struct AppState {
-    /// Rooms mapped by room code
     pub rooms: DashMap<String, Room>,
-    /// How long to keep an empty room before removing it
     pub room_idle_timeout_seconds: u64,
-    /// Global channel for system events (optional)
     pub system_tx: broadcast::Sender<SystemEvent>,
 }
 
-/// Room state
 #[derive(Debug)]
 pub struct Room {
     pub id: String,
     pub host_id: String,
     pub created_at: chrono::DateTime<chrono::Utc>,
-    /// Broadcast channel for room events
     pub tx: broadcast::Sender<RoomEvent>,
-    /// Connected peers: peer_id -> PeerInfo
     pub peers: DashMap<String, PeerInfo>,
-    /// Latest document state (for new peers)
     pub document_state: Option<String>,
-    /// Last sync timestamp
     pub last_sync: chrono::DateTime<chrono::Utc>,
-    /// When the room became empty (None means room currently has peers)
     pub empty_since: Option<chrono::DateTime<chrono::Utc>>,
 }
 
-/// Peer information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PeerInfo {
     pub id: String,
@@ -52,7 +40,6 @@ pub struct PeerInfo {
     pub metadata: Option<serde_json::Value>,
 }
 
-/// Events that can happen in a room
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum RoomEvent {
@@ -63,98 +50,94 @@ pub enum RoomEvent {
     HostChanged { new_host_id: String },
 }
 
-/// System-level events
 #[derive(Debug, Clone)]
 pub enum SystemEvent {
     RoomCreated { room_id: String },
     RoomClosed { room_id: String },
+    Shutdown,
 }
 
-/// WebSocket message protocol
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "action", rename_all = "snake_case")]
 pub enum ClientMessage {
-    /// Join a room
     Join {
         room_code: String,
         peer_id: String,
         is_host: bool,
         metadata: Option<serde_json::Value>,
     },
-    /// Leave current room
     Leave,
-    /// Broadcast data to all peers
     Broadcast { data: String },
-    /// Sync document state (usually from host)
     SyncDocument { document: String },
-    /// Request full document from host
     RequestSync,
-    /// Ping/Pong for keepalive
     Ping,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ServerMessage {
-    /// Connection successful
     Connected { peer_id: String, room_code: String },
-    /// Another peer joined
     PeerJoined { peer: PeerInfo },
-    /// Peer left
     PeerLeft { peer_id: String },
-    /// Received data from peer
     Data { from: String, data: String },
-    /// Full document sync
     DocumentSync { document: String },
-    /// Error occurred
     Error { message: String },
-    /// Room information
     RoomInfo {
         room_code: String,
         host_id: String,
         peers: Vec<PeerInfo>,
     },
-    /// Pong response
     Pong,
 }
 
 #[tokio::main]
 async fn main() {
-    // Initialize tracing
     tracing_subscriber::fmt::init();
 
     info!("🚀 Starting Khu Phaen Sync Server...");
 
-    // Keep empty rooms for a while so browser refresh can reconnect to the same room.
     let room_idle_timeout_seconds = std::env::var("ROOM_IDLE_TIMEOUT_SECONDS")
         .ok()
         .and_then(|value| value.parse().ok())
-        .unwrap_or(0); // 0 = keep forever until server restart
+        .unwrap_or(3600); 
+
     if room_idle_timeout_seconds == 0 {
         info!("🕒 Empty room retention: disabled (rooms kept until server restart)");
     } else {
         info!(
-            "🕒 Empty room retention configured: {}s",
+            "🕒 Empty room retention configured: {}s (default is 3600s)",
             room_idle_timeout_seconds
         );
     }
 
-    // Create shared state
     let (system_tx, _) = broadcast::channel(100);
     let state = Arc::new(AppState {
         rooms: DashMap::new(),
         room_idle_timeout_seconds,
-        system_tx,
+        system_tx: system_tx.clone(),
     });
+    
     if room_idle_timeout_seconds > 0 {
         spawn_room_cleanup_task(state.clone());
     }
 
-    // Build router
+    let governor_conf = Box::new(
+        tower_governor::governor::GovernorConfigBuilder::default()
+            .per_second(2)
+            .burst_size(5)
+            .finish()
+            .unwrap(),
+    );
+
     let app = Router::new()
         .route("/", get(root_handler))
         .route("/health", get(health_check))
-        .route("/api/rooms", post(create_room))
+        .route(
+            "/api/rooms", 
+            post(create_room).layer(tower_governor::GovernorLayer {
+                config: Box::leak(governor_conf),
+            }),
+        )
         .route("/api/rooms/:room_code", get(get_room_info))
         .route("/ws", get(ws_handler))
         .layer(
@@ -165,7 +148,6 @@ async fn main() {
         )
         .with_state(state);
 
-    // Get port from env or default
     let port = std::env::var("PORT")
         .ok()
         .and_then(|p| p.parse().ok())
@@ -175,12 +157,40 @@ async fn main() {
     info!("📡 Server listening on http://{}", addr);
     info!("🔗 WebSocket endpoint: ws://{}/ws", addr);
 
-    // Start server
     let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+    axum::serve(listener, app)
+        .with_graceful_shutdown(shutdown_signal(system_tx))
+        .await
+        .unwrap();
 }
 
-/// Root handler - Server info
+async fn shutdown_signal(tx: broadcast::Sender<SystemEvent>) {
+    let ctrl_c = async {
+        tokio::signal::ctrl_c()
+            .await
+            .expect("failed to install Ctrl+C handler");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+            .expect("failed to install signal handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => {},
+        _ = terminate => {},
+    }
+
+    info!("🛑 Signal received, starting graceful shutdown...");
+    let _ = tx.send(SystemEvent::Shutdown);
+}
+
 async fn root_handler() -> impl IntoResponse {
     axum::Json(serde_json::json!({
         "name": "Khu Phaen Sync Server",
@@ -194,7 +204,6 @@ async fn root_handler() -> impl IntoResponse {
     }))
 }
 
-/// Health check endpoint
 async fn health_check(State(state): State<SharedState>) -> impl IntoResponse {
     axum::Json(serde_json::json!({
         "status": "healthy",
@@ -203,7 +212,6 @@ async fn health_check(State(state): State<SharedState>) -> impl IntoResponse {
     }))
 }
 
-/// Create a new room
 async fn create_room(State(state): State<SharedState>) -> impl IntoResponse {
     let room_code = generate_room_code();
     let room_id = Uuid::new_v4().to_string();
@@ -219,7 +227,7 @@ async fn create_room(State(state): State<SharedState>) -> impl IntoResponse {
         peers: DashMap::new(),
         document_state: None,
         last_sync: chrono::Utc::now(),
-        empty_since: None,
+        empty_since: Some(chrono::Utc::now()), 
     };
 
     state.rooms.insert(room_code.clone(), room);
@@ -235,7 +243,6 @@ async fn create_room(State(state): State<SharedState>) -> impl IntoResponse {
     }))
 }
 
-/// Get room information
 async fn get_room_info(
     Path(room_code): Path<String>,
     State(state): State<SharedState>,
@@ -264,7 +271,6 @@ async fn get_room_info(
     }
 }
 
-/// WebSocket handler
 async fn ws_handler(
     ws: WebSocketUpgrade,
     State(state): State<SharedState>,
@@ -272,26 +278,30 @@ async fn ws_handler(
     ws.on_upgrade(move |socket| handle_socket(socket, state))
 }
 
-/// Handle WebSocket connection
 async fn handle_socket(mut socket: WebSocket, state: SharedState) {
     let mut current_room: Option<String> = None;
     let mut current_peer_id: Option<String> = None;
     let mut room_rx: Option<broadcast::Receiver<RoomEvent>> = None;
+    
+    let mut system_rx = state.system_tx.subscribe();
 
     info!("🔌 New WebSocket connection");
 
     loop {
         tokio::select! {
-            // Handle incoming WebSocket messages
             msg = socket.recv() => {
                 match msg {
                     Some(Ok(msg)) => {
                         match msg {
                             Message::Text(text) => {
-                                info!("📨 Received WebSocket message: {}", text.chars().take(100).collect::<String>());
+                                if text.len() < 200 {
+                                    info!("📨 Received: {}", text);
+                                } else {
+                                    info!("📨 Received (len={}): {}...", text.len(), &text[0..50]);
+                                }
+                                
                                 match serde_json::from_str::<ClientMessage>(&text) {
                                     Ok(client_msg) => {
-                                        info!("✅ Parsed message: {:?}", client_msg);
                                         match handle_client_message(
                                             &mut socket,
                                             &state,
@@ -322,7 +332,6 @@ async fn handle_socket(mut socket: WebSocket, state: SharedState) {
                                     }
                                     Err(e) => {
                                         warn!("❌ Invalid message format: {}", e);
-                                        warn!("📄 Raw message (first 200 chars): {}", text.chars().take(200).collect::<String>());
                                         let error_msg = ServerMessage::Error {
                                             message: format!("Invalid message format: {}", e),
                                         };
@@ -335,7 +344,7 @@ async fn handle_socket(mut socket: WebSocket, state: SharedState) {
                                 }
                             }
                             Message::Close(_) => {
-                                info!("🔌 WebSocket connection closed by client");
+                                info!("🔌 Client closed connection");
                                 break;
                             }
                             _ => {}
@@ -346,13 +355,12 @@ async fn handle_socket(mut socket: WebSocket, state: SharedState) {
                         break;
                     }
                     None => {
-                        info!("🔌 WebSocket connection closed");
+                        info!("🔌 WebSocket stream ended");
                         break;
                     }
                 }
             }
 
-            // Handle room broadcast events
             event = async {
                 if let Some(ref mut rx) = room_rx {
                     rx.recv().await
@@ -366,16 +374,25 @@ async fn handle_socket(mut socket: WebSocket, state: SharedState) {
                     }
                 }
             }
+
+            sys_msg = system_rx.recv() => {
+                match sys_msg {
+                    Ok(SystemEvent::Shutdown) => {
+                        info!("🛑 Server shutting down, closing connection for peer: {:?}", current_peer_id);
+                        let _ = socket.send(Message::Close(None)).await;
+                        break;
+                    }
+                    _ => {}
+                }
+            }
         }
     }
 
-    // Cleanup on disconnect
     if let (Some(room_code), Some(peer_id)) = (current_room, current_peer_id) {
         leave_room(&state, &room_code, &peer_id).await;
     }
 }
 
-/// Forward room events to WebSocket client
 async fn forward_room_event(
     socket: &mut WebSocket,
     event: RoomEvent,
@@ -389,7 +406,6 @@ async fn forward_room_event(
             Some(ServerMessage::PeerLeft { peer_id })
         }
         RoomEvent::DataSync { from, data } => {
-            // Don't echo back to sender
             if Some(&from) == current_peer_id {
                 None
             } else {
@@ -397,7 +413,6 @@ async fn forward_room_event(
             }
         }
         RoomEvent::DocumentUpdate { from, document } => {
-            // Don't echo the same document update back to the sender.
             if Some(&from) == current_peer_id {
                 None
             } else {
@@ -407,7 +422,7 @@ async fn forward_room_event(
         }
         RoomEvent::HostChanged { new_host_id } => {
             info!("👑 Host changed to: {}", new_host_id);
-            None // Could add a ServerMessage variant for this
+            None 
         }
     };
 
@@ -419,7 +434,6 @@ async fn forward_room_event(
     Ok(())
 }
 
-/// Handle client messages
 async fn handle_client_message(
     socket: &mut WebSocket,
     state: &SharedState,
@@ -435,18 +449,14 @@ async fn handle_client_message(
             is_host,
             metadata,
         } => {
-            // Check if room exists
             if let Some(mut room) = state.rooms.get_mut(room_code) {
-                // Room is active again
                 if room.empty_since.is_some() {
                     room.empty_since = None;
                     info!("🔄 Room revived: {}", room_code);
                 }
 
-                // Subscribe to room events BEFORE adding peer
                 *room_rx = Some(room.tx.subscribe());
                 
-                // Create peer info
                 let peer_info = PeerInfo {
                     id: peer_id.clone(),
                     joined_at: chrono::Utc::now(),
@@ -454,14 +464,11 @@ async fn handle_client_message(
                     metadata: metadata.clone(),
                 };
 
-                // Add peer to room
                 room.peers.insert(peer_id.clone(), peer_info.clone());
 
-                // Broadcast to other peers
                 let event = RoomEvent::PeerJoined { peer: peer_info };
                 let _ = room.tx.send(event);
 
-                // Send room info to new peer
                 let peers: Vec<PeerInfo> = room
                     .peers
                     .iter()
@@ -480,7 +487,6 @@ async fn handle_client_message(
                     .await
                     .map_err(|e| e.to_string())?;
 
-                // Send connected confirmation
                 let connected = ServerMessage::Connected {
                     peer_id: peer_id.clone(),
                     room_code: room_code.clone(),
@@ -492,7 +498,6 @@ async fn handle_client_message(
                     .await
                     .map_err(|e| e.to_string())?;
 
-                // Update state
                 *current_room = Some(room_code.clone());
                 *current_peer_id = Some(peer_id.clone());
 
@@ -503,7 +508,6 @@ async fn handle_client_message(
                     is_host
                 );
 
-                // If document exists, send it to new peer
                 if let Some(doc) = &room.document_state {
                     let sync = ServerMessage::DocumentSync {
                         document: doc.clone(),
@@ -521,10 +525,10 @@ async fn handle_client_message(
         }
 
         ClientMessage::Leave => {
-            *room_rx = None; // Drop the broadcast receiver
+            *room_rx = None; 
             if let (Some(room_code), Some(peer_id)) = (current_room.take(), current_peer_id.take()) {
                 leave_room(state, &room_code, &peer_id).await;
-                return Ok(true); // Close connection
+                return Ok(true); 
             }
             Ok(false)
         }
@@ -545,7 +549,6 @@ async fn handle_client_message(
         ClientMessage::SyncDocument { document } => {
             if let (Some(room_code), Some(peer_id)) = (current_room.as_ref(), current_peer_id.as_ref()) {
                 if let Some(mut room) = state.rooms.get_mut(room_code) {
-                    // All peers can sync document (collaborative editing)
                     room.document_state = Some(document.clone());
                     room.last_sync = chrono::Utc::now();
 
@@ -574,7 +577,6 @@ async fn handle_client_message(
                             .map_err(|e| e.to_string())?;
                         info!("📄 Sent document to peer upon request in room {}", room_code);
                     } else {
-                        // No document yet, send empty response
                         let sync = ServerMessage::DocumentSync {
                             document: String::new(),
                         };
@@ -600,7 +602,6 @@ async fn handle_client_message(
     }
 }
 
-/// Leave room and cleanup
 async fn leave_room(state: &SharedState, room_code: &str, peer_id: &str) {
     if let Some(mut room) = state.rooms.get_mut(room_code) {
         room.peers.remove(peer_id);
@@ -612,7 +613,6 @@ async fn leave_room(state: &SharedState, room_code: &str, peer_id: &str) {
 
         info!("👤 Peer left: {} from room {}", peer_id, room_code);
 
-        // If room is empty, mark empty_since and keep it for reconnect grace period.
         if room.peers.is_empty() {
             room.empty_since = Some(chrono::Utc::now());
             if state.room_idle_timeout_seconds == 0 {
@@ -661,7 +661,6 @@ fn spawn_room_cleanup_task(state: SharedState) {
     });
 }
 
-/// Generate a 6-character room code
 fn generate_room_code() -> String {
     const CHARS: &[u8] = b"ABCDEFGHJKMNPQRSTUVWXYZ23456789";
     let mut rng = rand::thread_rng();
@@ -673,7 +672,6 @@ fn generate_room_code() -> String {
     result
 }
 
-/// Generate random ID
 fn generate_random_id() -> String {
     uuid::Uuid::new_v4().to_string()[..8].to_string()
 }

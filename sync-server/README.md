@@ -265,6 +265,7 @@ sudo systemctl start khu-phaen-sync
 |----------|---------|-------------|
 | `PORT` | `3001` | Server port |
 | `RUST_LOG` | `info` | Log level |
+| `ROOM_IDLE_TIMEOUT_SECONDS` | `3600` | Room retention when empty (0 = forever) |
 
 ## License
 
