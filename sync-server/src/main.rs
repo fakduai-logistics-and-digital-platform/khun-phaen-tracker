@@ -121,7 +121,7 @@ async fn main() {
         spawn_room_cleanup_task(state.clone());
     }
 
-    let governor_conf = Box::new(
+    let governor_conf = Arc::new(
         tower_governor::governor::GovernorConfigBuilder::default()
             .per_second(2)
             .burst_size(5)
@@ -135,7 +135,7 @@ async fn main() {
         .route(
             "/api/rooms", 
             post(create_room).layer(tower_governor::GovernorLayer {
-                config: Box::leak(governor_conf),
+                config: governor_conf,
             }),
         )
         .route("/api/rooms/:room_code", get(get_room_info))
