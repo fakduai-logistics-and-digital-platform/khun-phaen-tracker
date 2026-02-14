@@ -139,7 +139,7 @@
 			</button>
 		</div>
 	{:else}
-		<header class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10 transition-colors">
+		<header class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-[999] transition-colors">
 			<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 				<div class="flex items-center justify-between h-16">
 					<div class="flex items-center gap-3">
