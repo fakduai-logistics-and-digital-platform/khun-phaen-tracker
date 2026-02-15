@@ -2045,56 +2045,73 @@
 				return `• ${title} (${assignee})`;
 			};
 
-			const slides: VideoSlide[] = [
-				{
-					kicker: 'TASK REPORT VIDEO',
-					title: `รายงานงาน ${reportDate}`,
-					subtitle: 'Khun Phaen Task Tracker',
-					accent: '#35d4ff',
-					lines: [
-						`ช่วงข้อมูล ${scopeLabel}`,
-						`งานทั้งหมด ${taskSnapshot.length} งาน`,
-						`เสร็จแล้ว ${doneTasks.length} งาน`,
-						`กำลังทำ ${inProgressTasks.length} งาน`,
-						`รอดำเนินการ ${todoTasks.length} งาน`
-					]
-				},
-				{
-					kicker: 'SUMMARY',
-					title: 'ภาพรวมความคืบหน้า',
-					subtitle: `Done ${doneTasks.length}/${taskSnapshot.length} tasks`,
-					accent: '#5ff290',
-					celebrate: doneTasks.length > 0,
-					lines: [
-						`เปอร์เซ็นต์สำเร็จ ${taskSnapshot.length > 0 ? Math.round((doneTasks.length / taskSnapshot.length) * 100) : 0}%`,
-						`เวลารวม ${(stats.total_minutes / 60).toFixed(1)} ชั่วโมง`,
-						`Man-days ${(stats.total_minutes / 60 / 8).toFixed(2)} วัน`,
-						`ส่งออกเมื่อ ${reportDate}`
-					]
-				},
-				{
-					kicker: 'DONE',
-					title: 'งานที่เสร็จแล้ว',
-					subtitle: `${doneTasks.length} รายการ`,
-					accent: '#64ffa8',
-					celebrate: doneTasks.length > 0,
-					lines: doneTasks.length > 0 ? doneTasks.slice(0, 6).map(summarize) : ['• ไม่มีงานในหมวดนี้']
-				},
-				{
-					kicker: 'IN PROGRESS',
-					title: 'งานที่กำลังทำ',
-					subtitle: `${inProgressTasks.length} รายการ`,
-					accent: '#6ec7ff',
-					lines: inProgressTasks.length > 0 ? inProgressTasks.slice(0, 6).map(summarize) : ['• ไม่มีงานในหมวดนี้']
-				},
-				{
-					kicker: 'TODO',
-					title: 'งานรอดำเนินการ',
-					subtitle: `${todoTasks.length} รายการ`,
-					accent: '#ffd470',
-					lines: todoTasks.length > 0 ? todoTasks.slice(0, 6).map(summarize) : ['• ไม่มีงานในหมวดนี้']
+			const slides: VideoSlide[] = [];
+
+			// 1. Cover
+			slides.push({
+				kicker: 'TASK REPORT VIDEO',
+				title: `รายงานงาน ${reportDate}`,
+				subtitle: 'Khun Phaen Task Tracker',
+				accent: '#35d4ff',
+				lines: [
+					`ช่วงข้อมูล ${scopeLabel}`,
+					`งานทั้งหมด ${taskSnapshot.length} งาน`,
+					`เสร็จแล้ว ${doneTasks.length} งาน`,
+					`กำลังทำ ${inProgressTasks.length} งาน`,
+					`รอดำเนินการ ${todoTasks.length} งาน`
+				]
+			});
+
+			// 2. Summary & Assignee Performance
+			const assigneeStatsMap = new Map<string, { total: number; done: number }>();
+			for (const task of taskSnapshot) {
+				const name = task.assignee?.name || 'ไม่ระบุ';
+				const s = assigneeStatsMap.get(name) || { total: 0, done: 0 };
+				s.total++;
+				if (task.status === 'done') s.done++;
+				assigneeStatsMap.set(name, s);
+			}
+
+			const assigneeEntries = [...assigneeStatsMap.entries()].sort((a, b) => b[1].total - a[1].total);
+			for (let i = 0; i < assigneeEntries.length; i += 6) {
+				const chunk = assigneeEntries.slice(i, i + 6);
+				slides.push({
+					kicker: 'PERFORMANCE',
+					title: 'ความสำเร็จรายบุคคล',
+					subtitle: `ผู้รับผิดชอบ ${assigneeEntries.length} คน (หน้า ${Math.floor(i / 6) + 1})`,
+					accent: '#a78bff',
+					lines: chunk.map(([name, s]) => {
+						const pct = s.total > 0 ? Math.round((s.done / s.total) * 100) : 0;
+						return `• ${name}: สำเร็จ ${pct}% (${s.done}/${s.total})`;
+					})
+				});
+			}
+
+			// 3. All Tasks (Paginated)
+			const createTaskSlides = (tasks: Task[], kicker: string, title: string, accent: string, celebrate = false): VideoSlide[] => {
+				if (tasks.length === 0) return [{
+					kicker, title, subtitle: '0 รายการ', accent, lines: ['• ไม่มีงานในหมวดนี้']
+				}];
+				
+				const pageSize = 6;
+				const pages: VideoSlide[] = [];
+				for (let i = 0; i < tasks.length; i += pageSize) {
+					const chunk = tasks.slice(i, i + pageSize);
+					pages.push({
+						kicker,
+						title,
+						subtitle: tasks.length > pageSize ? `รายการที่ ${i + 1}-${Math.min(i + pageSize, tasks.length)} / ทั้งหมด ${tasks.length}` : `${tasks.length} รายการ`,
+						accent,
+						celebrate: celebrate && i === 0,
+						lines: chunk.map(summarize)
+					});
 				}
-			];
+				return pages;
+			};
+
+			slides.push(...createTaskSlides(doneTasks, 'DONE', 'งานที่เสร็จแล้ว', '#64ffa8', true));
+			slides.push(...createTaskSlides(inProgressTasks, 'IN PROGRESS', 'งานที่กำลังทำ', '#6ec7ff'));
+			slides.push(...createTaskSlides(todoTasks, 'TODO', 'งานรอดำเนินการ', '#ffd470'));
 
 			const canvas = document.createElement('canvas');
 			canvas.width = 1280;
@@ -2590,40 +2607,51 @@
 				current.tasks.push(task);
 				assigneeMap.set(name, current);
 			}
-			const topAssignees = [...assigneeMap.entries()]
-				.map(([name, info]) => ({ name, ...info }))
-				.sort((a, b) => b.total - a.total)
-				.slice(0, 4);
-			const assigneeDetailPages = [...assigneeMap.entries()]
-				.map(([name, info]) => ({
-					name,
-					...info,
-					tasks: [...info.tasks]
-						.sort((a, b) => normalizeTaskDate(b.date).localeCompare(normalizeTaskDate(a.date)))
-						.slice(0, 7)
-				}))
-				.sort((a, b) => b.total - a.total)
-				.slice(0, 3);
-			const keyTasks = [...taskSnapshot]
-				.sort((a, b) => normalizeTaskDate(b.date).localeCompare(normalizeTaskDate(a.date)))
-				.slice(0, 8);
-
-			const now = new Date();
-			const reportDate = formatDateISO(now);
-			const canvas = document.createElement('canvas');
-			canvas.width = 1280;
-			canvas.height = 720;
-			const ctx = canvas.getContext('2d');
-			if (!ctx) {
-				showMessage($_('page__export_monthly_video_canvas_error'), 'error');
-				return;
-			}
-
 			const chartPages: Array<Array<{ title: string; img: HTMLImageElement }>> = [];
 			for (let i = 0; i < chartAssets.length; i += 2) {
 				chartPages.push(chartAssets.slice(i, i + 2));
 			}
-			const totalSlides = 4 + assigneeDetailPages.length + chartPages.length;
+
+			// Build dynamic pages
+			type MonthlyPage = 
+				| { type: 'cover' }
+				| { type: 'summary' }
+				| { type: 'assignee-list', data: any[] }
+				| { type: 'all-tasks', tasks: Task[], startIndex: number, total: number }
+				| { type: 'assignee-tasks', assignee: any, tasks: Task[], startIndex: number, totalCount: number }
+				| { type: 'chart', charts: any[], pageIndex: number };
+
+			const pages: MonthlyPage[] = [];
+			pages.push({ type: 'cover' });
+			pages.push({ type: 'summary' });
+
+			// Assignee Summaries (4 per page)
+			const sortedAssignees = [...assigneeMap.entries()]
+				.map(([name, info]) => ({ name, ...info }))
+				.sort((a, b) => b.total - a.total);
+			
+			for (let i = 0; i < sortedAssignees.length; i += 4) {
+				pages.push({ type: 'assignee-list', data: sortedAssignees.slice(i, i + 4) });
+			}
+
+			// All Tasks (8 per page)
+			const sortedAllTasks = [...taskSnapshot].sort((a, b) => normalizeTaskDate(b.date).localeCompare(normalizeTaskDate(a.date)));
+			for (let i = 0; i < sortedAllTasks.length; i += 8) {
+				pages.push({ type: 'all-tasks', tasks: sortedAllTasks.slice(i, i + 8), startIndex: i, total: sortedAllTasks.length });
+			}
+
+			// Individual Assignee Task details
+			for (const a of sortedAssignees) {
+				const aTasks = [...a.tasks].sort((a, b) => normalizeTaskDate(b.date).localeCompare(normalizeTaskDate(a.date)));
+				for (let i = 0; i < aTasks.length; i += 7) {
+					pages.push({ type: 'assignee-tasks', assignee: a, tasks: aTasks.slice(i, i + 7), startIndex: i, totalCount: aTasks.length });
+				}
+			}
+
+			// Chart pages
+			chartPages.forEach((charts, idx) => pages.push({ type: 'chart', charts, pageIndex: idx }));
+
+			const totalSlides = pages.length;
 
 			const renderCover = (progress: number) => {
 				const reveal = Math.min(Math.max(progress / 0.6, 0), 1);
@@ -2686,10 +2714,10 @@
 				});
 				ctx.fillStyle = '#334155';
 				ctx.font = '500 26px "Trebuchet MS", "Noto Sans Thai", sans-serif';
-				ctx.fillText(`เวลารวม ${(monthlySummary.totalMinutes / 60).toFixed(1)} ชม. • งานเฉลี่ย/วัน ${monthlySummary.avgPerDay.toFixed(2)}`, 60, 328);
+				ctx.fillText(`งานเฉลี่ย/วัน ${monthlySummary.avgPerDay.toFixed(2)}`, 60, 328);
 			};
 
-			const renderAssigneePage = () => {
+			const renderAssigneePage = (list: any[]) => {
 				const bg = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
 				bg.addColorStop(0, '#f8fafc');
 				bg.addColorStop(1, '#e2e8f0');
@@ -2700,8 +2728,8 @@
 				ctx.fillText('ใครทำอะไรบ้าง', 60, 72);
 				ctx.fillStyle = '#475569';
 				ctx.font = '500 22px "Trebuchet MS", "Noto Sans Thai", sans-serif';
-				ctx.fillText('สรุปตามผู้รับผิดชอบ (Top 4)', 60, 102);
-				topAssignees.forEach((a, i) => {
+				ctx.fillText(`สรุปความสำเร็จแยกตามรายบุคคล (${sortedAssignees.length} คน)`, 60, 102);
+				list.forEach((a, i) => {
 					const y = 136 + i * 138;
 					drawRoundedRect(ctx, 60, y, 1160, 118, 14);
 					ctx.fillStyle = '#ffffff';
@@ -2713,11 +2741,12 @@
 					ctx.fillText(a.name, 84, y + 44);
 					ctx.fillStyle = '#334155';
 					ctx.font = '500 22px "Trebuchet MS", "Noto Sans Thai", sans-serif';
-					ctx.fillText(`รวม ${a.total} งาน  •  เสร็จ ${a.done}  •  กำลังทำ ${a.inProgress}  •  รอดำเนินการ ${a.todo}`, 84, y + 82);
+					const pct = a.total > 0 ? Math.round((a.done / a.total) * 100) : 0;
+					ctx.fillText(`สำเร็จ ${pct}% • รวม ${a.total} งาน • เสร็จ ${a.done} • กำลังทำ ${a.inProgress} • รอดำเนินการ ${a.todo}`, 84, y + 82);
 				});
 			};
 
-			const renderTaskPage = () => {
+			const renderTaskPage = (tasks: Task[], startIdx: number, total: number) => {
 				const bg = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
 				bg.addColorStop(0, '#eef2ff');
 				bg.addColorStop(1, '#e0e7ff');
@@ -2725,9 +2754,12 @@
 				ctx.fillRect(0, 0, canvas.width, canvas.height);
 				ctx.fillStyle = '#0f172a';
 				ctx.font = '700 38px "Trebuchet MS", "Noto Sans Thai", sans-serif';
-				ctx.fillText('รายการงานสำคัญในรอบเดือน', 60, 72);
-				keyTasks.forEach((task, i) => {
-					const y = 116 + i * 72;
+				ctx.fillText('รายการงานทั้งหมดในรอบเดือน', 60, 72);
+				ctx.fillStyle = '#475569';
+				ctx.font = '500 20px "Trebuchet MS", "Noto Sans Thai", sans-serif';
+				ctx.fillText(`งานที่ ${startIdx + 1}-${Math.min(startIdx + tasks.length, total)} จากทั้งหมด ${total} งาน`, 60, 102);
+				tasks.forEach((task, i) => {
+					const y = 130 + i * 72;
 					const statusColor = task.status === 'done' ? '#16a34a' : task.status === 'in-progress' ? '#2563eb' : '#d97706';
 					ctx.fillStyle = '#ffffff';
 					drawRoundedRect(ctx, 60, y, 1160, 58, 12);
@@ -2746,16 +2778,14 @@
 					ctx.fillStyle = '#475569';
 					ctx.font = '500 16px "Trebuchet MS", "Noto Sans Thai", sans-serif';
 					ctx.fillText(normalizeTaskDate(task.date), 1120, y + 35);
-					if ((task.duration_minutes || 0) > 0) {
-						const mins = task.duration_minutes || 0;
-						ctx.fillText(`${Math.floor(mins / 60)}ชม ${mins % 60}น`, 1120, y + 50);
-					}
 				});
 			};
 
 			const renderAssigneeTaskPage = (
-				entry: { name: string; total: number; done: number; inProgress: number; todo: number; tasks: Task[] },
-				pageIndex: number
+				entry: any,
+				tasks: Task[],
+				startIdx: number,
+				totalCount: number
 			) => {
 				const bg = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
 				bg.addColorStop(0, '#f0f9ff');
@@ -2768,12 +2798,12 @@
 				ctx.fillStyle = '#334155';
 				ctx.font = '500 21px "Trebuchet MS", "Noto Sans Thai", sans-serif';
 				ctx.fillText(
-					`หน้า ${pageIndex + 1}/${assigneeDetailPages.length} • รวม ${entry.total} งาน • เสร็จ ${entry.done} • กำลังทำ ${entry.inProgress} • รอดำเนินการ ${entry.todo}`,
+					`รายการที่ ${startIdx + 1}-${Math.min(startIdx + tasks.length, totalCount)} • รวม ${entry.total} งาน • เสร็จ ${entry.done} • กำลังทำ ${entry.inProgress} • รอดำเนินการ ${entry.todo}`,
 					60,
 					102
 				);
 
-				entry.tasks.forEach((task, i) => {
+				tasks.forEach((task, i) => {
 					const y = 130 + i * 80;
 					const statusColor = task.status === 'done' ? '#16a34a' : task.status === 'in-progress' ? '#2563eb' : '#d97706';
 					drawRoundedRect(ctx, 60, y, 1160, 66, 12);
@@ -2797,10 +2827,6 @@
 					ctx.fillStyle = '#475569';
 					ctx.font = '500 15px "Trebuchet MS", "Noto Sans Thai", sans-serif';
 					ctx.fillText(normalizeTaskDate(task.date), 1088, y + 28);
-					if ((task.duration_minutes || 0) > 0) {
-						const mins = task.duration_minutes || 0;
-						ctx.fillText(`${Math.floor(mins / 60)}ชม ${mins % 60}น`, 1088, y + 50);
-					}
 				});
 			};
 
@@ -2883,34 +2909,21 @@
 			recorder.start();
 
 			const renderSlideByIndex = (index: number, progress = 0) => {
-				if (index === 0) {
+				const page = pages[index];
+				if (!page) return;
+
+				if (page.type === 'cover') {
 					renderCover(progress);
-				} else if (index === 1) {
+				} else if (page.type === 'summary') {
 					renderSummaryPage();
-				} else if (index === 2) {
-					renderAssigneePage();
-				} else if (index === 3) {
-					renderTaskPage();
-				} else {
-					const assigneePageIndex = index - 4;
-					if (assigneePageIndex < assigneeDetailPages.length) {
-						renderAssigneeTaskPage(assigneeDetailPages[assigneePageIndex], assigneePageIndex);
-						return;
-					}
-					const chartIndex = assigneePageIndex - assigneeDetailPages.length;
-					const page = chartPages[chartIndex] || [];
-					if (page.length > 0) {
-						renderChartPage(page, chartIndex);
-					} else {
-						const bg = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-						bg.addColorStop(0, '#eff6ff');
-						bg.addColorStop(1, '#dbeafe');
-						ctx.fillStyle = bg;
-						ctx.fillRect(0, 0, canvas.width, canvas.height);
-						ctx.fillStyle = '#0f172a';
-						ctx.font = '700 42px "Trebuchet MS", "Noto Sans Thai", sans-serif';
-						ctx.fillText('ไม่มีกราฟให้แสดงในช่วงข้อมูลนี้', 180, 370);
-					}
+				} else if (page.type === 'assignee-list') {
+					renderAssigneePage(page.data);
+				} else if (page.type === 'all-tasks') {
+					renderTaskPage(page.tasks, page.startIndex, page.total);
+				} else if (page.type === 'assignee-tasks') {
+					renderAssigneeTaskPage(page.assignee, page.tasks, page.startIndex, page.totalCount);
+				} else if (page.type === 'chart') {
+					renderChartPage(page.charts, page.pageIndex);
 				}
 			};
 
