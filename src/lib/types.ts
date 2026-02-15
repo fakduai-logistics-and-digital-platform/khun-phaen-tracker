@@ -1,6 +1,7 @@
 export interface Project {
   id?: number;
   name: string;
+  repo_url?: string;
   created_at?: string;
 }
 

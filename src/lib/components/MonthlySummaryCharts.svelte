@@ -1,35 +1,9 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
-	import {
-		Chart,
-		ArcElement,
-		Tooltip,
-		Legend,
-		DoughnutController,
-		LineController,
-		CategoryScale,
-		LinearScale,
-		PointElement,
-		LineElement,
-		BarController,
-		BarElement,
-		Filler
-	} from 'chart.js';
-
-	Chart.register(
-		ArcElement,
-		Tooltip,
-		Legend,
-		DoughnutController,
-		LineController,
-		CategoryScale,
-		LinearScale,
-		PointElement,
-		LineElement,
-		BarController,
-		BarElement,
-		Filler
-	);
+	import { createElement } from 'react';
+	import { createRoot, type Root } from 'react-dom/client';
+	import { RechartsSummary } from './RechartsSummary';
+	import { _ } from 'svelte-i18n';
 
 	export let done = 0;
 	export let inProgress = 0;
@@ -38,289 +12,104 @@
 	export let projectBreakdown: { name: string; count: number }[] = [];
 	export let assigneeBreakdown: { name: string; count: number }[] = [];
 
-	let statusCanvas: HTMLCanvasElement;
-	let trendCanvas: HTMLCanvasElement;
-	let projectCanvas: HTMLCanvasElement;
-	let assigneeCanvas: HTMLCanvasElement;
-	let statusChart: Chart | null = null;
-	let trendChart: Chart | null = null;
-	let projectChart: Chart | null = null;
-	let assigneeChart: Chart | null = null;
-	let mounted = false;
+	let container: HTMLDivElement;
+	let root: Root | null = null;
 	let trendMode: 'line' | 'bar' = 'line';
-	let insightTitle = 'คลิกกราฟเพื่อดูรายละเอียด';
-	let insightBody = 'เลือกจุดในกราฟแนวโน้ม หรือแท่งใน Top โปรเจค/ผู้รับผิดชอบ';
+	let mounted = false;
 
 	function isDarkMode(): boolean {
 		return typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
 	}
 
-	function palette() {
-		const dark = isDarkMode();
-		return {
-			text: dark ? '#dbe7ff' : '#1f2a44',
-			muted: dark ? '#8ca3cf' : '#64748b',
-			grid: dark ? 'rgba(148,163,184,0.15)' : 'rgba(100,116,139,0.15)',
-			card: dark ? '#0f172a' : '#ffffff',
-			status: ['#10b981', '#3b82f6', '#f59e0b'],
-			project: dark ? '#a78bfa' : '#8b5cf6',
-			assignee: dark ? '#22d3ee' : '#0891b2',
-			trendStroke: dark ? '#60a5fa' : '#2563eb'
-		};
-	}
+	function render() {
+		if (!container) return;
+		if (!root) {
+			root = createRoot(container);
+		}
 
-	function destroyCharts() {
-		statusChart?.destroy();
-		trendChart?.destroy();
-		projectChart?.destroy();
-		assigneeChart?.destroy();
-		statusChart = null;
-		trendChart = null;
-		projectChart = null;
-		assigneeChart = null;
-	}
-
-	function makeGradient(ctx: CanvasRenderingContext2D, c1: string, c2: string) {
-		const gradient = ctx.createLinearGradient(0, 0, 0, 260);
-		gradient.addColorStop(0, c1);
-		gradient.addColorStop(1, c2);
-		return gradient;
-	}
-
-	function truncateLabel(label: string, max = 16): string {
-		return label.length > max ? `${label.slice(0, max)}...` : label;
-	}
-
-	function baseScales() {
-		const c = palette();
-		return {
-			x: {
-				grid: { color: c.grid, drawTicks: false },
-				ticks: { color: c.muted, font: { size: 11 } }
-			},
-			y: {
-				beginAtZero: true,
-				grid: { color: c.grid },
-				ticks: { color: c.muted, precision: 0, font: { size: 11 } }
-			}
-		};
-	}
-
-	function createTooltipCallbacks() {
-		return {
-			title: (items: any[]) => items[0]?.label || '',
-			label: (context: any) => ` ${context.parsed.y ?? context.parsed.x ?? context.raw} งาน`
-		};
-	}
-
-	function renderCharts() {
-		if (!mounted || !statusCanvas || !trendCanvas || !projectCanvas || !assigneeCanvas) return;
-		destroyCharts();
-
-		const c = palette();
-		const statusCtx = statusCanvas.getContext('2d');
-		const trendCtx = trendCanvas.getContext('2d');
-		const projectCtx = projectCanvas.getContext('2d');
-		const assigneeCtx = assigneeCanvas.getContext('2d');
-		if (!statusCtx || !trendCtx || !projectCtx || !assigneeCtx) return;
-
-		statusChart = new Chart(statusCtx, {
-			type: 'doughnut',
-			data: {
-				labels: ['Done', 'In Progress', 'Todo'],
-				datasets: [{
-					data: [done, inProgress, todo],
-					backgroundColor: c.status,
-					borderColor: c.card,
-					borderWidth: 2,
-					hoverOffset: 12
-				}]
-			},
-			options: {
-				maintainAspectRatio: false,
-				cutout: '64%',
-				plugins: {
-					legend: {
-						position: 'bottom',
-						labels: { color: c.text, usePointStyle: true, padding: 16, pointStyle: 'circle' }
-					},
-					tooltip: {
-						callbacks: {
-							label: (ctx) => ` ${ctx.label}: ${ctx.raw} งาน`
-						}
-					}
+		root.render(
+			createElement(RechartsSummary, {
+				done,
+				inProgress,
+				todo,
+				dailyTrend,
+				projectBreakdown,
+				assigneeBreakdown,
+				isDark: isDarkMode(),
+				trendMode,
+				labels: {
+					status: $_('monthlyCharts__status_title'),
+					trend: $_('monthlyCharts__trend_title'),
+					project: $_('monthlyCharts__project_title'),
+					assignee: $_('monthlyCharts__assignee_title'),
+					tasksCount: $_('monthlyCharts__tasks_count'),
+					done: $_('page__filter_status_done'),
+					inProgress: $_('page__filter_status_in_progress'),
+					todo: $_('page__filter_status_todo')
 				}
-			}
-		});
-
-		const trendLabels = dailyTrend.map((d, i) => (i % 5 === 0 ? d.date.slice(5) : ''));
-		const trendData = dailyTrend.map((d) => d.count);
-		const trendGradient = makeGradient(trendCtx, 'rgba(59,130,246,0.35)', 'rgba(59,130,246,0.02)');
-		const trendDataset = trendMode === 'line'
-			? {
-					type: 'line' as const,
-					label: 'Tasks',
-					data: trendData,
-					borderColor: c.trendStroke,
-					backgroundColor: trendGradient,
-					fill: true,
-					tension: 0.35,
-					borderWidth: 3,
-					pointRadius: 2,
-					pointHoverRadius: 5
-				}
-			: {
-					type: 'bar' as const,
-					label: 'Tasks',
-					data: trendData,
-					borderRadius: 6,
-					backgroundColor: 'rgba(59,130,246,0.8)'
-				};
-
-		trendChart = new Chart(trendCtx, {
-			type: trendMode,
-			data: { labels: trendLabels, datasets: [trendDataset] },
-			options: {
-				maintainAspectRatio: false,
-				scales: {
-					x: { ...baseScales().x, grid: { display: false } },
-					y: baseScales().y
-				},
-				plugins: {
-					legend: { display: false },
-					tooltip: { callbacks: createTooltipCallbacks() }
-				},
-				onClick: (_, elements) => {
-					if (!elements.length) return;
-					const idx = elements[0].index;
-					const d = dailyTrend[idx];
-					if (!d) return;
-					insightTitle = `แนวโน้มวันที่ ${d.date}`;
-					insightBody = `มีงานทั้งหมด ${d.count} งานในวันนั้น`;
-				}
-			}
-		});
-
-		const projectItems = projectBreakdown.slice(0, 6);
-		projectChart = new Chart(projectCtx, {
-			type: 'bar',
-			data: {
-				labels: projectItems.map((p) => truncateLabel(p.name)),
-				datasets: [{
-					data: projectItems.map((p) => p.count),
-					backgroundColor: c.project,
-					borderRadius: 8
-				}]
-			},
-			options: {
-				maintainAspectRatio: false,
-				indexAxis: 'y',
-				scales: {
-					x: baseScales().x,
-					y: { ...baseScales().y, grid: { display: false }, ticks: { color: c.muted } }
-				},
-				plugins: { legend: { display: false }, tooltip: { callbacks: createTooltipCallbacks() } },
-				onClick: (_, elements) => {
-					if (!elements.length) return;
-					const idx = elements[0].index;
-					const p = projectItems[idx];
-					if (!p) return;
-					insightTitle = `โปรเจค: ${p.name}`;
-					insightBody = `มีงาน ${p.count} งานในรอบ 30 วัน`;
-				}
-			}
-		});
-
-		const assigneeItems = assigneeBreakdown.slice(0, 6);
-		assigneeChart = new Chart(assigneeCtx, {
-			type: 'bar',
-			data: {
-				labels: assigneeItems.map((a) => truncateLabel(a.name)),
-				datasets: [{
-					data: assigneeItems.map((a) => a.count),
-					backgroundColor: c.assignee,
-					borderRadius: 8
-				}]
-			},
-			options: {
-				maintainAspectRatio: false,
-				indexAxis: 'y',
-				scales: {
-					x: baseScales().x,
-					y: { ...baseScales().y, grid: { display: false }, ticks: { color: c.muted } }
-				},
-				plugins: { legend: { display: false }, tooltip: { callbacks: createTooltipCallbacks() } },
-				onClick: (_, elements) => {
-					if (!elements.length) return;
-					const idx = elements[0].index;
-					const a = assigneeItems[idx];
-					if (!a) return;
-					insightTitle = `ผู้รับผิดชอบ: ${a.name}`;
-					insightBody = `รับผิดชอบ ${a.count} งานในรอบ 30 วัน`;
-				}
-			}
-		});
-	}
-
-	function setTrendMode(mode: 'line' | 'bar') {
-		if (trendMode === mode) return;
-		trendMode = mode;
-		renderCharts();
+			})
+		);
 	}
 
 	onMount(() => {
 		mounted = true;
-		renderCharts();
+		render();
+
+		// Listen for dark mode changes
+		const observer = new MutationObserver(() => {
+			if (mounted) render();
+		});
+		observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+		
+		return () => observer.disconnect();
 	});
 
 	onDestroy(() => {
 		mounted = false;
-		destroyCharts();
+		if (root) {
+			root.unmount();
+			root = null;
+		}
 	});
 
-	$: if (mounted) renderCharts();
+	$: if (mounted && (done || inProgress || todo || dailyTrend || projectBreakdown || assigneeBreakdown || trendMode)) {
+		render();
+	}
+
+	function setTrendMode(mode: 'line' | 'bar') {
+		trendMode = mode;
+	}
 </script>
 
-<div class="space-y-3">
+<div class="space-y-3 pt-6">
 	<div class="flex items-center justify-between">
-		<p class="text-xs text-gray-500 dark:text-gray-400">Interactive: คลิกกราฟเพื่อดูรายละเอียดด้านล่าง</p>
-		<div class="inline-flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+		<p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{$_('monthlyCharts__visualization')}</p>
+		<div class="inline-flex rounded-xl bg-gray-100 dark:bg-gray-800 p-1 border border-gray-200 dark:border-gray-700 shadow-sm">
 			<button
 				on:click={() => setTrendMode('line')}
-				class="px-3 py-1.5 text-xs {trendMode === 'line' ? 'bg-primary text-white' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300'}"
+				class="px-4 py-1.5 text-xs font-bold rounded-lg transition-all {trendMode === 'line' ? 'bg-primary text-white shadow-md' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'}"
 			>
-				Line
+				{$_('monthlyCharts__btn_line')}
 			</button>
 			<button
 				on:click={() => setTrendMode('bar')}
-				class="px-3 py-1.5 text-xs {trendMode === 'bar' ? 'bg-primary text-white' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300'}"
+				class="px-4 py-1.5 text-xs font-bold rounded-lg transition-all {trendMode === 'bar' ? 'bg-primary text-white shadow-md' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'}"
 			>
-				Bar
+				{$_('monthlyCharts__btn_bar')}
 			</button>
 		</div>
 	</div>
 
-	<div class="grid md:grid-cols-2 gap-4">
-		<div class="rounded-2xl border border-gray-200 dark:border-gray-700 p-4 bg-white/90 dark:bg-gray-800/70 shadow-sm" data-monthly-chart="status" data-chart-title="สัดส่วนสถานะงาน">
-			<h4 class="font-semibold text-gray-900 dark:text-white mb-3">สัดส่วนสถานะงาน</h4>
-			<div class="h-56"><canvas bind:this={statusCanvas}></canvas></div>
-		</div>
-		<div class="rounded-2xl border border-gray-200 dark:border-gray-700 p-4 bg-white/90 dark:bg-gray-800/70 shadow-sm" data-monthly-chart="trend" data-chart-title="แนวโน้มรายวัน 30 วัน">
-			<h4 class="font-semibold text-gray-900 dark:text-white mb-3">แนวโน้มรายวัน 30 วัน</h4>
-			<div class="h-56"><canvas bind:this={trendCanvas}></canvas></div>
-		</div>
-		<div class="rounded-2xl border border-gray-200 dark:border-gray-700 p-4 bg-white/90 dark:bg-gray-800/70 shadow-sm" data-monthly-chart="project" data-chart-title="Top โปรเจค">
-			<h4 class="font-semibold text-gray-900 dark:text-white mb-3">Top โปรเจค</h4>
-			<div class="h-56"><canvas bind:this={projectCanvas}></canvas></div>
-		</div>
-		<div class="rounded-2xl border border-gray-200 dark:border-gray-700 p-4 bg-white/90 dark:bg-gray-800/70 shadow-sm" data-monthly-chart="assignee" data-chart-title="Top ผู้รับผิดชอบ">
-			<h4 class="font-semibold text-gray-900 dark:text-white mb-3">Top ผู้รับผิดชอบ</h4>
-			<div class="h-56"><canvas bind:this={assigneeCanvas}></canvas></div>
-		</div>
-	</div>
+	<div bind:this={container}></div>
 
-	<div class="rounded-xl border border-blue-200/60 dark:border-blue-800/70 bg-blue-50/70 dark:bg-blue-900/20 px-4 py-3">
-		<p class="text-sm font-semibold text-blue-800 dark:text-blue-300">{insightTitle}</p>
-		<p class="text-sm text-blue-700 dark:text-blue-400">{insightBody}</p>
+	<div class="rounded-2xl border border-blue-200/60 dark:border-blue-800/70 bg-blue-50/70 dark:bg-blue-900/20 px-6 py-4 flex items-start gap-4 shadow-sm">
+		<div class="p-2 bg-blue-500/10 rounded-lg">
+			<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-blue-600 dark:text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+		</div>
+		<div>
+			<p class="text-sm font-bold text-blue-900 dark:text-blue-200">{$_('monthlyCharts__insight_title')}</p>
+			<p class="text-sm text-blue-700/80 dark:text-blue-300/80 font-medium">{$_('monthlyCharts__insight_body')}</p>
+		</div>
 	</div>
 </div>
+

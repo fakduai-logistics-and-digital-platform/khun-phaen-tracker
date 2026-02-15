@@ -333,6 +333,24 @@ function runMigrations() {
 
   console.log("🔄 Running migrations...");
   ensureUpdatedAtColumn();
+  ensureRepoUrlColumn();
+}
+
+function ensureRepoUrlColumn() {
+  try {
+    const columns = db.selectObjects("PRAGMA table_info(projects)");
+    const hasRepoUrl = columns.some(
+      (col: Record<string, any>) => col.name === "repo_url",
+    );
+
+    if (!hasRepoUrl) {
+      console.log("🔄 Adding repo_url column to projects...");
+      runSql(`ALTER TABLE projects ADD COLUMN repo_url TEXT DEFAULT NULL`);
+      console.log("✅ Added repo_url column");
+    }
+  } catch (e) {
+    console.warn("⚠️ Failed to check/add repo_url column:", e);
+  }
 }
 
 // Cleanup database before refresh/unload
@@ -363,6 +381,7 @@ function createTables() {
 		CREATE TABLE IF NOT EXISTS projects (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			name TEXT NOT NULL UNIQUE,
+			repo_url TEXT DEFAULT NULL,
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		)
 	`);
@@ -883,6 +902,7 @@ export async function getProjectsList(): Promise<Project[]> {
     return {
       id: obj.id as number,
       name: obj.name as string,
+      repo_url: obj.repo_url as string | undefined,
       created_at: obj.created_at as string,
     };
   });
@@ -919,7 +939,10 @@ export async function addProject(
 ): Promise<void> {
   if (!db) throw new Error("DB not initialized");
 
-  runSql("INSERT INTO projects (name) VALUES (?)", [project.name]);
+  runSql("INSERT INTO projects (name, repo_url) VALUES (?, ?)", [
+    project.name,
+    project.repo_url || null,
+  ]);
 
   saveDatabase();
 }
@@ -935,11 +958,28 @@ export async function updateProject(
 
   const oldName = oldProject.values[0][0];
 
-  if (updates.name !== undefined) {
-    // Update project name
-    runSql("UPDATE projects SET name = ? WHERE id = ?", [updates.name, id]);
+  const sets: string[] = [];
+  const values: any[] = [];
 
-    // Update all tasks with old project name
+  if (updates.name !== undefined) {
+    sets.push("name = ?");
+    values.push(updates.name);
+  }
+
+  if (updates.repo_url !== undefined) {
+    sets.push("repo_url = ?");
+    values.push(updates.repo_url || null);
+  }
+
+  if (sets.length === 0) return;
+
+  values.push(id);
+
+  // Update project fields
+  runSql(`UPDATE projects SET ${sets.join(", ")} WHERE id = ?`, values);
+
+  // If name changed, update tasks
+  if (updates.name !== undefined && updates.name !== oldName) {
     runSql("UPDATE tasks SET project = ? WHERE project = ?", [
       updates.name,
       oldName,
@@ -1598,7 +1638,7 @@ export async function exportAllData(): Promise<string> {
   // Add projects section
   csvRows.push("");
   csvRows.push("# PROJECTS");
-  const projectHeaders = ["id", "name", "created_at"];
+  const projectHeaders = ["id", "name", "repo_url", "created_at"];
   csvRows.push(projectHeaders.join(","));
 
   for (const row of projectsResult.values) {
@@ -1905,22 +1945,27 @@ export async function importAllData(
         if (row.id) {
           runSql(
             `
-						REPLACE INTO projects (id, name, created_at)
-						VALUES (?, ?, ?)
+						REPLACE INTO projects (id, name, repo_url, created_at)
+						VALUES (?, ?, ?, ?)
 					`,
             [
               parseInt(row.id),
               row.name || "",
+              row.repo_url || null,
               row.created_at || new Date().toISOString(),
             ],
           );
         } else {
           runSql(
             `
-						INSERT INTO projects (name, created_at)
-						VALUES (?, ?)
+						INSERT INTO projects (name, repo_url, created_at)
+						VALUES (?, ?, ?)
 					`,
-            [row.name || "", row.created_at || new Date().toISOString()],
+            [
+              row.name || "",
+              row.repo_url || null,
+              row.created_at || new Date().toISOString(),
+            ],
           );
         }
         projectsImported++;
@@ -2231,22 +2276,34 @@ export async function mergeAllData(csvContent: string): Promise<{
         try {
           runSql(
             `
-						INSERT INTO projects (name, created_at)
-						VALUES (?, ?)
+						INSERT INTO projects (name, repo_url, created_at)
+						VALUES (?, ?, ?)
 					`,
-            [row.name || "", row.created_at || new Date().toISOString()],
+            [
+              row.name || "",
+              row.repo_url || null,
+              row.created_at || new Date().toISOString(),
+            ],
           );
           projectsAdded++;
         } catch (e) {
           console.warn("Failed to insert project:", e);
         }
-      } else if (existing.name !== row.name) {
+      } else if (
+        existing.name !== row.name ||
+        (existing.repo_url || "") !== (row.repo_url || "")
+      ) {
         try {
           runSql(
             `
-						UPDATE projects SET name = ?, created_at = ? WHERE id = ?
+						UPDATE projects SET name = ?, repo_url = ?, created_at = ? WHERE id = ?
 					`,
-            [row.name || "", row.created_at || existing.created_at, serverId],
+            [
+              row.name || "",
+              row.repo_url || null,
+              row.created_at || existing.created_at,
+              serverId,
+            ],
           );
           projectsUpdated++;
         } catch (e) {

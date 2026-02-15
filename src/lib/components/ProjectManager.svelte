@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
 	import type { Project } from '$lib/types';
-	import { Folder, Plus, X, Edit2, Trash2, Check, Briefcase } from 'lucide-svelte';
+	import { Folder, Plus, X, Edit2, Trash2, Check, Briefcase, Link as LinkIcon, ExternalLink } from 'lucide-svelte';
 	import { _ } from 'svelte-i18n';
 	
 	const dispatch = createEventDispatcher<{
 		close: void;
-		add: { name: string };
-		update: { id: number; name: string };
+		add: { name: string; repo_url?: string };
+		update: { id: number; name: string; repo_url?: string };
 		delete: number;
 	}>();
 	
@@ -17,24 +17,28 @@
 	let showAddForm = false;
 	let editingProject: Project | null = null;
 	let newProjectName = '';
+	let newRepoUrl = '';
 	let deleteConfirmId: number | null = null;
 	
 	function startAdd() {
 		showAddForm = true;
 		editingProject = null;
 		newProjectName = '';
+		newRepoUrl = '';
 	}
 	
 	function startEdit(project: Project) {
 		editingProject = project;
 		showAddForm = true;
 		newProjectName = project.name;
+		newRepoUrl = project.repo_url || '';
 	}
 	
 	function cancelEdit() {
 		showAddForm = false;
 		editingProject = null;
 		newProjectName = '';
+		newRepoUrl = '';
 	}
 	
 	function handleSave() {
@@ -43,11 +47,13 @@
 		if (editingProject) {
 			dispatch('update', {
 				id: editingProject.id!,
-				name: newProjectName.trim()
+				name: newProjectName.trim(),
+				repo_url: newRepoUrl.trim() || undefined
 			});
 		} else {
 			dispatch('add', {
-				name: newProjectName.trim()
+				name: newProjectName.trim(),
+				repo_url: newRepoUrl.trim() || undefined
 			});
 		}
 		
@@ -118,8 +124,26 @@
 							type="text"
 							bind:value={newProjectName}
 							placeholder={$_('projectManager__name_placeholder')}
-							class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none"
+							class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
 						/>
+					</div>
+
+					<div>
+						<label for="project-repo-input" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+							{$_('projectManager__repo_url_label')}
+						</label>
+						<div class="relative">
+							<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+								<LinkIcon size={16} />
+							</div>
+							<input
+								id="project-repo-input"
+								type="url"
+								bind:value={newRepoUrl}
+								placeholder={$_('projectManager__repo_url_placeholder')}
+								class="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+							/>
+						</div>
 					</div>
 
 					<div class="flex gap-2 pt-2">
@@ -176,9 +200,23 @@
 							<!-- Info -->
 							<div class="flex-1 min-w-0">
 								<h4 class="font-medium text-gray-900 dark:text-white truncate">{project.name}</h4>
-								<div class="flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400">
-									<Briefcase size={12} />
-									<span>{getTaskCount(project.id!)} {$_('projectManager__task_count_suffix')}</span>
+								<div class="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
+									<div class="flex items-center gap-1">
+										<Briefcase size={12} />
+										<span>{getTaskCount(project.id!)} {$_('projectManager__task_count_suffix')}</span>
+									</div>
+									{#if project.repo_url}
+										<a 
+											href={project.repo_url + (project.repo_url.includes('?') ? '&' : '?') + 'ref=khun-phaen-tracker-offline'} 
+											target="_blank" 
+											rel="noopener noreferrer"
+											class="flex items-center gap-1 text-primary hover:underline"
+											on:click|stopPropagation
+										>
+											<ExternalLink size={12} />
+											<span>{$_('projectManager__view_repo')}</span>
+										</a>
+									{/if}
 								</div>
 							</div>
 
