@@ -299,17 +299,19 @@ export async function autoReconnect(): Promise<boolean> {
   try {
     await waitForConnection();
 
+    // Set stores before joining so handleServerMessage sees correct state
+    const normalizedCode = saved.roomCode.toUpperCase();
+    serverRoomCode.set(normalizedCode);
+    isServerHost.set(saved.isHost);
+
     // Rejoin room
     sendMessage({
       action: "join",
-      room_code: saved.roomCode,
+      room_code: normalizedCode,
       peer_id: saved.peerId,
       is_host: saved.isHost,
       metadata: { name: saved.isHost ? "Host" : "Guest" },
     });
-
-    serverRoomCode.set(saved.roomCode);
-    isServerHost.set(saved.isHost);
 
     console.log("✅ Auto-reconnect successful");
     return true;
@@ -586,6 +588,9 @@ export async function createServerRoom(
       // Wait for connection then join as host
       await waitForConnection();
 
+      serverRoomCode.set(data.room_code);
+      isServerHost.set(true);
+
       sendMessage({
         action: "join",
         room_code: data.room_code,
@@ -593,9 +598,6 @@ export async function createServerRoom(
         is_host: true,
         metadata: { name: "Host" },
       });
-
-      serverRoomCode.set(data.room_code);
-      isServerHost.set(true);
 
       return data.room_code;
     }
@@ -629,6 +631,9 @@ export async function joinServerRoom(
 
     await waitForConnection();
 
+    serverRoomCode.set(roomCode);
+    isServerHost.set(false);
+
     sendMessage({
       action: "join",
       room_code: roomCode.toUpperCase(),
@@ -636,9 +641,6 @@ export async function joinServerRoom(
       is_host: false,
       metadata: { name: peerName },
     });
-
-    serverRoomCode.set(roomCode);
-    isServerHost.set(false);
 
     return true;
   } catch (error) {

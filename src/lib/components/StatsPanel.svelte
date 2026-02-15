@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Clock, CheckCircle2, Circle, Loader2, Calendar, Briefcase, Zap } from 'lucide-svelte';
+	import { Clock, CheckCircle2, Circle, Loader2, Calendar, Briefcase, Zap, FlaskConical } from 'lucide-svelte';
 	import { compressionReady, compressionStats, getStorageInfo } from '$lib/stores/storage';
 	import { onMount } from 'svelte';
 	import { _ } from 'svelte-i18n';
@@ -8,9 +8,10 @@
 		total: number;
 		todo: number;
 		in_progress: number;
+		in_test: number;
 		done: number;
 		total_minutes: number;
-	} = { total: 0, todo: 0, in_progress: 0, done: 0, total_minutes: 0 };
+	} = { total: 0, todo: 0, in_progress: 0, in_test: 0, done: 0, total_minutes: 0 };
 
 	let storageInfo = { used: 0, total: 0, percentage: 0 };
 
@@ -37,7 +38,7 @@
 	$: compressionPercent = $compressionStats.ratio;
 </script>
 
-<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
 	<!-- Total Tasks -->
 	<div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
 		<div class="flex items-center justify-between">
@@ -51,6 +52,19 @@
 		</div>
 	</div>
 
+	<!-- Todo -->
+	<div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+		<div class="flex items-center justify-between">
+			<div>
+				<p class="text-sm text-gray-500 dark:text-gray-400 mb-1">{$_('statsPanel__todo')}</p>
+				<p class="text-2xl font-bold text-amber-600 dark:text-amber-400">{stats.todo}</p>
+			</div>
+			<div class="p-3 bg-amber-100 dark:bg-amber-900/30 rounded-lg">
+				<Circle class="text-amber-600 dark:text-amber-400" size={24} />
+			</div>
+		</div>
+	</div>
+
 	<!-- In Progress -->
 	<div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
 		<div class="flex items-center justify-between">
@@ -60,6 +74,19 @@
 			</div>
 			<div class="p-3 bg-primary/10 rounded-lg">
 				<Loader2 class="text-primary" size={24} />
+			</div>
+		</div>
+	</div>
+
+	<!-- In Test -->
+	<div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+		<div class="flex items-center justify-between">
+			<div>
+				<p class="text-sm text-gray-500 dark:text-gray-400 mb-1">{$_('statsPanel__in_test')}</p>
+				<p class="text-2xl font-bold text-purple-600 dark:text-purple-400">{stats.in_test}</p>
+			</div>
+			<div class="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+				<FlaskConical class="text-purple-600 dark:text-purple-400" size={24} />
 			</div>
 		</div>
 	</div>

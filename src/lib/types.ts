@@ -30,7 +30,7 @@ export interface Task {
   project?: string; // ชื่อโปรเจค
   duration_minutes: number;
   date: string; // YYYY-MM-DD
-  status: "todo" | "in-progress" | "done";
+  status: "todo" | "in-progress" | "in-test" | "done";
   category: string;
   notes: string;
   assignee_id?: number | null;

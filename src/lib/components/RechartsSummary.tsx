@@ -22,6 +22,7 @@ import {
 interface ChartProps {
   done: number;
   inProgress: number;
+  inTest: number;
   todo: number;
   dailyTrend: { date: string; count: number }[];
   projectBreakdown: { name: string; count: number }[];
@@ -46,6 +47,7 @@ interface ChartProps {
     tasksCount: string;
     done: string;
     inProgress: string;
+    inTest: string;
     todo: string;
   };
 }
@@ -62,6 +64,7 @@ const COLORS = [
 export const RechartsSummary: React.FC<ChartProps> = ({
   done,
   inProgress,
+  inTest,
   todo,
   dailyTrend,
   projectBreakdown,
@@ -122,6 +125,7 @@ export const RechartsSummary: React.FC<ChartProps> = ({
   const statusData = [
     { name: labels.done, value: done },
     { name: labels.inProgress, value: inProgress },
+    { name: labels.inTest, value: inTest },
     { name: labels.todo, value: todo },
   ];
 

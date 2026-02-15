@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { _ } from 'svelte-i18n';
+	import { _ } from '$lib/i18n';
 	import { CheckCircle2, Clock, ClipboardCopy, RefreshCcw, X, Sparkles, MessageSquareQuote, Settings, Send, Save, AlertCircle } from 'lucide-svelte';
 	import { fade, scale, fly, slide } from 'svelte/transition';
 	import logoUrl from '$lib/assets/logo.png';

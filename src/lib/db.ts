@@ -942,12 +942,20 @@ export async function getStats() {
 			SUM(CASE WHEN status = 'todo' THEN 1 ELSE 0 END) as todo,
 			SUM(CASE WHEN status = 'in-progress' THEN 1 ELSE 0 END) as in_progress,
 			SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) as done,
+			SUM(CASE WHEN status = 'in-test' THEN 1 ELSE 0 END) as in_test,
 			SUM(duration_minutes) as total_minutes
 		FROM tasks
 	`);
 
   if (result.values.length === 0) {
-    return { total: 0, todo: 0, in_progress: 0, done: 0, total_minutes: 0 };
+    return {
+      total: 0,
+      todo: 0,
+      in_progress: 0,
+      in_test: 0,
+      done: 0,
+      total_minutes: 0,
+    };
   }
 
   const row = result.values[0];
@@ -957,6 +965,7 @@ export async function getStats() {
     total: Number(obj.total) || 0,
     todo: Number(obj.todo) || 0,
     in_progress: Number(obj.in_progress) || 0,
+    in_test: Number(obj.in_test) || 0,
     done: Number(obj.done) || 0,
     total_minutes: Number(obj.total_minutes) || 0,
   };
@@ -1091,7 +1100,7 @@ export async function archiveTasksBySprint(sprintId: number): Promise<number> {
     `
 		UPDATE tasks 
 		SET is_archived = 1
-		WHERE sprint_id = ? AND status = 'done' AND is_archived = 0
+		WHERE sprint_id = ? AND (status = 'done') AND is_archived = 0
 	`,
     [sprintId],
   );

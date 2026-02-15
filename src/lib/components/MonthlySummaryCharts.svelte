@@ -3,10 +3,11 @@
 	import { createElement } from 'react';
 	import { createRoot, type Root } from 'react-dom/client';
 	import { RechartsSummary } from './RechartsSummary';
-	import { _ } from 'svelte-i18n';
+	import { _ } from '$lib/i18n';
 
 	export let done = 0;
 	export let inProgress = 0;
+	export let inTest = 0;
 	export let todo = 0;
 	export let dailyTrend: { date: string; count: number }[] = [];
 	export let projectBreakdown: { name: string; count: number }[] = [];
@@ -32,6 +33,7 @@
 			createElement(RechartsSummary, {
 				done,
 				inProgress,
+				inTest,
 				todo,
 				dailyTrend,
 				projectBreakdown,
@@ -56,6 +58,7 @@
 					tasksCount: $_('monthlyCharts__tasks_count'),
 					done: $_('page__filter_status_done'),
 					inProgress: $_('page__filter_status_in_progress'),
+					inTest: $_('page__filter_status_in_test'),
 					todo: $_('page__filter_status_todo')
 				}
 			})
@@ -83,7 +86,7 @@
 		}
 	});
 
-	$: if (mounted && (done || inProgress || todo || dailyTrend || projectBreakdown || assigneeBreakdown || categoryBreakdown || trendMode)) {
+	$: if (mounted && (done || inProgress || inTest || todo || dailyTrend || projectBreakdown || assigneeBreakdown || categoryBreakdown || trendMode)) {
 		render();
 	}
 

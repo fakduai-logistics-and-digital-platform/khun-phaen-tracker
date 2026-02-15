@@ -3,7 +3,7 @@
 	import type { Task, Sprint } from '$lib/types';
 	import { Calendar, Tag, FileText, Edit2, Trash2, MoreVertical, User, Folder, Flag, Archive } from 'lucide-svelte';
 	import Pagination from './Pagination.svelte';
-	import { _ } from 'svelte-i18n';
+	import { _ } from '$lib/i18n';
 
 	const dispatch = createEventDispatcher<{
 		edit: Task;
@@ -40,6 +40,7 @@
 			case 'todo': return 'bg-warning/10 text-warning border-warning/30';
 			case 'in-progress': return 'bg-primary/10 text-primary border-primary/30';
 			case 'done': return 'bg-success/10 text-success border-success/30';
+			case 'in-test': return 'bg-purple-100/50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 border-purple-300/30';
 		}
 	}
 
@@ -49,6 +50,7 @@
 			case 'todo': return $_('taskList__status_todo');
 			case 'in-progress': return $_('taskList__status_in_progress');
 			case 'done': return $_('taskList__status_done');
+			case 'in-test': return $_('taskList__status_in_test');
 		}
 	}
 

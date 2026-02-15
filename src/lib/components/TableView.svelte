@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
+	import { _ } from '$lib/i18n';
 	import type { Task, Sprint } from '$lib/types';
-	import { ArrowUpDown, ArrowUp, ArrowDown, Edit2, Trash2, CheckCircle2, Circle, PlayCircle, User, Folder, Clock, Calendar, MoreVertical, ChevronDown, ChevronUp, Flag, X, QrCode } from 'lucide-svelte';
+	import { ArrowUpDown, ArrowUp, ArrowDown, Edit2, Trash2, CheckCircle2, Circle, PlayCircle, User, Folder, Clock, Calendar, MoreVertical, ChevronDown, ChevronUp, Flag, X, QrCode, FlaskConical } from 'lucide-svelte';
 	import Pagination from './Pagination.svelte';
 
 	export let tasks: Task[] = [];
@@ -100,7 +101,7 @@
 		const today = new Date();
 		const isToday = date.toDateString() === today.toDateString();
 
-		if (isToday) return 'วันนี้';
+		if (isToday) return $_('tableView__today');
 		return date.toLocaleDateString('th-TH', {
 			month: 'short',
 			day: 'numeric'
@@ -130,6 +131,7 @@
 		switch (status) {
 			case 'done': return CheckCircle2;
 			case 'in-progress': return PlayCircle;
+			case 'in-test': return FlaskConical;
 			default: return Circle;
 		}
 	}
@@ -139,16 +141,36 @@
 		switch (status) {
 			case 'done': return 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20';
 			case 'in-progress': return 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20';
+			case 'in-test': return 'text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20';
 			default: return 'text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/50';
 		}
 	}
 
 	function getStatusLabel(status: Task['status'], isArchived: boolean = false) {
-		if (isArchived) return 'Archived';
+		if (isArchived) return $_('taskList__archived');
 		switch (status) {
-			case 'done': return 'เสร็จแล้ว';
-			case 'in-progress': return 'กำลังทำ';
-			default: return 'รอดำเนินการ';
+			case 'in-progress': return $_('page__filter_status_in_progress');
+			case 'in-test': return $_('page__filter_status_in_test');
+			case 'done': return $_('page__filter_status_done');
+			default: return $_('page__filter_status_todo');
+		}
+	}
+
+	function nextStatus(status: Task['status']): Task['status'] {
+		switch (status) {
+			case 'todo': return 'in-progress';
+			case 'in-progress': return 'in-test';
+			case 'in-test': return 'done';
+			case 'done': return 'todo';
+		}
+	}
+
+	function getStatusShort(status: Task['status']): string {
+		switch (status) {
+			case 'in-progress': return $_('tableView__status_short_in_progress');
+			case 'in-test': return $_('tableView__status_short_in_test');
+			case 'done': return $_('tableView__status_short_done');
+			default: return $_('tableView__status_short_todo');
 		}
 	}
 
@@ -232,49 +254,49 @@
 	{#if selectedTasks.size > 0}
 		<div class="bg-primary/10 dark:bg-primary/20 px-3 py-2 sm:px-4 sm:py-2 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
 			<span class="text-xs sm:text-sm text-primary dark:text-primary font-medium">
-				เลือก {selectedTasks.size} รายการ
+				{$_('tableView__selected_count', { values: { count: selectedTasks.size } })}
 			</span>
 			<div class="flex items-center gap-2">
 				<button
 					on:click={clearSelection}
 					class="px-2.5 py-1.5 text-xs sm:text-sm font-medium text-gray-500 dark:text-gray-400 border border-gray-300 dark:border-gray-500 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
 				>
-					ยกเลิกเลือก
+					{$_('tableView__btn_clear_selection')}
 				</button>
 				<button
 					on:click={handleChangeStatus}
 					class="px-2.5 py-1.5 text-xs sm:text-sm font-medium text-blue-600 dark:text-blue-400 border border-blue-300 dark:border-blue-500 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors flex items-center gap-1.5"
 				>
 					<CheckCircle2 size={14} />
-					เปลี่ยน Status
+					{$_('tableView__btn_change_status')}
 				</button>
 				<button
 					on:click={handleChangeProject}
 					class="px-2.5 py-1.5 text-xs sm:text-sm font-medium text-purple-600 dark:text-purple-400 border border-purple-300 dark:border-purple-500 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors flex items-center gap-1.5"
 				>
 					<Folder size={14} />
-					เปลี่ยน Project
+					{$_('tableView__btn_change_project')}
 				</button>
 				<button
 					on:click={handleChangeSprint}
 					class="px-2.5 py-1.5 text-xs sm:text-sm font-medium text-amber-600 dark:text-amber-400 border border-amber-300 dark:border-amber-500 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors flex items-center gap-1.5"
 				>
 					<Flag size={14} />
-					เปลี่ยน Sprint
+					{$_('tableView__btn_change_sprint')}
 				</button>
 				<button
 					on:click={handleExportQR}
 					class="px-2.5 py-1.5 text-xs sm:text-sm font-medium text-teal-600 dark:text-teal-400 border border-teal-300 dark:border-teal-500 rounded-lg hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-colors flex items-center gap-1.5"
 				>
 					<QrCode size={14} />
-					QR Export
+					{$_('tableView__btn_qr_export')}
 				</button>
 				<button
 					on:click={handleDeleteSelected}
 					class="px-2.5 py-1.5 text-xs sm:text-sm font-medium text-red-600 dark:text-red-400 border border-red-300 dark:border-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-1.5"
 				>
 					<Trash2 size={14} />
-					ลบที่เลือก
+					{$_('tableView__btn_delete_selected')}
 				</button>
 			</div>
 		</div>
@@ -299,7 +321,7 @@
 							on:click={() => toggleSort('title')}
 							class="flex items-center gap-1 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider hover:text-gray-900 dark:hover:text-white"
 						>
-							ชื่องาน
+							{$_('tableView__column_title')}
 							<svelte:component this={getSortIcon('title')} size={12} class="lg:w-3.5 lg:h-3.5" />
 						</button>
 					</th>
@@ -309,7 +331,7 @@
 							class="flex items-center gap-1 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider hover:text-gray-900 dark:hover:text-white"
 						>
 							<Folder size={12} class="lg:w-3.5 lg:h-3.5" />
-							โปรเจค
+							{$_('tableView__column_project')}
 							<svelte:component this={getSortIcon('project')} size={12} class="lg:w-3.5 lg:h-3.5" />
 						</button>
 					</th>
@@ -318,7 +340,7 @@
 							on:click={() => toggleSort('category')}
 							class="flex items-center gap-1 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider hover:text-gray-900 dark:hover:text-white"
 						>
-							หมวดหมู่
+							{$_('tableView__column_category')}
 							<svelte:component this={getSortIcon('category')} size={12} class="lg:w-3.5 lg:h-3.5" />
 						</button>
 					</th>
@@ -328,15 +350,15 @@
 							class="flex items-center gap-1 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider hover:text-gray-900 dark:hover:text-white"
 						>
 							<User size={12} class="lg:w-3.5 lg:h-3.5" />
-							<span class="hidden lg:inline">ผู้รับผิดชอบ</span>
-							<span class="lg:hidden">ผู้รับ</span>
+							<span class="hidden lg:inline">{$_('tableView__column_assignee')}</span>
+							<span class="lg:hidden">{$_('tableView__column_assignee_short')}</span>
 							<svelte:component this={getSortIcon('assignee')} size={12} class="lg:w-3.5 lg:h-3.5" />
 						</button>
 					</th>
 					<th class="px-3 py-2 lg:px-4 lg:py-3 text-left hidden xl:table-cell">
 						<span class="flex items-center gap-1 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
 							<Flag size={12} class="lg:w-3.5 lg:h-3.5" />
-							Sprint
+							{$_('tableView__column_sprint')}
 						</span>
 					</th>
 					<th class="px-3 py-2 lg:px-4 lg:py-3 text-left">
@@ -344,7 +366,7 @@
 							on:click={() => toggleSort('status')}
 							class="flex items-center gap-1 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider hover:text-gray-900 dark:hover:text-white"
 						>
-							สถานะ
+							{$_('tableView__column_status')}
 							<svelte:component this={getSortIcon('status')} size={12} class="lg:w-3.5 lg:h-3.5" />
 						</button>
 					</th>
@@ -354,13 +376,13 @@
 							class="flex items-center gap-1 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider hover:text-gray-900 dark:hover:text-white"
 						>
 							<Calendar size={12} class="lg:w-3.5 lg:h-3.5" />
-							<span class="hidden lg:inline">Due Date</span>
-							<span class="lg:hidden">วันที่</span>
+							<span class="hidden lg:inline">{$_('tableView__column_due_date')}</span>
+							<span class="lg:hidden">{$_('tableView__column_date_short')}</span>
 							<svelte:component this={getSortIcon('date')} size={12} class="lg:w-3.5 lg:h-3.5" />
 						</button>
 					</th>
 					<th class="px-3 py-2 lg:px-4 lg:py-3 text-center text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider w-20">
-						จัดการ
+						{$_('tableView__column_actions')}
 					</th>
 				</tr>
 			</thead>
@@ -385,7 +407,6 @@
 										{task.notes}
 									</span>
 								{/if}
-								<!-- Mobile-only: show project badge -->
 								{#if task.project}
 									<span class="lg:hidden inline-flex items-center mt-1 px-1.5 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 w-fit">
 										{task.project}
@@ -404,7 +425,7 @@
 						</td>
 						<td class="px-3 py-2 lg:px-4 lg:py-3 hidden xl:table-cell">
 							<span class="inline-flex items-center px-2 py-0.5 lg:px-2.5 lg:py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300">
-								{task.category || 'อื่นๆ'}
+								{task.category || $_('tableView__category_other')}
 							</span>
 						</td>
 						<td class="px-3 py-2 lg:px-4 lg:py-3">
@@ -436,13 +457,13 @@
 						</td>
 						<td class="px-3 py-2 lg:px-4 lg:py-3">
 							<button
-								on:click={() => handleStatusChange(task.id!, task.status === 'todo' ? 'in-progress' : task.status === 'in-progress' ? 'done' : 'todo')}
+								on:click={() => handleStatusChange(task.id!, nextStatus(task.status))}
 								class="inline-flex items-center gap-1 lg:gap-1.5 px-2 py-0.5 lg:px-2.5 lg:py-1 rounded-full text-xs font-medium transition-colors {getStatusClass(task.status, task.is_archived)} hover:opacity-80 whitespace-nowrap"
-								title="คลิกเพื่อเปลี่ยนสถานะ"
+								title={$_('tableView__status_click_hint')}
 							>
 								<svelte:component this={getStatusIcon(task.status)} size={12} class="lg:w-4 lg:h-4" />
 								<span class="hidden sm:inline">{getStatusLabel(task.status, task.is_archived)}</span>
-								<span class="sm:hidden">{task.status === 'done' ? 'เสร็จ' : task.status === 'in-progress' ? 'ทำ' : 'รอ'}</span>
+								<span class="sm:hidden">{getStatusShort(task.status)}</span>
 							</button>
 						</td>
 						<td class="px-3 py-2 lg:px-4 lg:py-3">
@@ -458,14 +479,14 @@
 								<button
 									on:click={() => dispatch('edit', task)}
 									class="p-1 lg:p-1.5 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-									title="แก้ไข"
+									title={$_('taskList__edit')}
 								>
 									<Edit2 size={14} class="lg:w-4 lg:h-4" />
 								</button>
 								<button
 									on:click={() => dispatch('delete', task.id!)}
 									class="p-1 lg:p-1.5 text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-									title="ลบ"
+									title={$_('taskList__delete')}
 								>
 									<Trash2 size={14} class="lg:w-4 lg:h-4" />
 								</button>
@@ -479,7 +500,7 @@
 								<svg class="w-10 h-10 lg:w-12 lg:h-12 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
 								</svg>
-								<p class="text-sm lg:text-base">ไม่พบงาน</p>
+								<p class="text-sm lg:text-base">{$_('tableView__no_tasks')}</p>
 							</div>
 						</td>
 					</tr>
@@ -502,7 +523,6 @@
 								class="w-4 h-4 mt-1 rounded border-gray-300 text-primary focus:ring-primary shrink-0"
 							/>
 							<div class="flex-1 min-w-0">
-								<!-- Header: Title and Actions -->
 								<div class="flex items-start justify-between gap-2">
 									<h3 class="font-medium text-gray-900 dark:text-white text-sm line-clamp-2 flex-1" title={task.title}>
 										{task.title}
@@ -533,11 +553,9 @@
 									</div>
 								</div>
 
-								<!-- Quick Info Row -->
 								<div class="flex flex-wrap items-center gap-2 mt-2">
-									<!-- Status -->
 									<button
-										on:click={() => !task.is_archived && handleStatusChange(task.id!, task.status === 'todo' ? 'in-progress' : task.status === 'in-progress' ? 'done' : 'todo')}
+										on:click={() => !task.is_archived && handleStatusChange(task.id!, nextStatus(task.status))}
 										class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition-colors {getStatusClass(task.status, task.is_archived)}"
 										disabled={task.is_archived}
 									>
@@ -545,16 +563,14 @@
 										{getStatusLabel(task.status, task.is_archived)}
 									</button>
 
-									<!-- Due Date -->
 									<span class="inline-flex items-center gap-1 text-xs text-gray-600 dark:text-gray-400 {isOverdue(task.date, task.status, task.is_archived) ? 'text-red-600 dark:text-red-400 font-medium' : ''}">
 										<Calendar size={12} />
 										{formatDate(task.date)}
 										{#if isOverdue(task.date, task.status, task.is_archived)}
-											<span class="text-red-500">(เลยกำหนด)</span>
+											<span class="text-red-500">{$_('tableView__overdue_label')}</span>
 										{/if}
 									</span>
 
-									<!-- Sprint -->
 									{#if getSprintName(task.sprint_id)}
 										<span class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded text-xs">
 											<Flag size={10} />
@@ -562,7 +578,6 @@
 										</span>
 									{/if}
 
-									<!-- Duration -->
 									{#if task.duration_minutes > 0}
 										<span class="inline-flex items-center gap-1 text-xs text-gray-600 dark:text-gray-400">
 											<Clock size={12} />
@@ -571,10 +586,8 @@
 									{/if}
 								</div>
 
-								<!-- Expanded Details -->
 								{#if expandedMobileCards.has(task.id!)}
 									<div class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 space-y-2 animate-expand">
-										<!-- Project -->
 										{#if task.project}
 											<div class="flex items-center gap-2">
 												<Folder size={14} class="text-gray-400 shrink-0" />
@@ -582,13 +595,11 @@
 											</div>
 										{/if}
 
-										<!-- Category -->
 										<div class="flex items-center gap-2">
-											<span class="text-xs text-gray-500 dark:text-gray-400">หมวดหมู่:</span>
-											<span class="text-xs text-gray-700 dark:text-gray-300">{task.category || 'อื่นๆ'}</span>
+											<span class="text-xs text-gray-500 dark:text-gray-400">{$_('tableView__column_category')}:</span>
+											<span class="text-xs text-gray-700 dark:text-gray-300">{task.category || $_('tableView__category_other')}</span>
 										</div>
 
-										<!-- Assignee -->
 										{#if task.assignee}
 											<div class="flex items-center gap-2">
 												<div
@@ -601,7 +612,6 @@
 											</div>
 										{/if}
 
-										<!-- Sprint -->
 										{#if getSprintName(task.sprint_id)}
 											<div class="flex items-center gap-2">
 												<Flag size={14} class="text-indigo-500 shrink-0" />
@@ -609,13 +619,11 @@
 											</div>
 										{/if}
 
-										<!-- Full Due Date -->
 										<div class="flex items-center gap-2">
 											<Calendar size={14} class="text-gray-400 shrink-0" />
 											<span class="text-xs text-gray-700 dark:text-gray-300">{formatDateFull(task.date)}</span>
 										</div>
 
-										<!-- Notes -->
 										{#if task.notes}
 											<div class="text-xs text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/50 p-2 rounded">
 												{task.notes}
@@ -634,7 +642,7 @@
 					<svg class="w-12 h-12 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
 					</svg>
-					<p>ไม่พบงาน</p>
+					<p>{$_('tableView__no_tasks')}</p>
 				</div>
 			</div>
 		{/if}

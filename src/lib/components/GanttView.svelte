@@ -1,7 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import type { Task, Sprint } from '$lib/types';
-  import { _ } from 'svelte-i18n';
+  import { _ } from '$lib/i18n';
   import { Folder, Flag } from 'lucide-svelte';
   import SearchableSprintSelect from './SearchableSprintSelect.svelte';
   
@@ -244,7 +244,7 @@
                             <!-- The Bar -->
                             <div 
                                 class="absolute rounded shadow-sm text-xs text-white px-2 flex items-center truncate cursor-pointer hover:opacity-90 transition-opacity
-                                       {task.status === 'done' ? 'bg-green-500' : task.status === 'in-progress' ? 'bg-blue-500' : 'bg-gray-400'}"
+                                       {task.status === 'done' ? 'bg-green-500' : task.status === 'in-progress' ? 'bg-blue-500' : task.status === 'in-test' ? 'bg-purple-500' : 'bg-gray-400'}"
                                 style="
                                     left: {getX(task._start)}px; 
                                     width: {Math.max(getWidth(task._start, task._end), DAY_WIDTH - 4)}px; 

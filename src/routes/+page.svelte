@@ -58,7 +58,7 @@
 	let projectStats: { id: number; taskCount: number }[] = [];
 	let assignees: Assignee[] = [];
 	let workerStats: { id: number; taskCount: number }[] = [];
-	let stats = { total: 0, todo: 0, in_progress: 0, done: 0, total_minutes: 0 };
+	let stats = { total: 0, todo: 0, in_progress: 0, in_test: 0, done: 0, total_minutes: 0 };
 	const VIEW_MODE_STORAGE_KEY = 'khunphaen-view-mode';
 
 	function loadSavedViewMode(): ViewMode {
@@ -164,15 +164,20 @@
 	function getCommandStatusInfo(status: string | undefined) {
 		if (!status) return null;
 		switch (status) {
-			case 'done':
-				return {
-					label: $_('page__filter_status_done'),
-					class: 'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20'
-				};
 			case 'in-progress':
 				return {
 					label: $_('page__filter_status_in_progress'),
 					class: 'bg-blue-50 text-blue-600 border-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20'
+				};
+			case 'in-test':
+				return {
+					label: $_('page__filter_status_in_test'),
+					class: 'bg-purple-50 text-purple-600 border-purple-100 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/20'
+				};
+			case 'done':
+				return {
+					label: $_('page__filter_status_done'),
+					class: 'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20'
 				};
 			case 'todo':
 			default:
@@ -3091,9 +3096,10 @@
 	interface MonthlySummary {
 		periodLabel: string;
 		total: number;
-		done: number;
-		inProgress: number;
 		todo: number;
+		inProgress: number;
+		inTest: number;
+		done: number;
 		archived: number;
 		totalMinutes: number;
 		avgPerDay: number;
@@ -3122,9 +3128,10 @@
 
 	function buildMonthlySummary(taskList: Task[]): MonthlySummary {
 		const tasks30 = taskList.filter((task) => isWithinLastDays(task.date, 30));
-		const done = tasks30.filter((task) => task.status === 'done').length;
-		const inProgress = tasks30.filter((task) => task.status === 'in-progress').length;
 		const todo = tasks30.filter((task) => task.status === 'todo').length;
+		const inProgress = tasks30.filter((task) => task.status === 'in-progress').length;
+		const inTest = tasks30.filter((task) => task.status === 'in-test').length;
+		const done = tasks30.filter((task) => task.status === 'done').length;
 		const archived = tasks30.filter((task) => task.is_archived).length;
 		const totalMinutes = tasks30.reduce((sum, task) => sum + (task.duration_minutes || 0), 0);
 
@@ -3171,9 +3178,10 @@
 		return {
 			periodLabel: `${formatDateISO(start)} ถึง ${formatDateISO(today)}`,
 			total: tasks30.length,
-			done,
-			inProgress,
 			todo,
+			inProgress,
+			inTest,
+			done,
 			archived,
 			totalMinutes,
 			avgPerDay: tasks30.length / 30,
@@ -3433,6 +3441,7 @@
 							{ value: 'all', label: $_('page__filter_status_all') },
 							{ value: 'todo', label: $_('page__filter_status_todo'), badge: true, badgeColor: 'bg-gray-400' },
 							{ value: 'in-progress', label: $_('page__filter_status_in_progress'), badge: true, badgeColor: 'bg-blue-500' },
+							{ value: 'in-test', label: $_('page__filter_status_in_test'), badge: true, badgeColor: 'bg-purple-500' },
 							{ value: 'done', label: $_('page__filter_status_done'), badge: true, badgeColor: 'bg-green-500' },
 							{ value: 'archived', label: $_('page__filter_status_archived'), badge: true, badgeColor: 'bg-gray-600' }
 						]}
@@ -3636,22 +3645,26 @@
 				</div>
 
 				<div class="p-6 overflow-y-auto space-y-6">
-					<div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+					<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
 						<div class="rounded-xl border border-gray-200 dark:border-gray-700 p-3 bg-gray-50 dark:bg-gray-700/40">
 							<p class="text-xs text-gray-500 dark:text-gray-400 font-medium tracking-wide">{$_('statsPanel__total_tasks')}</p>
 							<p class="text-2xl font-black text-gray-900 dark:text-white leading-tight">{monthlySummary.total}</p>
 						</div>
-						<div class="rounded-xl border border-green-200/50 dark:border-green-800/50 p-3 bg-green-50/50 dark:bg-green-900/20">
-							<p class="text-xs text-green-700 dark:text-green-400 font-medium">{$_('page__filter_status_done')}</p>
-							<p class="text-2xl font-black text-green-700 dark:text-green-300 leading-tight">{monthlySummary.done}</p>
+						<div class="rounded-xl border border-amber-200/50 dark:border-amber-800/50 p-3 bg-amber-50/50 dark:bg-amber-900/20">
+							<p class="text-xs text-amber-700 dark:text-amber-400 font-medium">{$_('page__filter_status_todo')}</p>
+							<p class="text-2xl font-black text-amber-700 dark:text-amber-300 leading-tight">{monthlySummary.todo}</p>
 						</div>
 						<div class="rounded-xl border border-blue-200/50 dark:border-blue-800/50 p-3 bg-blue-50/50 dark:bg-blue-900/20">
 							<p class="text-xs text-blue-700 dark:text-blue-400 font-medium">{$_('page__filter_status_in_progress')}</p>
 							<p class="text-2xl font-black text-blue-700 dark:text-blue-300 leading-tight">{monthlySummary.inProgress}</p>
 						</div>
-						<div class="rounded-xl border border-amber-200/50 dark:border-amber-800/50 p-3 bg-amber-50/50 dark:bg-amber-900/20">
-							<p class="text-xs text-amber-700 dark:text-amber-400 font-medium">{$_('page__filter_status_todo')}</p>
-							<p class="text-2xl font-black text-amber-700 dark:text-amber-300 leading-tight">{monthlySummary.todo}</p>
+						<div class="rounded-xl border border-purple-200/50 dark:border-purple-800/50 p-3 bg-purple-50/50 dark:bg-purple-900/20">
+							<p class="text-xs text-purple-700 dark:text-purple-400 font-medium">{$_('page__filter_status_in_test')}</p>
+							<p class="text-2xl font-black text-purple-700 dark:text-purple-300 leading-tight">{monthlySummary.inTest}</p>
+						</div>
+						<div class="rounded-xl border border-green-200/50 dark:border-green-800/50 p-3 bg-green-50/50 dark:bg-green-900/20">
+							<p class="text-xs text-green-700 dark:text-green-400 font-medium">{$_('page__filter_status_done')}</p>
+							<p class="text-2xl font-black text-green-700 dark:text-green-300 leading-tight">{monthlySummary.done}</p>
 						</div>
 						<div class="rounded-xl border border-slate-200/50 dark:border-slate-700/50 p-3 bg-slate-50/50 dark:bg-slate-900/20">
 							<p class="text-xs text-slate-700 dark:text-slate-400 font-medium">{$_('taskList__archived')}</p>
@@ -3700,8 +3713,8 @@
 										</div>
 										<div class="text-right shrink-0">
 											<p class="text-[10px] text-gray-400 dark:text-gray-500 font-bold mb-1">{normalizeTaskDate(task.date)}</p>
-											<span class="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase {task.status === 'done' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : task.status === 'in-progress' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'}">
-												{task.status === 'done' ? $_('page__filter_status_done') : task.status === 'in-progress' ? $_('page__filter_status_in_progress') : $_('page__filter_status_todo')}
+											<span class="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase {task.status === 'done' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : task.status === 'in-progress' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : task.status === 'in-test' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' : task.status === 'finish' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'}">
+												{task.status === 'done' ? $_('page__filter_status_done') : task.status === 'in-progress' ? $_('page__filter_status_in_progress') : task.status === 'in-test' ? $_('page__filter_status_in_test') : $_('page__filter_status_todo')}
 											</span>
 										</div>
 									</div>

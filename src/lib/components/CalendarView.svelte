@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy, createEventDispatcher, tick } from 'svelte';
 	import { browser } from '$app/environment';
+	import { _ , locale } from '$lib/i18n';
 	import type { Task } from '$lib/types';
 	import { Calendar as CalendarIcon, Clock } from 'lucide-svelte';
 	
@@ -60,14 +61,12 @@
 	
 	$: year = currentDate.getFullYear();
 	$: month = currentDate.getMonth();
-	
+
 	$: firstDayOfMonth = new Date(year, month, 1).getDay();
 	$: daysInMonth = new Date(year, month + 1, 0).getDate();
-	
-	$: monthNames = [
-		'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
-		'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
-	];
+
+	$: isThai = $locale === 'th' || $locale?.startsWith('th');
+	$: monthNames = $_('calendarView__months') || [];
 
 	function normalizeDateKey(dateText: string): string {
 		// Support both YYYY-MM-DD and full ISO datetime from imports/sync sources.
@@ -80,7 +79,7 @@
 		const d = String(parsed.getDate()).padStart(2, '0');
 		return `${y}-${m}-${d}`;
 	}
-	
+
 	// Reactive computation of tasks by date - recalculates whenever tasks change
 	$: tasksByDate = (() => {
 		const acc: Record<string, Task[]> = {};
@@ -93,11 +92,11 @@
 		}
 		return acc;
 	})();
-	
+
 	function getDateKey(day: number): string {
 		return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 	}
-	
+
 	function getDayTasks(day: number): Task[] {
 		return tasksByDate[getDateKey(day)] || [];
 	}
@@ -105,7 +104,7 @@
 	function getTasksByDate(dateKey: string): Task[] {
 		return tasksByDate[dateKey] || [];
 	}
-	
+
 	function getTotalMinutes(day: number): number {
 		return getDayTasks(day).reduce((sum, t) => sum + t.duration_minutes, 0);
 	}
@@ -113,27 +112,26 @@
 	function formatDuration(minutes: number): string {
 		if (minutes === 0) return '';
 		const totalHours = minutes / 60;
-		const mandays = totalHours / 8; // 8 ชั่วโมง = 1 man-day
+		const mandays = totalHours / 8;
 
 		if (mandays >= 0.125) {
-			// ถ้ามากกว่า 1 ชั่วโมง (0.125 man-day) แสดงเป็น man-day
 			return `${mandays.toFixed(2)}`;
 		}
 
 		const h = Math.floor(minutes / 60);
 		const m = minutes % 60;
-		if (h > 0) return `${h}ชม`;
-		return `${m}น`;
+		if (h > 0) return `${h}${$_('statsPanel__hours_short')}`;
+		return `${m}${$_('statsPanel__minutes_short')}`;
 	}
-	
+
 	function prevMonth() {
 		currentDate = new Date(year, month - 1, 1);
 	}
-	
+
 	function nextMonth() {
 		currentDate = new Date(year, month + 1, 1);
 	}
-	
+
 	function goToToday() {
 		currentDate = new Date();
 	}
@@ -206,9 +204,10 @@
 	function formatPopoverDate(dateText: string): string {
 		const d = new Date(dateText);
 		const day = d.getDate();
-		const month = d.toLocaleDateString('en-GB', { month: 'short' });
-		const yearBE = d.getFullYear() + 543;
-		return `${day} ${month} ${yearBE}`;
+		const shortMonths = $_('calendarView__short_months') || [];
+		const monthText = shortMonths[d.getMonth()] || '';
+		const displayYear = isThai ? d.getFullYear() + 543 : d.getFullYear();
+		return `${day} ${monthText} ${displayYear}`;
 	}
 
 	function truncate(text: string, max = 95): string {
@@ -218,19 +217,25 @@
 	}
 
 	function getStatusLabel(status: Task['status']): string {
-		if (status === 'done') return 'เสร็จแล้ว';
-		if (status === 'in-progress') return 'กำลังทำ';
-		return 'รอดำเนินการ';
+		switch (status) {
+			case 'in-progress': return $_('page__filter_status_in_progress');
+			case 'in-test': return $_('page__filter_status_in_test');
+			case 'done': return $_('page__filter_status_done');
+			default: return $_('page__filter_status_todo');
+		}
 	}
 
 	function getStatusClass(status: Task['status']): string {
-		if (status === 'done') {
-			return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300';
+		switch (status) {
+			case 'in-progress':
+				return 'bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300';
+			case 'in-test':
+				return 'bg-purple-100 text-purple-700 dark:bg-purple-500/15 dark:text-purple-300';
+			case 'done':
+				return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300';
+			default:
+				return 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300';
 		}
-		if (status === 'in-progress') {
-			return 'bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300';
-		}
-		return 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300';
 	}
 
 	function handleWindowResize() {
@@ -263,13 +268,13 @@
 		<div class="flex items-center gap-2">
 			<CalendarIcon size={20} class="text-primary" />
 			<h2 class="text-lg font-semibold text-gray-800 dark:text-white">
-				{monthNames[month]} {year + 543}
+				{monthNames[month] || ''} {isThai ? year + 543 : year}
 			</h2>
 		</div>
 		<div class="flex items-center gap-2">
 			<button
 				on:click={prevMonth}
-				aria-label="เดือนก่อนหน้า"
+				aria-label={$_('calendarView__prev_month')}
 				class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-gray-600 dark:text-gray-400 transition-colors"
 			>
 				<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
@@ -278,11 +283,11 @@
 				on:click={goToToday}
 				class="px-3 py-1.5 text-sm font-medium text-primary hover:bg-primary/10 rounded-lg transition-colors"
 			>
-				วันนี้
+				{$_('calendarView__today')}
 			</button>
 			<button
 				on:click={nextMonth}
-				aria-label="เดือนถัดไป"
+				aria-label={$_('calendarView__next_month')}
 				class="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg text-gray-600 dark:text-gray-400 transition-colors"
 			>
 				<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
@@ -294,9 +299,9 @@
 	<div bind:this={gridContainerEl} class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-visible transition-colors relative">
 		<!-- Day Headers -->
 		<div class="grid grid-cols-7 border-b border-gray-200 dark:border-gray-700">
-			{#each ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'] as day}
+			{#each ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as dayKey}
 				<div class="py-2 text-center text-sm font-medium text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-700">
-					{day}
+					{$_(`calendarView__day_${dayKey}`)}
 				</div>
 			{/each}
 		</div>
@@ -334,7 +339,7 @@
 						<div class="mt-1 flex flex-wrap gap-1">
 							{#each dayTasks.slice(0, 3) as task}
 								<div
-									class="h-1.5 rounded-full flex-1 min-w-0 {task.status === 'done' ? 'bg-success' : task.status === 'in-progress' ? 'bg-primary' : 'bg-warning'}"
+									class="h-1.5 rounded-full flex-1 min-w-0 {task.status === 'done' ? 'bg-success' : task.status === 'in-progress' ? 'bg-primary' : task.status === 'in-test' ? 'bg-purple-500' : 'bg-warning'}"
 									title={task.title}
 								></div>
 							{/each}
@@ -360,10 +365,10 @@
 					></div>
 					<div class="flex items-center justify-between rounded-xl px-3 py-2 bg-gray-100/80 dark:bg-white/5 border border-gray-200 dark:border-white/10">
 						<p class="font-semibold text-base tracking-tight line-clamp-1">
-							งานวันที่เลือก
+							{$_('calendarView__popover_title')}
 						</p>
 						<div class="inline-flex items-center rounded-full bg-primary/10 border border-primary/20 px-2 py-0.5 text-[11px] text-primary font-medium">
-							{selectedDateTasks.length} รายการ
+							{$_('calendarView__items_count', { values: { count: selectedDateTasks.length } })}
 						</div>
 					</div>
 
