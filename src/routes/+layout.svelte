@@ -4,7 +4,7 @@
 	import { initDB } from '$lib/db';
 	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
-	import { CheckSquare, Sun, Moon, Github, Calendar, Clock, Globe } from 'lucide-svelte';
+	import { Sun, Moon, Github, Calendar, Clock, Globe } from 'lucide-svelte';
 	import { theme } from '$lib/stores/theme';
 	import favicon from '$lib/assets/favicon.svg';
 	import DevTimer from '$lib/components/DevTimer.svelte';
@@ -144,7 +144,7 @@
 				<div class="flex items-center justify-between h-16">
 					<div class="flex items-center gap-3">
 						<div class="p-2 bg-primary/10 rounded-lg">
-							<CheckSquare class="text-primary" size={24} />
+							<img src={favicon} alt="Logo" class="w-6 h-6" />
 						</div>
 						<div>
 							<h1 class="text-xl font-bold text-gray-900 dark:text-white">{$_('layout__app_name')}</h1>
