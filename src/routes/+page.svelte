@@ -1748,6 +1748,68 @@
 		subtitle: string;
 		accent: string;
 		lines: string[];
+		celebrate?: boolean;
+	}
+
+	function seededValue(seed: string, index: number): number {
+		let h = 2166136261;
+		const source = `${seed}:${index}`;
+		for (let i = 0; i < source.length; i++) {
+			h ^= source.charCodeAt(i);
+			h = Math.imul(h, 16777619);
+		}
+		return (h >>> 0) / 4294967295;
+	}
+
+	function drawCelebrationFireworks(
+		ctx: CanvasRenderingContext2D,
+		width: number,
+		height: number,
+		progress: number,
+		accent: string,
+		seedKey: string
+	): void {
+		const bloom = Math.min(Math.max((progress - 0.15) / 0.7, 0), 1);
+		if (bloom <= 0.01) return;
+
+		const bursts = 4;
+		for (let i = 0; i < bursts; i++) {
+			const burstDelay = i * 0.16;
+			const burstProgress = Math.min(Math.max((progress - burstDelay) / 0.55, 0), 1);
+			if (burstProgress <= 0 || burstProgress >= 1) continue;
+
+			const originX = width * (0.18 + seededValue(seedKey, i * 5 + 1) * 0.64);
+			const originY = height * (0.14 + seededValue(seedKey, i * 5 + 2) * 0.32);
+			const radius = 26 + burstProgress * 150;
+			const particleCount = 20;
+
+			ctx.save();
+			ctx.globalCompositeOperation = 'lighter';
+			for (let p = 0; p < particleCount; p++) {
+				const baseAngle = (Math.PI * 2 * p) / particleCount;
+				const wobble = (seededValue(seedKey, i * 100 + p) - 0.5) * 0.25;
+				const angle = baseAngle + wobble;
+				const x = originX + Math.cos(angle) * radius;
+				const y = originY + Math.sin(angle) * radius;
+				const particleRadius = 1.5 + (1 - burstProgress) * 3;
+				ctx.globalAlpha = (1 - burstProgress) * (0.35 + seededValue(seedKey, i * 100 + p + 33) * 0.65);
+				ctx.fillStyle = p % 3 === 0 ? accent : p % 2 === 0 ? '#ffe082' : '#ffffff';
+				ctx.beginPath();
+				ctx.arc(x, y, particleRadius, 0, Math.PI * 2);
+				ctx.fill();
+			}
+			ctx.restore();
+		}
+
+		ctx.save();
+		ctx.globalCompositeOperation = 'screen';
+		ctx.globalAlpha = 0.08 + bloom * 0.22;
+		const glow = ctx.createRadialGradient(width * 0.5, height * 0.22, 30, width * 0.5, height * 0.22, width * 0.45);
+		glow.addColorStop(0, accent);
+		glow.addColorStop(1, '#00000000');
+		ctx.fillStyle = glow;
+		ctx.fillRect(0, 0, width, height * 0.7);
+		ctx.restore();
 	}
 
 	function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
@@ -1805,6 +1867,16 @@
 		ctx.fillStyle = orb;
 		ctx.fillRect(0, 0, width, height);
 
+		ctx.globalAlpha = 0.1;
+		for (let i = 0; i < 36; i++) {
+			const x = width * seededValue(slide.title, i * 2 + 1);
+			const y = height * seededValue(slide.title, i * 2 + 2);
+			const twinkle = 1.3 + Math.sin(progress * Math.PI * 6 + i) * 0.9;
+			ctx.fillStyle = '#dbeafe';
+			ctx.fillRect(x, y, twinkle, twinkle);
+		}
+		ctx.globalAlpha = 1;
+
 		ctx.globalAlpha = 0.3;
 		ctx.strokeStyle = '#ffffff22';
 		for (let i = 0; i < 10; i++) {
@@ -1827,6 +1899,10 @@
 		ctx.lineWidth = 1.2;
 		ctx.stroke();
 
+		if (slide.celebrate) {
+			drawCelebrationFireworks(ctx, width, height, progress, slide.accent, `${slide.kicker}-${slide.title}`);
+		}
+
 		ctx.fillStyle = slide.accent;
 		ctx.font = '700 24px "Trebuchet MS", "Noto Sans Thai", sans-serif';
 		ctx.fillText(slide.kicker, cardX + 46, cardY + 54);
@@ -1845,9 +1921,14 @@
 		ctx.fillStyle = '#ecf2ff';
 		let y = cardY + 250;
 		for (const line of slide.lines.slice(0, 8)) {
+			ctx.fillStyle = '#8cc8ff';
+			ctx.font = '700 20px "Trebuchet MS", "Noto Sans Thai", sans-serif';
+			ctx.fillText('*', cardX + 52, y);
+			ctx.fillStyle = '#ecf2ff';
+			ctx.font = '500 30px "Trebuchet MS", "Noto Sans Thai", sans-serif';
 			const wrapped = wrapText(ctx, line, cardW - 96);
 			for (const part of wrapped.slice(0, 2)) {
-				ctx.fillText(part, cardX + 52, y);
+				ctx.fillText(part, cardX + 88, y);
 				y += 40;
 			}
 			y += 8;
@@ -1983,6 +2064,7 @@
 					title: 'ภาพรวมความคืบหน้า',
 					subtitle: `Done ${doneTasks.length}/${taskSnapshot.length} tasks`,
 					accent: '#5ff290',
+					celebrate: doneTasks.length > 0,
 					lines: [
 						`เปอร์เซ็นต์สำเร็จ ${taskSnapshot.length > 0 ? Math.round((doneTasks.length / taskSnapshot.length) * 100) : 0}%`,
 						`เวลารวม ${(stats.total_minutes / 60).toFixed(1)} ชั่วโมง`,
@@ -1995,6 +2077,7 @@
 					title: 'งานที่เสร็จแล้ว',
 					subtitle: `${doneTasks.length} รายการ`,
 					accent: '#64ffa8',
+					celebrate: doneTasks.length > 0,
 					lines: doneTasks.length > 0 ? doneTasks.slice(0, 6).map(summarize) : ['• ไม่มีงานในหมวดนี้']
 				},
 				{
