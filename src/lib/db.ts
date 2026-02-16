@@ -143,7 +143,8 @@ function openDatabaseFromBytes(bytes?: Uint8Array | null): any {
     ptr,
     bytes.byteLength,
     bytes.byteLength,
-    sqlite3.capi.SQLITE_DESERIALIZE_FREEONCLOSE,
+    sqlite3.capi.SQLITE_DESERIALIZE_FREEONCLOSE |
+      sqlite3.capi.SQLITE_DESERIALIZE_RESIZEABLE,
   );
   nextDb.checkRc(rc);
   return nextDb;
