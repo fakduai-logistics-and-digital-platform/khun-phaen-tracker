@@ -198,6 +198,10 @@
 		}
 	}
 
+	function toggleLogs() {
+		showLogs = !showLogs;
+	}
+
 	function handleBeforeUnload(event: BeforeUnloadEvent) {
 		if (elapsed > 0 || (isRunning && timerMode !== 'countup')) {
 			event.preventDefault();
