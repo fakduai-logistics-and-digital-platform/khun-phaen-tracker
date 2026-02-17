@@ -679,6 +679,9 @@ export async function applyCRDTTasksToSQLite(
 ): Promise<{ added: number; updated: number }> {
   if (!db) throw new Error("DB not initialized");
 
+  // Ensure updated_at column exists before using it in REPLACE INTO
+  ensureUpdatedAtColumn();
+
   console.log(`🔄 Applying ${crdtTasks.length} CRDT tasks to SQLite...`);
 
   // Get all assignees for name resolution
@@ -759,6 +762,9 @@ export async function deleteTask(id: number): Promise<void> {
 
 export async function getTasks(filter?: FilterOptions): Promise<Task[]> {
   if (!db) throw new Error("DB not initialized");
+
+  // Ensure updated_at column exists before querying it
+  ensureUpdatedAtColumn();
 
   let query = `
 		SELECT 
