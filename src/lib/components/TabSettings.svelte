@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
 	import { tabSettings, type TabConfig, type TabId } from '$lib/stores/tabSettings';
-	import { List, CalendarDays, Columns3, Table, GripVertical, ChevronUp, ChevronDown, RotateCcw, X, Check, Settings2 } from 'lucide-svelte';
+	import { List, CalendarDays, Columns3, Table, GanttChart, UsersRound, GripVertical, ChevronUp, ChevronDown, RotateCcw, X, Check, Settings2, Eye, EyeOff } from 'lucide-svelte';
 	import { _ } from 'svelte-i18n';
 	import { flip } from 'svelte/animate';
 	import { quintOut } from 'svelte/easing';
@@ -32,8 +32,24 @@
 			case 'CalendarDays': return CalendarDays;
 			case 'Columns3': return Columns3;
 			case 'Table': return Table;
+			case 'GanttChart': return GanttChart;
+			case 'UsersRound': return UsersRound;
 			default: return List;
 		}
+	}
+
+	function enabledCount() {
+		return editingTabs.filter((tab) => tab.enabled).length;
+	}
+
+	function toggleTabEnabled(id: TabId) {
+		const count = enabledCount();
+		editingTabs = editingTabs.map((tab) => {
+			if (tab.id !== id) return tab;
+			if (tab.enabled && count <= 1) return tab;
+			return { ...tab, enabled: !tab.enabled };
+		});
+		hasChanges = true;
 	}
 
 	function moveUp(index: number) {
@@ -110,11 +126,12 @@
 
 	function handleReset() {
 		editingTabs = [
-			{ id: 'list', label: 'list', icon: 'List' },
-			{ id: 'calendar', label: 'calendar', icon: 'CalendarDays' },
-			{ id: 'kanban', label: 'kanban', icon: 'Columns3' },
-			{ id: 'table', label: 'table', icon: 'Table' },
-			{ id: 'gantt', label: 'gantt', icon: 'GanttChart' }
+			{ id: 'list', label: 'list', icon: 'List', enabled: true },
+			{ id: 'calendar', label: 'calendar', icon: 'CalendarDays', enabled: true },
+			{ id: 'kanban', label: 'kanban', icon: 'Columns3', enabled: true },
+			{ id: 'table', label: 'table', icon: 'Table', enabled: true },
+			{ id: 'gantt', label: 'gantt', icon: 'GanttChart', enabled: true },
+			{ id: 'workload', label: 'workload', icon: 'UsersRound', enabled: true }
 		];
 		hasChanges = true;
 	}
@@ -172,7 +189,7 @@
 				on:touchstart={() => handlePressStart(index)}
 				on:touchend={handlePressEnd}
 				role="listitem"
-				class="tab-item flex items-center gap-2 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border-2 cursor-move select-none {draggedIndex === index ? 'dragging' : 'border-gray-200 dark:border-gray-600'} {isPressing && pressingIndex === index ? 'pressing' : ''}"
+				class="tab-item flex items-center gap-2 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border-2 cursor-move select-none {draggedIndex === index ? 'dragging' : 'border-gray-200 dark:border-gray-600'} {isPressing && pressingIndex === index ? 'pressing' : ''} {tab.enabled ? 'opacity-100' : 'opacity-45'}"
 			>
 				<div class="drag-handle text-gray-400 hover:text-primary transition-colors">
 					<GripVertical size={18} />
@@ -185,6 +202,18 @@
 				</span>
 				
 				<div class="flex items-center gap-1">
+					<button
+						on:click={() => toggleTabEnabled(tab.id)}
+						class="p-1.5 rounded-md border transition-colors {tab.enabled ? 'text-emerald-700 bg-emerald-50 border-emerald-200 dark:text-emerald-300 dark:bg-emerald-600/10 dark:border-emerald-700/40' : 'text-gray-500 bg-white border-gray-200 dark:text-gray-300 dark:bg-gray-700 dark:border-gray-600'}"
+						title={tab.enabled ? 'Hide tab' : 'Show tab'}
+						aria-label={tab.enabled ? 'Hide tab' : 'Show tab'}
+					>
+						{#if tab.enabled}
+							<Eye size={14} />
+						{:else}
+							<EyeOff size={14} />
+						{/if}
+					</button>
 					<button
 						on:click={() => moveUp(index)}
 						disabled={index === 0}

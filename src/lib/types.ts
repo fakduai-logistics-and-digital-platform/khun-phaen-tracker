@@ -43,7 +43,7 @@ export interface Task {
   dependencies?: number[];
 }
 
-export type ViewMode = "list" | "calendar" | "kanban" | "table" | "gantt";
+export type ViewMode = "list" | "calendar" | "kanban" | "table" | "gantt" | "workload";
 
 export interface FilterOptions {
   startDate?: string;

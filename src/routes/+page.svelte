@@ -10,11 +10,12 @@
 	import KanbanBoard from '$lib/components/KanbanBoard.svelte';
 	import TableView from '$lib/components/TableView.svelte';
 	import GanttView from '$lib/components/GanttView.svelte';
+	import WorkloadView from '$lib/components/WorkloadView.svelte';
 	import StatsPanel from '$lib/components/StatsPanel.svelte';
 	import ExportImport from '$lib/components/ExportImport.svelte';
 	import WorkerManager from '$lib/components/WorkerManager.svelte';
 	import ProjectManager from '$lib/components/ProjectManager.svelte';
-	import { List, CalendarDays, Columns3, Table, GanttChart, Filter, Search, Plus, Users, Folder, Sparkles, MessageSquareQuote, Settings2, Flag, FileText, FileSpreadsheet, Image as ImageIcon, Video, Presentation, CheckCircle, Moon, Sun, Bookmark, Play } from 'lucide-svelte';
+	import { List, CalendarDays, Columns3, Table, GanttChart, UsersRound, Filter, Search, Plus, Users, Folder, Sparkles, MessageSquareQuote, Settings2, Flag, FileText, FileSpreadsheet, Image as ImageIcon, Video, Presentation, CheckCircle, Moon, Sun, Bookmark, Play } from 'lucide-svelte';
 	import { initWasmSearch, indexTasks, performSearch, clearSearch, searchQuery, wasmReady, wasmLoading } from '$lib/stores/search';
 	import { compressionReady, compressionStats, getStorageInfo } from '$lib/stores/storage';
 	import { enableAutoImport, setMergeCallback, scheduleRealtimeSync } from '$lib/stores/server-sync';
@@ -64,7 +65,7 @@
 	function loadSavedViewMode(): ViewMode {
 		if (typeof localStorage === 'undefined') return 'list';
 		const saved = localStorage.getItem(VIEW_MODE_STORAGE_KEY);
-		if (saved && ['list', 'calendar', 'kanban', 'table', 'gantt'].includes(saved)) {
+		if (saved && ['list', 'calendar', 'kanban', 'table', 'gantt', 'workload'].includes(saved)) {
 			return saved as ViewMode;
 		}
 		return 'list';
@@ -96,6 +97,25 @@
 	let commandQuery = '';
 	let commandSelectedIndex = 0;
 	let showDailyReflect = false;
+	let isKanbanDragging = false;
+	let pendingLoadData = false;
+	let visibleTabs: { id: TabId; icon: string }[] = [];
+	let lastLoadedView: ViewMode | null = null;
+
+	function handleSelectAssigneeFromWorkload(event: CustomEvent<{ assigneeId: number | 'all' | null }>) {
+		filters = { ...filters, assignee_id: event.detail.assigneeId };
+		currentView = 'list';
+		void loadData();
+	}
+
+	function switchView(view: ViewMode) {
+		currentView = view;
+	}
+
+	// Proactively load data when switching to workload view
+	$: if (browser && currentView === 'workload' && (sprintManagerTasks.length === 0 || assignees.length === 0)) {
+		void loadData();
+	}
 
 	let filters: FilterOptions = { ...DEFAULT_FILTERS };
 	let selectedSprint: Sprint | null = null;
@@ -397,8 +417,8 @@
 					icon: Folder,
 					run: () => {
 						filters = { ...filters, project: project.name };
-						applyFilters();
 					}
+
 				}
 			});
 		}
@@ -424,8 +444,8 @@
 					icon: Users,
 					run: () => {
 						filters = { ...filters, assignee_id: assignee.id ?? 'all' };
-						applyFilters();
 					}
+
 				}
 			});
 		}
@@ -450,8 +470,8 @@
 					icon: Flag,
 					run: () => {
 						filters = { ...filters, sprint_id: sprint.id ?? null };
-						applyFilters();
 					}
+
 				}
 			});
 		}
@@ -529,6 +549,14 @@
 
 	// Save view mode when it changes
 	$: saveViewMode(currentView);
+	$: visibleTabs = $tabSettings
+		.filter((tab) => tab.enabled !== false)
+		.map((tab) => ({ id: tab.id, icon: tab.icon }));
+	$: {
+		if (visibleTabs.length > 0 && !visibleTabs.some((tab) => tab.id === currentView)) {
+			switchView(visibleTabs[0].id);
+		}
+	}
 
 	let message = '';
 	let messageType: 'success' | 'error' = 'success';
@@ -665,22 +693,6 @@
 				event.preventDefault();
 				$showKeyboardShortcuts = true;
 				break;
-			case '1':
-				event.preventDefault();
-				currentView = $tabSettings[0]?.id || 'list';
-				break;
-			case '2':
-				event.preventDefault();
-				currentView = $tabSettings[1]?.id || 'calendar';
-				break;
-			case '3':
-				event.preventDefault();
-				currentView = $tabSettings[2]?.id || 'kanban';
-				break;
-			case '4':
-				event.preventDefault();
-				currentView = $tabSettings[3]?.id || 'table';
-				break;
 			case 'f':
 			case 'F':
 				event.preventDefault();
@@ -691,6 +703,14 @@
 				event.preventDefault();
 				theme.toggle();
 				break;
+			default: {
+				const index = Number.parseInt(event.key, 10);
+				if (Number.isInteger(index) && index >= 1 && index <= 9) {
+					event.preventDefault();
+					if (visibleTabs[index - 1]) switchView(visibleTabs[index - 1].id);
+				}
+				break;
+			}
 		}
 	}
 
@@ -717,9 +737,11 @@
 		});
 		
 		restoreFilters();
+		const savedView = loadSavedViewMode();
+		currentView = savedView;
 		
 		// Load data (SQL.js only, WASM search/compression disabled for memory)
-		loadData().then(() => {
+		void loadData().then(() => {
 			initWasmSearch(); // JS search, no delay needed
 		});
 
@@ -734,6 +756,11 @@
 	});
 	
 	async function loadData() {
+		if (currentView === 'kanban' && isKanbanDragging) {
+			pendingLoadData = true;
+			return;
+		}
+
 		try {
 			const [visibleTasks, allTasks, allTasksIncludingArchived] = await Promise.all([
 				getTasks(filters),
@@ -763,9 +790,18 @@
 			projectStats = await getProjectStats();
 			assignees = await getAssignees();
 			workerStats = await getAssigneeStats();
+			lastLoadedView = currentView;
 		} catch (e) {
 			console.error('❌ loadData failed:', e);
 			showMessage(`เกิดข้อผิดพลาดในการโหลดข้อมูล: ${e instanceof Error ? e.message : 'Unknown error'}`, 'error');
+		}
+	}
+
+	function handleKanbanDragState(event: CustomEvent<{ dragging: boolean }>) {
+		isKanbanDragging = event.detail.dragging;
+		if (!isKanbanDragging && pendingLoadData) {
+			pendingLoadData = false;
+			void loadData();
 		}
 	}
 	
@@ -1087,9 +1123,25 @@
 	}
 	
 	async function handleKanbanMove(event: CustomEvent<{ id: number; newStatus: Task['status'] }>) {
-		await handleStatusChange(new CustomEvent('statusChange', { 
-			detail: { id: event.detail.id, status: event.detail.newStatus } 
-		}));
+		const { id, newStatus } = event.detail;
+		const previousTasks = tasks;
+		const previousFilteredTasks = filteredTasks;
+		const applyStatus = (list: Task[]) =>
+			list.map((task) => (task.id === id ? { ...task, status: newStatus } : task));
+
+		// Optimistic update for smoother Kanban UX while DB update is in flight
+		tasks = applyStatus(tasks);
+		filteredTasks = applyStatus(filteredTasks);
+
+		try {
+			await updateTask(id, { status: newStatus });
+			await loadData();
+			queueRealtimeSync('update-task-status');
+		} catch (e) {
+			tasks = previousTasks;
+			filteredTasks = previousFilteredTasks;
+			showMessage('เกิดข้อผิดพลาด', 'error');
+		}
 	}
 	
 	async function handleExportCSV() {
@@ -3088,20 +3140,30 @@
 		localStorage.removeItem(FILTER_STORAGE_KEY);
 	}
 	
-	function applyFilters() {
-		filters = {
-			...filters,
-			sprint_id: normalizeSprintFilterValue(filters.sprint_id)
-		};
-		persistFilters();
-		loadData();
+	// Auto-apply filters when they change
+	$: if (browser && filters) {
+		const normalizedValue = normalizeSprintFilterValue(filters.sprint_id);
+		if (filters.sprint_id !== normalizedValue) {
+			// This will trigger the reactive block again with normalized value
+			filters = { ...filters, sprint_id: normalizedValue };
+		} else {
+			persistFilters();
+			void loadData();
+		}
 	}
+
+	function applyFilters() {
+		// No longer strictly necessary as reactive block handles it,
+		// but kept to avoid breaking existing calls from command palette.
+	}
+
 	
 	function clearFilters() {
 		filters = { ...DEFAULT_FILTERS };
 		clearSavedFilters();
-		loadData();
+		// loadData is now handled by the reactive block above
 	}
+
 
 	interface MonthlySummary {
 		periodLabel: string;
@@ -3277,19 +3339,19 @@
 			<!-- Filter Toggle -->
 			<button
 				on:click={() => showFilters = !showFilters}
-				class="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors {showFilters ? 'bg-gray-100 dark:bg-gray-700' : ''}"
+				class="flex items-center justify-center p-2.5 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors {showFilters ? 'bg-gray-100 dark:bg-gray-700' : ''}"
+			title={$_('page__filters')}
 			>
 				<Filter size={16} />
-				<span class="hidden sm:inline">{$_('page__filters')}</span>
-			</button>
+				</button>
 
 			<!-- Worker Management -->
 			<button
 				on:click={() => showWorkerManager = true}
-				class="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
+				class="flex items-center justify-center p-2.5 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
+				title={$_('page__team')}
 			>
 				<Users size={16} />
-				<span class="hidden sm:inline">{$_('page__team')}</span>
 			</button>
 
 			<!-- Project Management -->
@@ -3370,9 +3432,9 @@
 	<!-- View Tabs -->
 	<div class="flex flex-col sm:flex-row gap-2">
 		<div class="flex-1 flex p-1 bg-gray-100 dark:bg-gray-800 rounded-lg transition-colors">
-			{#each $tabSettings as tab (tab.id)}
+			{#each visibleTabs as tab (tab.id)}
 				<button
-					on:click={() => currentView = tab.id}
+					on:click={() => switchView(tab.id)}
 					class="flex-1 flex items-center justify-center gap-2 px-2 sm:px-4 py-2 rounded-md text-sm font-medium transition-colors {currentView === tab.id ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}"
 				>
 					{#if tab.icon === 'List'}
@@ -3385,6 +3447,8 @@
 						<Table size={16} />
 					{:else if tab.icon === 'GanttChart'}
 						<GanttChart size={16} />
+					{:else if tab.icon === 'UsersRound'}
+						<UsersRound size={16} />
 					{/if}
 					<span class="hidden sm:inline">{$_(`tabs__${tab.id}`)}</span>
 				</button>
@@ -3518,17 +3582,14 @@
 				</div>
 			</div>
 
-			<div class="flex justify-end gap-2">
-				<button
-					on:click={applyFilters}
-					class="px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg font-medium transition-colors"
-				>
-					{$_('page__btn_apply')}
-				</button>
+			<div class="flex justify-end pt-2">
 				<button
 					on:click={clearFilters}
-					class="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+					class="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-2"
 				>
+					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+					</svg>
 					{$_('page__btn_clear')}
 				</button>
 			</div>
@@ -3567,6 +3628,7 @@
 				tasks={filteredTasks}
 				sprints={$sprints}
 				on:move={handleKanbanMove}
+				on:dragState={handleKanbanDragState}
 				on:edit={handleEditTask}
 				on:delete={handleDeleteTask}
 			/>
@@ -3585,6 +3647,12 @@
 				tasks={filteredTasks}
 				sprints={$sprints}
 				on:edit={handleEditTask}
+			/>
+		{:else if currentView === 'workload'}
+			<WorkloadView
+				tasks={sprintManagerTasks}
+				{assignees}
+				on:selectAssignee={handleSelectAssigneeFromWorkload}
 			/>
 		{/if}
 	</div>
@@ -3880,7 +3948,7 @@
 		<!-- svelte-ignore a11y-click-events-have-key-events -->
 		<!-- svelte-ignore a11y-no-static-element-interactions -->
 		<div
-			class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm"
+			class="fixed inset-0 bg-black/80 flex items-center justify-center z-9999 p-4 backdrop-blur-sm"
 			on:click|self={() => $showKeyboardShortcuts = false}
 			on:keydown={(event) => event.key === 'Escape' && ($showKeyboardShortcuts = false)}
 			role="button"
@@ -3905,34 +3973,22 @@
 				<div class="mb-4">
 					<h4 class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">{$_('shortcuts__views')}</h4>
 					<div class="space-y-2">
-						<div class="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700">
-							<div class="flex items-center gap-3">
-								<kbd class="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-sm font-mono text-gray-700 dark:text-gray-300">1</kbd>
-								<span class="text-gray-700 dark:text-gray-300">{$tabSettings[0] ? $_(`tabs__${$tabSettings[0].id}`) : $_('shortcuts__list_view_label')}</span>
+						{#if visibleTabs.length === 0}
+							<div class="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700">
+								<span class="text-gray-700 dark:text-gray-300">-</span>
+								<span class="text-xs text-gray-400">no views</span>
 							</div>
-							<span class="text-xs text-gray-400">list view</span>
-						</div>
-						<div class="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700">
-							<div class="flex items-center gap-3">
-								<kbd class="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-sm font-mono text-gray-700 dark:text-gray-300">2</kbd>
-								<span class="text-gray-700 dark:text-gray-300">{$tabSettings[1] ? $_(`tabs__${$tabSettings[1].id}`) : $_('shortcuts__calendar_view_label')}</span>
-							</div>
-							<span class="text-xs text-gray-400">calendar view</span>
-						</div>
-						<div class="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700">
-							<div class="flex items-center gap-3">
-								<kbd class="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-sm font-mono text-gray-700 dark:text-gray-300">3</kbd>
-								<span class="text-gray-700 dark:text-gray-300">{$tabSettings[2] ? $_(`tabs__${$tabSettings[2].id}`) : $_('shortcuts__kanban_view_label')}</span>
-							</div>
-							<span class="text-xs text-gray-400">kanban view</span>
-						</div>
-						<div class="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700">
-							<div class="flex items-center gap-3">
-								<kbd class="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-sm font-mono text-gray-700 dark:text-gray-300">4</kbd>
-								<span class="text-gray-700 dark:text-gray-300">{$tabSettings[3] ? $_(`tabs__${$tabSettings[3].id}`) : $_('shortcuts__table_view_label')}</span>
-							</div>
-							<span class="text-xs text-gray-400">table view</span>
-						</div>
+						{:else}
+							{#each visibleTabs as tab, index (tab.id)}
+								<div class="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700">
+									<div class="flex items-center gap-3">
+										<kbd class="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-sm font-mono text-gray-700 dark:text-gray-300">{index + 1}</kbd>
+										<span class="text-gray-700 dark:text-gray-300">{$_(`tabs__${tab.id}`)}</span>
+									</div>
+									<span class="text-xs text-gray-400">view</span>
+								</div>
+							{/each}
+						{/if}
 					</div>
 				</div>
 

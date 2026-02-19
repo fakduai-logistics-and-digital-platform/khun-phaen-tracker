@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { dndzone, TRIGGERS, type DndEvent } from 'svelte-dnd-action';
-	import { createEventDispatcher } from 'svelte';
+	import { createEventDispatcher, tick } from 'svelte';
 	import type { Task, Sprint } from '$lib/types';
 	import { Edit2, Trash2, MoreVertical, Folder, Clock3, Hammer, CheckCircle2, Flag, FlaskConical } from 'lucide-svelte';
 	import { _ } from '$lib/i18n';
@@ -9,42 +9,61 @@
 		move: { id: number; newStatus: Task['status'] };
 		edit: Task;
 		delete: number;
+		dragState: { dragging: boolean };
 	}>();
 
 	export let tasks: Task[] = [];
 	export let sprints: Sprint[] = [];
 
-	function getSprintName(sprintId: number | null | undefined): string | null {
-		if (!sprintId) return null;
-		return sprints.find(s => s.id === sprintId)?.name || null;
-	}
-
 	interface TaskWithRequiredId extends Task {
 		id: number;
 	}
 
-	$: todoItems = tasks.filter((t): t is TaskWithRequiredId => t.status === 'todo' && t.id !== undefined);
-	$: inProgressItems = tasks.filter((t): t is TaskWithRequiredId => t.status === 'in-progress' && t.id !== undefined);
-	$: inTestItems = tasks.filter((t): t is TaskWithRequiredId => t.status === 'in-test' && t.id !== undefined);
-	$: doneItems = tasks.filter((t): t is TaskWithRequiredId => t.status === 'done' && t.id !== undefined);
+	// Local state สำหรับ drag and drop - เริ่มต้นจาก tasks
+	let todoItems: TaskWithRequiredId[] = [];
+	let inProgressItems: TaskWithRequiredId[] = [];
+	let inTestItems: TaskWithRequiredId[] = [];
+	let doneItems: TaskWithRequiredId[] = [];
 
-	const columns = [
+	// Flag เพื่อป้องกันการ sync ระหว่าง drag
+	let isDragging = false;
+
+	// Sync items from tasks prop (เรียกเฉพาะเมื่อจำเป็น)
+	function syncItemsFromTasks(nextTasks: Task[]) {
+		if (isDragging) return; // ไม่ sync ระหว่าง drag
+
+		todoItems = nextTasks.filter((t): t is TaskWithRequiredId => t.status === 'todo' && t.id !== undefined);
+		inProgressItems = nextTasks.filter((t): t is TaskWithRequiredId => t.status === 'in-progress' && t.id !== undefined);
+		inTestItems = nextTasks.filter((t): t is TaskWithRequiredId => t.status === 'in-test' && t.id !== undefined);
+		doneItems = nextTasks.filter((t): t is TaskWithRequiredId => t.status === 'done' && t.id !== undefined);
+	}
+
+	// Re-sync local columns whenever parent tasks update after drag is done.
+	$: if (!isDragging && tasks) {
+		syncItemsFromTasks(tasks);
+	}
+
+	const columnsMetadata = [
 		{ id: 'todo', title: $_('kanbanBoard__column_todo'), color: 'bg-warning/10 border-warning/30', textColor: 'text-warning', icon: Clock3 },
 		{ id: 'in-progress', title: $_('kanbanBoard__column_in_progress'), color: 'bg-primary/10 border-primary/30', textColor: 'text-primary', icon: Hammer },
 		{ id: 'in-test', title: $_('kanbanBoard__column_in_test'), color: 'bg-purple-100/50 dark:bg-purple-900/20 border-purple-300/50 dark:border-purple-700/50', textColor: 'text-purple-600 dark:text-purple-400', icon: FlaskConical },
 		{ id: 'done', title: $_('kanbanBoard__column_done'), color: 'bg-success/10 border-success/30', textColor: 'text-success', icon: CheckCircle2 }
 	] as const;
 
-	function getItemsByStatus(status: Task['status']): TaskWithRequiredId[] {
-		switch (status) {
-			case 'todo': return todoItems;
-			case 'in-progress': return inProgressItems;
-			case 'in-test': return inTestItems;
-			case 'done': return doneItems;
-		}
-	}
+	// Define statusColumns explicitly for reactivity
+	$: statusColumns = [
+		{ status: 'todo' as Task['status'], items: todoItems, meta: columnsMetadata[0] },
+		{ status: 'in-progress' as Task['status'], items: inProgressItems, meta: columnsMetadata[1] },
+		{ status: 'in-test' as Task['status'], items: inTestItems, meta: columnsMetadata[2] },
+		{ status: 'done' as Task['status'], items: doneItems, meta: columnsMetadata[3] }
+	];
+
 
 	function handleDndConsider(e: CustomEvent<DndEvent<TaskWithRequiredId>>, status: Task['status']) {
+		if (!isDragging) {
+			dispatch('dragState', { dragging: true });
+		}
+		isDragging = true;
 		const items = e.detail.items;
 		switch (status) {
 			case 'todo': todoItems = items; break;
@@ -54,9 +73,22 @@
 		}
 	}
 
-	function handleDndFinalize(e: CustomEvent<DndEvent<TaskWithRequiredId>>, status: Task['status']) {
+	async function handleDndFinalize(e: CustomEvent<DndEvent<TaskWithRequiredId>>, status: Task['status']) {
+		const finishDrag = async () => {
+			// Wait for parent component's optimistic update to propagate back
+			await tick();
+			isDragging = false;
+			dispatch('dragState', { dragging: false });
+		};
 		const items = e.detail.items;
+		const trigger = e.detail.info.trigger as any;
+		const tasksById = new Map(
+			tasks
+				.filter((t): t is TaskWithRequiredId => t.id !== undefined)
+				.map((t) => [t.id, t] as const)
+		);
 
+		// อัปเดท local state เพื่อแสดงผลลัพธ์ทันที
 		switch (status) {
 			case 'todo': todoItems = items; break;
 			case 'in-progress': inProgressItems = items; break;
@@ -64,16 +96,36 @@
 			case 'done': doneItems = items; break;
 		}
 
-		if ((e.detail.info.trigger as any) === (TRIGGERS.DROPPED_INTO_ZONE as any)) {
-			const droppedId = Number(e.detail.info.id);
-			if (!Number.isFinite(droppedId)) return;
-			const originalTask = tasks.find(t => t.id === droppedId);
+		// Cross-column drag fires finalize for origin and destination zones.
+		// Ignore origin-zone finalize; destination-zone finalize will commit the move.
+		if (trigger === (TRIGGERS.DROPPED_INTO_ANOTHER as any)) {
+			return;
+		}
 
-			if (originalTask && originalTask.status !== status) {
-				dispatch('move', { id: droppedId, newStatus: status });
+		// Commit move on destination finalize.
+		if (trigger === (TRIGGERS.DROPPED_INTO_ZONE as any)) {
+			let droppedId = Number(e.detail.info.id);
+			if (!Number.isFinite(droppedId)) {
+				const movedCandidate = items.find((item) => {
+					const original = tasksById.get(item.id);
+					return original ? original.status !== status : false;
+				});
+				droppedId = movedCandidate?.id ?? NaN;
 			}
+
+			if (Number.isFinite(droppedId)) {
+				const originalTask = tasksById.get(droppedId);
+				if (originalTask && originalTask.status !== status) {
+					dispatch('move', { id: droppedId, newStatus: status });
+				}
+			}
+			
+			await finishDrag();
+		} else {
+			await finishDrag();
 		}
 	}
+
 
 	function getColumnBg(status: Task['status']): string {
 		switch (status) {
@@ -152,14 +204,16 @@
 		}
 	}
 
-	let openMenuId: number | null = null;
+	function getSprintName(sprintId: number | null | undefined): string | null {
+		if (!sprintId) return null;
+		return sprints.find((s) => s.id === sprintId)?.name || null;
+	}
 
-	const statusColumns: Task['status'][] = ['todo', 'in-progress', 'in-test', 'done'];
+	let openMenuId: number | null = null;
 </script>
 
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-	{#each statusColumns as status}
-		{@const items = getItemsByStatus(status)}
+	{#each statusColumns as { status, items, meta }}
 		<div class="{getColumnBg(status)} rounded-xl p-3 transition-colors">
 			<div class="flex items-center justify-between mb-3 px-1">
 				<div class="flex items-center gap-2">
@@ -175,8 +229,9 @@
 				use:dndzone={{ items, flipDurationMs: 200 }}
 				on:consider={(e) => handleDndConsider(e, status)}
 				on:finalize={(e) => handleDndFinalize(e, status)}
-				class="space-y-2 min-h-25"
+				class="space-y-2 min-h-32 pb-4"
 			>
+
 				{#each items as task (task.id)}
 					<div class="kanban-card relative group {getCardBorderClass(status)}">
 						<div class="flex items-start justify-between gap-2">

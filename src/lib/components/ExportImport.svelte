@@ -203,7 +203,7 @@
 		</button>
 
 		{#if showExportDropdown}
-			<div class="absolute top-full left-0 mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 min-w-55 z-20 animate-fade-in">
+			<div class="absolute top-full left-0 mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 min-w-55 z-9999 animate-fade-in">
 				<button
 					on:click={handleExportCSV}
 					class="w-full flex items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors whitespace-nowrap"

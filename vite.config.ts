@@ -1,6 +1,6 @@
 /// <reference types="vitest/config" />
 import { sveltekit } from "@sveltejs/kit/vite";
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import tailwindcss from "@tailwindcss/vite";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,11 +11,43 @@ const dirname =
     ? __dirname
     : path.dirname(fileURLToPath(import.meta.url));
 
+function patchSvelteDndActionParentElementGuard(): Plugin {
+  return {
+    name: "patch-svelte-dnd-action-parent-element-guard",
+    enforce: "pre",
+    transform(code, id) {
+      if (
+        !/svelte-dnd-action[\\/](dist[\\/]index\.(m?js)|src[\\/]pointerAction\.js)(\?.*)?$/.test(
+          id,
+        )
+      ) {
+        return null;
+      }
+
+      if (!code.includes("originalDragTarget.parentElement")) {
+        return null;
+      }
+
+      const patched = code.replace(
+        /function keepOriginalElementInDom\(\)\s*\{\s*\n([ \t]*)if\s*\(!originalDragTarget(?:\s*\|\|\s*!originalDragTarget\.parentElement|\.parentElement)\)\s*\{/g,
+        "function keepOriginalElementInDom() {\n$1if (!originalDragTarget) {\n$1    return;\n$1}\n$1if (!originalDragTarget.parentElement) {",
+      );
+
+      if (patched === code) return null;
+      return patched;
+    },
+  };
+}
+
 // More info at: https://storybook.js.org/docs/next/writing-tests/integrations/vitest-addon
 export default defineConfig({
-  plugins: [tailwindcss(), sveltekit()],
+  plugins: [patchSvelteDndActionParentElementGuard(), tailwindcss(), sveltekit()],
   optimizeDeps: {
-    exclude: ["@duckdb/duckdb-wasm", "@sqlite.org/sqlite-wasm"],
+    exclude: [
+      "@duckdb/duckdb-wasm",
+      "@sqlite.org/sqlite-wasm",
+      "svelte-dnd-action",
+    ],
   },
   build: {
     target: "esnext",
