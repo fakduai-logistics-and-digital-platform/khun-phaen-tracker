@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { createEventDispatcher, tick, onDestroy } from 'svelte';
 	import { marked } from 'marked';
-	import { Bold, Italic, Heading2, Link, Image, Code, List, Quote, Eye, Pencil, ZoomIn, ZoomOut, RotateCcw, X } from 'lucide-svelte';
+	import { Bold, Italic, Heading2, Link, Image, Code, List, Quote, Eye, Pencil, ZoomIn, ZoomOut, RotateCcw, X, Download } from 'lucide-svelte';
 
 	const dispatch = createEventDispatcher<{ change: string }>();
 
@@ -198,6 +198,25 @@
 		if (event.key === '-') zoomOut();
 		if (event.key === '0') resetZoom();
 	}
+
+	async function downloadImage() {
+		try {
+			const a = document.createElement('a');
+			if (lightboxSrc.startsWith('data:')) {
+				a.href = lightboxSrc;
+			} else {
+				const res = await fetch(lightboxSrc);
+				const blob = await res.blob();
+				a.href = URL.createObjectURL(blob);
+			}
+			a.download = (lightboxAlt && lightboxAlt !== 'image' ? lightboxAlt : 'image') + '.png';
+			document.body.appendChild(a);
+			a.click();
+			document.body.removeChild(a);
+		} catch (e) {
+			console.error('Download failed:', e);
+		}
+	}
 </script>
 
 <div class="border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-primary focus-within:border-primary transition-all">
@@ -291,6 +310,9 @@
 			</button>
 			<button type="button" on:click={resetZoom} class="p-2 bg-black/40 hover:bg-black/60 text-white rounded-lg transition-colors" title="Reset (0)">
 				<RotateCcw size={20} />
+			</button>
+			<button type="button" on:click={downloadImage} class="p-2 bg-black/40 hover:bg-black/60 text-white rounded-lg transition-colors" title="Download">
+				<Download size={20} />
 			</button>
 			<button type="button" on:click={closeLightbox} class="p-2 bg-black/40 hover:bg-red-600/80 text-white rounded-lg transition-colors" title="Close (Esc)">
 				<X size={20} />
