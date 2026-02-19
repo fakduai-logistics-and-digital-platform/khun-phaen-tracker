@@ -2,7 +2,7 @@
 	import { createEventDispatcher } from 'svelte';
 	import { _ } from '$lib/i18n';
 	import type { Task, Sprint } from '$lib/types';
-	import { ArrowUpDown, ArrowUp, ArrowDown, Edit2, Trash2, CheckCircle2, Circle, PlayCircle, User, Folder, Clock, Calendar, MoreVertical, ChevronDown, ChevronUp, Flag, X, QrCode, FlaskConical } from 'lucide-svelte';
+	import { ArrowUpDown, ArrowUp, ArrowDown, Edit2, Trash2, CheckCircle2, Circle, PlayCircle, User, Folder, Clock, Calendar, MoreVertical, ChevronDown, ChevronUp, Flag, X, QrCode, FlaskConical, ListTodo } from 'lucide-svelte';
 	import Pagination from './Pagination.svelte';
 
 	export let tasks: Task[] = [];
@@ -388,12 +388,16 @@
 			</thead>
 			<tbody class="divide-y divide-gray-200 dark:divide-gray-700">
 				{#each paginatedTasks as task (task.id)}
-					<tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+					<tr 
+						class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
+						on:click={() => dispatch('edit', task)}
+					>
 						<td class="px-3 py-2 lg:px-4 lg:py-3">
 							<input
 								type="checkbox"
 								checked={selectedTasks.has(task.id!)}
 								on:change={() => toggleSelect(task.id!)}
+								on:click|stopPropagation
 								class="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
 							/>
 						</td>
@@ -406,6 +410,16 @@
 									<span class="text-xs text-gray-500 dark:text-gray-400 line-clamp-1 max-w-30 lg:max-w-50 xl:max-w-xs">
 										{task.notes}
 									</span>
+								{/if}
+								{#if task.checklist && task.checklist.length > 0}
+									{@const completed = task.checklist.filter(i => i.completed).length}
+									{@const total = task.checklist.length}
+									<div class="mt-1 flex items-center gap-1.5">
+										<div class="w-16 h-1.5 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+											<div class="h-full bg-primary" style="width: {(completed/total)*100}% transition: width 0.3s"></div>
+										</div>
+										<span class="text-[10px] text-gray-400 whitespace-nowrap">{completed}/{total}</span>
+									</div>
 								{/if}
 								{#if task.project}
 									<span class="lg:hidden inline-flex items-center mt-1 px-1.5 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 w-fit">
@@ -457,7 +471,7 @@
 						</td>
 						<td class="px-3 py-2 lg:px-4 lg:py-3">
 							<button
-								on:click={() => handleStatusChange(task.id!, nextStatus(task.status))}
+								on:click|stopPropagation={() => handleStatusChange(task.id!, nextStatus(task.status))}
 								class="inline-flex items-center gap-1 lg:gap-1.5 px-2 py-0.5 lg:px-2.5 lg:py-1 rounded-full text-xs font-medium transition-colors {getStatusClass(task.status, task.is_archived)} hover:opacity-80 whitespace-nowrap"
 								title={$_('tableView__status_click_hint')}
 							>
@@ -477,14 +491,14 @@
 						<td class="px-3 py-2 lg:px-4 lg:py-3">
 							<div class="flex items-center justify-center gap-1 lg:gap-2">
 								<button
-									on:click={() => dispatch('edit', task)}
+									on:click|stopPropagation={() => dispatch('edit', task)}
 									class="p-1 lg:p-1.5 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
 									title={$_('taskList__edit')}
 								>
 									<Edit2 size={14} class="lg:w-4 lg:h-4" />
 								</button>
 								<button
-									on:click={() => dispatch('delete', task.id!)}
+									on:click|stopPropagation={() => dispatch('delete', task.id!)}
 									class="p-1 lg:p-1.5 text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
 									title={$_('taskList__delete')}
 								>
@@ -514,14 +528,21 @@
 		{#if paginatedTasks.length > 0}
 			<div class="divide-y divide-gray-200 dark:divide-gray-700">
 				{#each paginatedTasks as task (task.id)}
-					<div class="p-3 sm:p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-						<div class="flex items-start gap-3">
-							<input
-								type="checkbox"
-								checked={selectedTasks.has(task.id!)}
-								on:change={() => toggleSelect(task.id!)}
-								class="w-4 h-4 mt-1 rounded border-gray-300 text-primary focus:ring-primary shrink-0"
-							/>
+						<div 
+							class="p-3 sm:p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
+							on:click={() => dispatch('edit', task)}
+							on:keydown={(e) => e.key === 'Enter' && dispatch('edit', task)}
+							role="button"
+							tabindex="0"
+						>
+							<div class="flex items-start gap-3">
+								<input
+									type="checkbox"
+									checked={selectedTasks.has(task.id!)}
+									on:change={() => toggleSelect(task.id!)}
+									on:click|stopPropagation
+									class="w-4 h-4 mt-1 rounded border-gray-300 text-primary focus:ring-primary shrink-0"
+								/>
 							<div class="flex-1 min-w-0">
 								<div class="flex items-start justify-between gap-2">
 									<h3 class="font-medium text-gray-900 dark:text-white text-sm line-clamp-2 flex-1" title={task.title}>
@@ -529,19 +550,19 @@
 									</h3>
 									<div class="flex items-center gap-1 shrink-0">
 										<button
-											on:click={() => dispatch('edit', task)}
+											on:click|stopPropagation={() => dispatch('edit', task)}
 											class="p-1.5 text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
 										>
 											<Edit2 size={16} />
 										</button>
 										<button
-											on:click={() => dispatch('delete', task.id!)}
+											on:click|stopPropagation={() => dispatch('delete', task.id!)}
 											class="p-1.5 text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
 										>
 											<Trash2 size={16} />
 										</button>
 										<button
-											on:click={() => toggleMobileCard(task.id!)}
+											on:click|stopPropagation={() => toggleMobileCard(task.id!)}
 											class="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
 										>
 											{#if expandedMobileCards.has(task.id!)}
@@ -555,7 +576,7 @@
 
 								<div class="flex flex-wrap items-center gap-2 mt-2">
 									<button
-										on:click={() => !task.is_archived && handleStatusChange(task.id!, nextStatus(task.status))}
+										on:click|stopPropagation={() => !task.is_archived && handleStatusChange(task.id!, nextStatus(task.status))}
 										class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition-colors {getStatusClass(task.status, task.is_archived)}"
 										disabled={task.is_archived}
 									>
@@ -582,6 +603,15 @@
 										<span class="inline-flex items-center gap-1 text-xs text-gray-600 dark:text-gray-400">
 											<Clock size={12} />
 											{formatDuration(task.duration_minutes)}
+										</span>
+									{/if}
+
+									{#if task.checklist && task.checklist.length > 0}
+										{@const completed = task.checklist.filter(i => i.completed).length}
+										{@const total = task.checklist.length}
+										<span class="inline-flex items-center gap-1 text-xs text-primary font-medium">
+											<ListTodo size={12} />
+											{completed}/{total}
 										</span>
 									{/if}
 								</div>

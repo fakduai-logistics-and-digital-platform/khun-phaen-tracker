@@ -298,7 +298,9 @@ function ensureUpdatedAtColumn(): boolean {
 
   const hasColumn = (): boolean => {
     const columns = db.selectObjects("PRAGMA table_info(tasks)");
-    return columns.some((col: Record<string, any>) => col.name === "updated_at");
+    return columns.some(
+      (col: Record<string, any>) => col.name === "updated_at",
+    );
   };
 
   const backfillUpdatedAt = (): void => {
@@ -352,6 +354,24 @@ function runMigrations() {
   console.log("🔄 Running migrations...");
   ensureUpdatedAtColumn();
   ensureRepoUrlColumn();
+  ensureChecklistColumn();
+}
+
+function ensureChecklistColumn() {
+  try {
+    const columns = db.selectObjects("PRAGMA table_info(tasks)");
+    const hasChecklist = columns.some(
+      (col: Record<string, any>) => col.name === "checklist",
+    );
+
+    if (!hasChecklist) {
+      console.log("🔄 Adding checklist column to tasks...");
+      runSql(`ALTER TABLE tasks ADD COLUMN checklist TEXT DEFAULT NULL`);
+      console.log("✅ Added checklist column");
+    }
+  } catch (e) {
+    console.warn("⚠️ Failed to check/add checklist column:", e);
+  }
 }
 
 function ensureRepoUrlColumn() {
@@ -486,6 +506,12 @@ function createTables() {
   } catch (e) {
     // Column already exists
   }
+  // Try to add checklist column
+  try {
+    runSql(`ALTER TABLE tasks ADD COLUMN checklist TEXT DEFAULT NULL`);
+  } catch (e) {
+    // Column already exists
+  }
 }
 
 export async function closeDB(): Promise<void> {
@@ -546,8 +572,8 @@ export async function addTask(
   if (!db) throw new Error("DB not initialized");
 
   runSql(
-    `INSERT INTO tasks (title, project, duration_minutes, date, end_date, status, category, notes, assignee_id, sprint_id, is_archived)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO tasks (title, project, duration_minutes, date, end_date, status, category, notes, assignee_id, sprint_id, is_archived, checklist)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       task.title,
       task.project || "",
@@ -560,6 +586,7 @@ export async function addTask(
       task.assignee_id || null,
       task.sprint_id || null,
       task.is_archived ? 1 : 0,
+      task.checklist ? JSON.stringify(task.checklist) : null,
     ],
   );
 
@@ -640,6 +667,10 @@ export async function updateTask(
   if (updates.is_archived !== undefined) {
     sets.push("is_archived = ?");
     values.push(updates.is_archived ? 1 : 0);
+  }
+  if (updates.checklist !== undefined) {
+    sets.push("checklist = ?");
+    values.push(updates.checklist ? JSON.stringify(updates.checklist) : null);
   }
 
   // Always update updated_at when task is modified (only if column exists)
@@ -726,11 +757,11 @@ export async function applyCRDTTasksToSQLite(
   let updated = 0;
 
   const columns = hasUpdatedAt
-    ? "id, title, project, duration_minutes, date, status, category, notes, assignee_id, sprint_id, is_archived, updated_at"
-    : "id, title, project, duration_minutes, date, status, category, notes, assignee_id, sprint_id, is_archived";
+    ? "id, title, project, duration_minutes, date, status, category, notes, assignee_id, sprint_id, is_archived, checklist, updated_at"
+    : "id, title, project, duration_minutes, date, status, category, notes, assignee_id, sprint_id, is_archived, checklist";
   const placeholders = hasUpdatedAt
-    ? "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?"
-    : "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?";
+    ? "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?"
+    : "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?";
 
   runSql("BEGIN TRANSACTION");
   try {
@@ -761,6 +792,7 @@ export async function applyCRDTTasksToSQLite(
         resolvedAssigneeId,
         task.sprint_id,
         task.is_archived ? 1 : 0,
+        task.checklist ? JSON.stringify(task.checklist) : null,
       ];
       if (hasUpdatedAt) {
         values.push(task.updated_at || new Date().toISOString());
@@ -910,6 +942,9 @@ export async function getTasks(filter?: FilterOptions): Promise<Task[]> {
         : null,
       created_at: obj.created_at as string,
       updated_at: (obj.updated_at || obj.created_at) as string,
+      checklist: obj.checklist
+        ? JSON.parse(obj.checklist as string)
+        : undefined,
     };
   });
 }
@@ -962,6 +997,7 @@ export async function getTaskById(id: number): Promise<Task | null> {
       : null,
     created_at: obj.created_at as string,
     updated_at: (obj.updated_at || obj.created_at) as string,
+    checklist: obj.checklist ? JSON.parse(obj.checklist as string) : undefined,
   };
 }
 
@@ -1214,6 +1250,9 @@ export async function getTasksBySprint(sprintId: number): Promise<Task[]> {
         : null,
       created_at: obj.created_at as string,
       updated_at: (obj.updated_at || obj.created_at) as string,
+      checklist: obj.checklist
+        ? JSON.parse(obj.checklist as string)
+        : undefined,
     };
   });
 }

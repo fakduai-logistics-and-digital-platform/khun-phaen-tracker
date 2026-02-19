@@ -2,7 +2,7 @@
 	import { dndzone, TRIGGERS, type DndEvent } from 'svelte-dnd-action';
 	import { createEventDispatcher, tick } from 'svelte';
 	import type { Task, Sprint } from '$lib/types';
-	import { Edit2, Trash2, MoreVertical, Folder, Clock3, Hammer, CheckCircle2, Flag, FlaskConical } from 'lucide-svelte';
+	import { Edit2, Trash2, MoreVertical, Folder, Clock3, Hammer, CheckCircle2, Flag, FlaskConical, ListTodo } from 'lucide-svelte';
 	import { _ } from '$lib/i18n';
 
 	const dispatch = createEventDispatcher<{
@@ -233,11 +233,17 @@
 			>
 
 				{#each items as task (task.id)}
-					<div class="kanban-card relative group {getCardBorderClass(status)}">
+					<div 
+						class="kanban-card relative group {getCardBorderClass(status)} cursor-pointer hover:shadow-md transition-all"
+						on:click={() => dispatch('edit', task)}
+						on:keydown={(e) => e.key === 'Enter' && dispatch('edit', task)}
+						role="button"
+						tabindex="0"
+					>
 						<div class="flex items-start justify-between gap-2">
 							<h4 class={getTitleClass(status)}>{task.title}</h4>
 							<button
-								on:click={() => openMenuId = openMenuId === task.id ? null : task.id}
+								on:click|stopPropagation={() => openMenuId = openMenuId === task.id ? null : task.id}
 								class="p-1 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 rounded opacity-0 group-hover:opacity-100 transition-opacity"
 							>
 								<MoreVertical size={14} />
@@ -265,6 +271,27 @@
 								</span>
 							{/if}
 						</div>
+						
+						{#if task.checklist && task.checklist.length > 0}
+							{@const completed = task.checklist.filter(i => i.completed).length}
+							{@const total = task.checklist.length}
+							{@const percent = Math.round((completed / total) * 100)}
+							<div class="mt-3">
+								<div class="flex justify-between items-center text-[10px] text-gray-400 dark:text-gray-500 mb-1 px-0.5">
+									<span class="flex items-center gap-1">
+										<ListTodo size={11} />
+										Checklist: {completed}/{total}
+									</span>
+									<span>{percent}%</span>
+								</div>
+								<div class="h-1 w-full bg-gray-200 dark:bg-gray-700/50 rounded-full overflow-hidden">
+									<div 
+										class="h-full bg-primary transition-all duration-300" 
+										style="width: {percent}%"
+									></div>
+								</div>
+							</div>
+						{/if}
 
 						{#if openMenuId === task.id}
 							<div class="absolute right-2 top-8 w-32 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-10">

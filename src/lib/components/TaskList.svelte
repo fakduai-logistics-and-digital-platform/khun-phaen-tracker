@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
 	import type { Task, Sprint } from '$lib/types';
-	import { Calendar, Tag, FileText, Edit2, Trash2, MoreVertical, User, Folder, Flag, Archive } from 'lucide-svelte';
+	import { Calendar, Tag, FileText, Edit2, Trash2, MoreVertical, User, Folder, Flag, Archive, ListTodo } from 'lucide-svelte';
 	import Pagination from './Pagination.svelte';
 	import { _ } from '$lib/i18n';
 
@@ -65,7 +65,13 @@
 		</div>
 	{:else}
 		{#each paginatedTasks as task (task.id)}
-			<div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow group">
+			<div 
+				class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow group cursor-pointer"
+				on:click={() => dispatch('edit', task)}
+				on:keydown={(e) => e.key === 'Enter' && dispatch('edit', task)}
+				role="button"
+				tabindex="0"
+			>
 				<div class="flex items-start justify-between gap-4">
 					<div class="flex-1 min-w-0">
 						<div class="flex items-center gap-2 flex-wrap">
@@ -110,11 +116,32 @@
 								<span class="line-clamp-2">{task.notes}</span>
 							</p>
 						{/if}
+
+						{#if task.checklist && task.checklist.length > 0}
+							{@const completed = task.checklist.filter(i => i.completed).length}
+							{@const total = task.checklist.length}
+							{@const percent = Math.round((completed / total) * 100)}
+							<div class="mt-3 max-w-xs">
+								<div class="flex justify-between items-center text-[10px] text-gray-400 dark:text-gray-500 mb-1 px-0.5">
+									<span class="flex items-center gap-1">
+										<ListTodo size={11} />
+										Checklist: {completed}/{total}
+									</span>
+									<span>{percent}%</span>
+								</div>
+								<div class="h-1 w-full bg-gray-200 dark:bg-gray-700/50 rounded-full overflow-hidden">
+									<div 
+										class="h-full bg-primary transition-all duration-300" 
+										style="width: {percent}%"
+									></div>
+								</div>
+							</div>
+						{/if}
 					</div>
 
 					<div class="relative">
 						<button
-							on:click={() => openMenuId = openMenuId === task.id ? null : task.id}
+							on:click|stopPropagation={() => openMenuId = openMenuId === task.id ? null : task.id}
 							class="p-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
 						>
 							<MoreVertical size={18} />

@@ -143,14 +143,14 @@
         <div class="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg">
             <button 
                 class="px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-2 {groupBy === 'project' ? 'bg-white dark:bg-gray-700 shadow text-primary' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'}"
-                onclick={() => groupBy = 'project'}
+                on:click={() => groupBy = 'project'}
             >
                 <Folder size={14} />
                 {$_('ganttView__tab_project')}
             </button>
             <button 
                 class="px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-2 {groupBy === 'sprint' ? 'bg-white dark:bg-gray-700 shadow text-primary' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'}"
-                onclick={() => groupBy = 'sprint'}
+                on:click={() => groupBy = 'sprint'}
             >
                 <Flag size={14} />
                 {$_('ganttView__tab_sprint')}
@@ -225,11 +225,17 @@
 
                 <!-- Tasks in Group -->
                 {#each groupTasks as task}
-                    <div class="flex items-center hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group">
+                    <div 
+                        class="flex items-center hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group cursor-pointer"
+                        on:click={() => handleTaskClick(task)}
+                        on:keydown={(e) => e.key === 'Enter' && handleTaskClick(task)}
+                        role="button"
+                        tabindex="0"
+                    >
                         <!-- Sidebar Item -->
                         <div class="sticky left-0 z-10 bg-white dark:bg-gray-800 group-hover:bg-gray-50 dark:group-hover:bg-gray-700/50 border-r border-gray-200 dark:border-gray-700 p-3 text-sm truncate flex items-center justify-between" style="width: {SIDEBAR_WIDTH}px; min-width: {SIDEBAR_WIDTH}px; height: {ROW_HEIGHT}px;">
                             <span class="truncate pl-4 border-l-2 border-gray-100 dark:border-gray-700" title={task.title}>{task.title}</span>
-                             <button class="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-blue-500" aria-label="Edit task" onclick={() => handleTaskClick(task)}>
+                             <button class="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-blue-500" aria-label="Edit task" on:click|stopPropagation={() => handleTaskClick(task)}>
                                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
                             </button>
                         </div>
@@ -250,11 +256,11 @@
                                     width: {Math.max(getWidth(task._start, task._end), DAY_WIDTH - 4)}px; 
                                     height: {ROW_HEIGHT - 12}px;
                                     margin-left: 2px;"
-                                onclick={() => handleTaskClick(task)}
-                                title="{task.title} ({task._start.toLocaleDateString()} - {task._end.toLocaleDateString()})"
+                                on:click|stopPropagation={() => handleTaskClick(task)}
+                                on:keydown={(e) => e.key === 'Enter' && handleTaskClick(task)}
                                 role="button"
                                 tabindex="0"
-                                onkeydown={(e) => e.key === 'Enter' && handleTaskClick(task)}
+                                title="{task.title} ({task._start.toLocaleDateString()} - {task._end.toLocaleDateString()})"
                             >
                                 {task.title}
                             </div>

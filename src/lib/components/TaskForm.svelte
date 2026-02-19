@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { createEventDispatcher, onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
-	import type { Task, Project, Assignee, Sprint } from '$lib/types';
+	import type { Task, Project, Assignee, Sprint, ChecklistItem } from '$lib/types';
 	import { CATEGORIES } from '$lib/types';
-	import { Calendar, FileText, Tag, CheckCircle, User, Plus, Folder, X, Flag, GitBranch, Copy, Check } from 'lucide-svelte';
+	import { Calendar, FileText, Tag, CheckCircle, User, Plus, Folder, X, Flag, GitBranch, Copy, Check, Trash2, CheckSquare, Square, ListTodo } from 'lucide-svelte';
 	import { taskDefaults } from '$lib/stores/taskDefaults';
 	import { _ } from 'svelte-i18n';
 	import SearchableSelect from './SearchableSelect.svelte';
@@ -32,6 +32,11 @@
 	let notes = editingTask?.notes || '';
 	let assignee_id = editingTask?.assignee_id || null;
 	let sprint_id: number | null = editingTask?.sprint_id || null;
+	let checklist: ChecklistItem[] = [];
+	let newChecklistItem = '';
+	let isAddingChecklistItem = false;
+	$: completedCount = checklist.filter(i => i.completed).length;
+	$: progress = checklist.length > 0 ? Math.round((completedCount / checklist.length) * 100) : 0;
 
 	$: activeSprint = sprints.find(s => s.status === 'active');
 
@@ -302,6 +307,36 @@
 		}
 	}
 
+	function addChecklistItem() {
+		if (!newChecklistItem.trim()) return;
+		checklist = [
+			...checklist,
+			{
+				id: Date.now().toString() + Math.random().toString(36).substring(2),
+				text: newChecklistItem.trim(),
+				completed: false
+			}
+		];
+		newChecklistItem = '';
+	}
+
+	function removeChecklistItem(id: string) {
+		checklist = checklist.filter((item) => item.id !== id);
+	}
+
+	function toggleChecklistItem(id: string) {
+		checklist = checklist.map((item) =>
+			item.id === id ? { ...item, completed: !item.completed } : item
+		);
+	}
+
+	function handleChecklistKeydown(event: KeyboardEvent) {
+		if (event.key === 'Enter') {
+			event.preventDefault();
+			addChecklistItem();
+		}
+	}
+
 	function initializeFormState() {
 		if (editingTask) {
 			// Edit mode - use task values
@@ -314,6 +349,7 @@
 			notes = editingTask.notes || '';
 			assignee_id = editingTask.assignee_id || null;
 			sprint_id = editingTask.sprint_id || null;
+			checklist = editingTask.checklist ? [...editingTask.checklist] : [];
 		} else {
 			// Add mode - use default values from store
 			title = '';
@@ -325,12 +361,14 @@
 			notes = '';
 			assignee_id = $taskDefaults.assignee_id || null;
 			sprint_id = activeSprint?.id || null;
+			checklist = [];
 		}
 
 		resetBranchHelper();
 		showAddAssigneeForm = false;
 		newAssigneeName = '';
 		newAssigneeColor = '#6366F1';
+		newChecklistItem = '';
 		showBranchDialog = false;
 	}
 
@@ -370,7 +408,8 @@
 			category,
 			notes: notes.trim(),
 			assignee_id,
-			sprint_id
+			sprint_id,
+			checklist: checklist.length > 0 ? checklist : undefined
 		});
 	}
 
@@ -643,6 +682,129 @@
 								</div>
 							{/if}
 						{/if}
+					{/if}
+				</div>
+
+				<!-- Checklist Section -->
+				<div class="space-y-4">
+					<div class="flex items-center justify-between">
+						<div class="flex items-center gap-2">
+							<ListTodo size={18} class="text-gray-700 dark:text-gray-300" />
+							<span class="text-sm font-bold text-gray-900 dark:text-white">{$_('taskForm__checklist_label')}</span>
+						</div>
+						{#if checklist.length > 0}
+							<button 
+								type="button"
+								on:click={() => checklist = []}
+								class="px-3 py-1 text-xs font-medium text-gray-500 hover:text-red-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
+							>
+								Delete
+							</button>
+						{/if}
+					</div>
+
+					<div class="space-y-2">
+						<div class="flex items-center gap-3">
+							<span class="text-xs font-bold w-6 {progress === 100 ? 'text-green-500' : 'text-blue-500'}">{progress}%</span>
+							<div class="flex-1 h-1 bg-gray-200 dark:bg-gray-700/50 rounded-full overflow-hidden">
+								<div 
+									class="h-full transition-all duration-500 {progress === 100 ? 'bg-green-500' : 'bg-blue-500'}" 
+									style="width: {progress}%"
+								></div>
+							</div>
+						</div>
+					</div>
+
+					<div class="space-y-1">
+						{#each checklist as item (item.id)}
+							<div class="flex items-start gap-2 group py-1">
+								<button 
+									type="button"
+									on:click={() => toggleChecklistItem(item.id)}
+									class="mt-0.5 w-5 h-5 flex items-center justify-center rounded border border-gray-300 dark:border-gray-600 hover:border-primary transition-colors flex-shrink-0"
+								>
+									{#if item.completed}
+										<Check size={14} strokeWidth={3} class="text-primary" />
+									{/if}
+								</button>
+								<div class="flex-1 min-w-0">
+									<input 
+										type="text"
+										bind:value={item.text}
+										class="w-full bg-transparent border-none focus:ring-0 text-sm p-0 font-medium {item.completed ? 'text-gray-400 line-through' : 'text-gray-900 dark:text-gray-200'}"
+									/>
+								</div>
+								<button 
+									type="button"
+									on:click={() => removeChecklistItem(item.id)}
+									class="p-1 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+								>
+									<Trash2 size={14} />
+								</button>
+							</div>
+						{/each}
+					</div>
+
+					{#if !isAddingChecklistItem}
+						<button 
+							type="button"
+							on:click={() => isAddingChecklistItem = true}
+							class="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-md transition-colors w-fit shadow-sm"
+						>
+							Add an item
+						</button>
+					{:else}
+						<div class="space-y-3 pt-1">
+							<input 
+								type="text"
+								bind:value={newChecklistItem}
+								on:keydown={(e) => {
+									if (e.key === 'Enter') {
+										e.preventDefault();
+										const itemToAdd = newChecklistItem.trim();
+										if (itemToAdd) {
+											addChecklistItem();
+											// Keep it open to add more? Or close? 
+											// User screenshot shows Add/Cancel, usually means "one at a time" or "keep open".
+											// Let's keep it open but clear input.
+										} else {
+											isAddingChecklistItem = false;
+										}
+									} else if (e.key === 'Escape') {
+										isAddingChecklistItem = false;
+										newChecklistItem = '';
+									}
+								}}
+								placeholder="Add an item"
+								class="w-full px-3 py-2 text-sm bg-white dark:bg-gray-950 border-2 border-primary/50 rounded-md focus:border-primary outline-none transition-all text-gray-900 dark:text-white"
+								autofocus
+							/>
+							<div class="flex items-center gap-3">
+								<button 
+									type="button"
+									on:click={() => {
+										if (newChecklistItem.trim()) {
+											addChecklistItem();
+										} else {
+											isAddingChecklistItem = false;
+										}
+									}}
+									class="px-4 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-sm font-bold rounded-md transition-colors shadow-sm"
+								>
+									Add
+								</button>
+								<button 
+									type="button"
+									on:click={() => {
+										isAddingChecklistItem = false;
+										newChecklistItem = '';
+									}}
+									class="px-2 py-1.5 text-gray-700 dark:text-gray-300 text-sm font-bold hover:underline transition-colors"
+								>
+									Cancel
+								</button>
+							</div>
+						</div>
 					{/if}
 				</div>
 

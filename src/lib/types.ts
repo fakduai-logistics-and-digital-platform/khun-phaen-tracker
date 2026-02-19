@@ -24,6 +24,12 @@ export interface Sprint {
   archived_count?: number; // จำนวนงานที่ Archive เมื่อจบ Sprint
 }
 
+export interface ChecklistItem {
+  id: string;
+  text: string;
+  completed: boolean;
+}
+
 export interface Task {
   id?: number;
   title: string;
@@ -41,9 +47,16 @@ export interface Task {
   updated_at?: string;
   end_date?: string; // YYYY-MM-DD
   dependencies?: number[];
+  checklist?: ChecklistItem[];
 }
 
-export type ViewMode = "list" | "calendar" | "kanban" | "table" | "gantt" | "workload";
+export type ViewMode =
+  | "list"
+  | "calendar"
+  | "kanban"
+  | "table"
+  | "gantt"
+  | "workload";
 
 export interface FilterOptions {
   startDate?: string;
