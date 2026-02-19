@@ -45,7 +45,21 @@ Offline Task Management System - Manage your tasks efficiently without needing a
 npm install
 ```
 
-### 2. Run Development Server
+### 2. Configure Environment Variables
+
+```sh
+cp .env.example .env
+```
+
+Edit `.env` and set your tldraw license key:
+
+```
+VITE_TLDRAW_LICENSE_KEY=your-license-key
+```
+
+> **How to get a tldraw License Key:** Go to [tldraw.dev](https://tldraw.dev), sign up, and request a free license key for non-commercial use. The Whiteboard feature works without a key but will show a watermark/warning.
+
+### 3. Run Development Server
 
 ```sh
 # Run frontend dev server
@@ -57,7 +71,7 @@ npm run dev -- --open
 
 The frontend will run at `http://localhost:5173/khun-phaen-tracker-offline` (base path configured).
 
-### 3. Run Sync Server (Optional - for Real-time Sync)
+### 4. Run Sync Server (Optional - for Real-time Sync)
 
 In another terminal:
 
@@ -68,7 +82,7 @@ cargo run --release
 
 The Sync Server will run at `http://localhost:3001`
 
-### 4. Build WASM Modules (Optional)
+### 5. Build WASM Modules (Optional)
 
 To build WASM modules yourself:
 
@@ -145,6 +159,14 @@ cargo build --release
 ```
 
 ## 🐳 Docker / Deployment
+
+### Run All Services (Frontend + Sync Server)
+
+```sh
+docker compose up --build
+```
+
+Frontend will be available at `http://localhost:8080/khun-phaen-tracker-offline/`
 
 ### Sync Server ONLY
 

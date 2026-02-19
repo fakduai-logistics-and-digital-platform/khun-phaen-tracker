@@ -17,10 +17,6 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ["@duckdb/duckdb-wasm", "@sqlite.org/sqlite-wasm"],
   },
-  define: {
-    // By-pass tldraw license check for personal/offline use
-    "process.env.NODE_ENV": '"development"',
-  },
   build: {
     target: "esnext",
   },

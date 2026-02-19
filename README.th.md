@@ -43,7 +43,21 @@
 npm install
 ```
 
-### 2. รัน Development Server
+### 2. ตั้งค่า Environment Variables
+
+```sh
+cp .env.example .env
+```
+
+แก้ไขไฟล์ `.env` แล้วใส่ tldraw license key:
+
+```
+VITE_TLDRAW_LICENSE_KEY=your-license-key
+```
+
+> **วิธีขอ tldraw License Key:** ไปที่ [tldraw.dev](https://tldraw.dev) สมัครสมาชิก แล้วขอ license key ฟรีสำหรับการใช้งานแบบ non-commercial ฟีเจอร์ Whiteboard ใช้งานได้โดยไม่มี key แต่จะแสดง watermark/คำเตือน
+
+### 3. รัน Development Server
 
 ```sh
 # รัน frontend
@@ -55,7 +69,7 @@ npm run dev -- --open
 
 หน้าเว็บจะอยู่ที่ `http://localhost:5173/khun-phaen-tracker-offline`
 
-### 3. รัน Sync Server (เสริม - สำหรับ Real-time Sync)
+### 4. รัน Sync Server (เสริม - สำหรับ Real-time Sync)
 
 ใน terminal ใหม่:
 
@@ -99,6 +113,14 @@ cargo build --release
 ```
 
 ## 🐳 Docker / Deployment
+
+### รันทั้งหมด (Frontend + Sync Server)
+
+```sh
+docker compose up --build
+```
+
+เปิดเว็บที่ `http://localhost:8080/khun-phaen-tracker-offline/`
 
 ### สำหรับ Sync Server เท่านั้น
 

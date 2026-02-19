@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { createEventDispatcher, onDestroy, tick } from 'svelte';
-	import { Wifi, WifiOff, Download, Trash2, X, LoaderCircle } from 'lucide-svelte';
+	import { Wifi, WifiOff, Download, Trash2, X, LoaderCircle, TriangleAlert } from 'lucide-svelte';
 
 	type Snapshot = Record<string, unknown>;
 	type BridgeMode = 'offline' | 'sync';
@@ -51,6 +51,8 @@
 	let mode: BridgeMode = 'offline';
 	let roomCode = '';
 	let syncHost = DEFAULT_SYNC_HOST;
+	let hasLicense = true;
+	let licenseChecked = false;
 
 	$: if (open && !active) {
 		active = true;
@@ -126,7 +128,10 @@
 	async function ensureBridge() {
 		if (!boardMountEl) return;
 		if (!bridgeModule) {
-			bridgeModule = (await import('$lib/components/tldrawBridge')) as TldrawBridgeModule;
+			const mod = await import('$lib/components/tldrawBridge');
+			bridgeModule = mod as TldrawBridgeModule;
+			hasLicense = mod.hasTldrawLicense();
+			licenseChecked = true;
 		}
 		if (bridge) return;
 		bridge = bridgeModule.mountTldrawBridge({
@@ -241,6 +246,19 @@
 			</div>
 
 			<div class="flex-1 min-h-0 bg-white dark:bg-gray-950 relative">
+				{#if licenseChecked && !hasLicense}
+					<div class="mx-4 mt-3 p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 rounded-lg flex items-start gap-2.5 text-sm">
+						<TriangleAlert size={18} class="text-amber-500 shrink-0 mt-0.5" />
+						<div class="text-amber-800 dark:text-amber-200">
+							<p class="font-semibold">Whiteboard ทำงานได้ แต่ยังไม่มี tldraw License Key</p>
+							<p class="mt-1 text-amber-700 dark:text-amber-300">
+								คัดลอก <code class="bg-amber-100 dark:bg-amber-900/60 px-1 rounded">.env.example</code> เป็น <code class="bg-amber-100 dark:bg-amber-900/60 px-1 rounded">.env</code> แล้วใส่ License Key ของคุณ
+								&mdash; ขอ key ฟรี (non-commercial) ได้ที่
+								<a href="https://tldraw.dev" target="_blank" rel="noopener noreferrer" class="underline font-medium hover:text-amber-900 dark:hover:text-amber-100">tldraw.dev</a>
+							</p>
+						</div>
+					</div>
+				{/if}
 				{#if isBooting}
 					<div class="absolute inset-0 z-10 bg-white/80 dark:bg-gray-950/80 flex items-center justify-center">
 						<div class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">

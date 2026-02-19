@@ -11,6 +11,14 @@ import {
 } from "tldraw";
 import "tldraw/tldraw.css";
 
+const TLDRAW_LICENSE_KEY = import.meta.env.VITE_TLDRAW_LICENSE_KEY as
+  | string
+  | undefined;
+
+export function hasTldrawLicense(): boolean {
+  return !!TLDRAW_LICENSE_KEY && TLDRAW_LICENSE_KEY !== "your-tldraw-license-key-here";
+}
+
 type Snapshot = Partial<TLEditorSnapshot> | TLStoreSnapshot;
 
 export type TldrawBridgeMode = "offline" | "sync";
@@ -65,6 +73,7 @@ function OfflineCanvas({
   }, []);
 
   return createElement(Tldraw, {
+    licenseKey: TLDRAW_LICENSE_KEY,
     autoFocus: true,
     onMount: (editor: Editor) => {
       unlistenRef.current?.();
@@ -154,6 +163,7 @@ function SyncCanvas({
   }
 
   return createElement(Tldraw, {
+    licenseKey: TLDRAW_LICENSE_KEY,
     store: store.store,
     autoFocus: true,
     onMount: (editor: Editor) => {
