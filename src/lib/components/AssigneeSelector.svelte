@@ -11,8 +11,7 @@
 
 	export let assignees: Assignee[] = [];
 	export let assignee_ids: number[] = [];
-
-	let assignee_id_to_add: number | null = null;
+	export let assignee_id_to_add: number | null = null;
 	let showAddAssigneeForm = false;
 	let newAssigneeName = '';
 	let newAssigneeColor = '#6366F1';

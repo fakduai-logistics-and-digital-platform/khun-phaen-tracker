@@ -35,6 +35,7 @@
 	let category = editingTask?.category || 'งานหลัก';
 	let notes = editingTask?.notes || '';
 	let assignee_ids: number[] = editingTask?.assignee_ids || (editingTask?.assignee_id ? [editingTask.assignee_id] : []);
+	let assignee_id_to_add: number | null = null;
 	let sprint_id: number | null = editingTask?.sprint_id || null;
 	let checklist: ChecklistItem[] = [];
 	let showBranchDialog = false;
@@ -108,6 +109,7 @@
 			checklist = [];
 		}
 
+		assignee_id_to_add = null;
 		showBranchDialog = false;
 	}
 
@@ -122,6 +124,11 @@
 
 	function handleSubmit() {
 		if (!title.trim()) return;
+
+		// Auto-add selected assignee if not already added
+		if (assignee_id_to_add !== null && !assignee_ids.includes(assignee_id_to_add)) {
+			assignee_ids = [...assignee_ids, assignee_id_to_add];
+		}
 
 		// Save defaults for next time (only if adding new task)
 		if (!editingTask) {
@@ -323,6 +330,7 @@
 				<AssigneeSelector
 					{assignees}
 					bind:assignee_ids
+					bind:assignee_id_to_add
 					on:addAssignee={handleAddAssignee}
 				/>
 
