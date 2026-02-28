@@ -7,6 +7,7 @@
 
     import { user } from '$lib/stores/auth';
     import { api } from '$lib/apis';
+    import { _ } from '$lib/i18n';
 
     let email = '';
     let password = '';
