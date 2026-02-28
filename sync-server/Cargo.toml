@@ -19,6 +19,13 @@ futures = "0.3"
 rand = "0.8"
 tower_governor = "0.4"
 dotenv = "0.15.0"
+mongodb = { version = "2.8.2", features = ["tokio-runtime"] }
+bson = { version = "^2.0", features = ["chrono-0_4"] }
+jsonwebtoken = "9.3.0"
+bcrypt = "0.16.0"
+axum-extra = { version = "0.9.0", features = ["cookie"] }
+serde_with = "3.12.0"
+time = { version = "0.3.36", features = ["formatting", "macros"] }
 
 [[bin]]
 name = "sync-server"

@@ -40,3 +40,4 @@ storybook-static
 # Storybook example files from init
 src/stories/
 .claude/settings.local.json
+sync-server/.env

@@ -11,16 +11,21 @@ use std::{sync::Arc, time::Duration as StdDuration};
 use tokio::sync::broadcast;
 use tracing::{info, warn};
 use uuid::Uuid;
-use dotenv::dotenv; // Import dotenv
+use mongodb::{Client, Database, Collection, bson::{doc, oid::ObjectId}};
+use jsonwebtoken::{encode, decode, Header, Validation, EncodingKey, DecodingKey};
+use axum_extra::extract::cookie::{Cookie, CookieJar};
+use bcrypt::{hash, verify, DEFAULT_COST};
+use dotenv::dotenv;
 use tower_governor::{key_extractor::KeyExtractor, errors::GovernorError};
-
 
 type SharedState = Arc<AppState>;
 
 pub struct AppState {
+    pub db: Database,
     pub rooms: DashMap<String, Room>,
     pub room_idle_timeout_seconds: u64,
     pub system_tx: broadcast::Sender<SystemEvent>,
+    pub jwt_secret: String,
 }
 
 #[derive(Debug)]
@@ -118,6 +123,27 @@ impl KeyExtractor for IpHeaderKeyExtractor {
 
 
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct User {
+    #[serde(rename = "_id", skip_serializing_if = "Option::is_none")]
+    pub id: Option<ObjectId>,
+    pub email: String,
+    pub password_hash: String,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Claims {
+    pub sub: String, // user_id
+    pub exp: usize,
+}
+
+#[derive(Deserialize)]
+pub struct AuthRequest {
+    pub email: String,
+    pub password: String,
+}
+
 #[derive(Deserialize)]
 pub struct CreateRoomRequest {
     pub desired_room_code: Option<String>,
@@ -145,11 +171,25 @@ async fn main() {
         );
     }
 
+    let mongodb_uri = std::env::var("MONGODB_URI")
+        .unwrap_or_else(|_| "mongodb://localhost:27017".to_string());
+    let jwt_secret = std::env::var("JWT_SECRET")
+        .unwrap_or_else(|_| "default_secret_keep_it_safe".to_string());
+    let db_name = std::env::var("DB_NAME")
+        .unwrap_or_else(|_| "tracker-db".to_string());
+
+    info!("🔌 Connecting to MongoDB at {}...", mongodb_uri);
+    let mongo_client = Client::with_uri_str(&mongodb_uri).await.expect("Failed to connect to MongoDB");
+    let db = mongo_client.database(&db_name);
+    info!("✅ Connected to database: {}", db_name);
+
     let (system_tx, _) = broadcast::channel(100);
     let state = Arc::new(AppState {
+        db,
         rooms: DashMap::new(),
         room_idle_timeout_seconds,
         system_tx: system_tx.clone(),
+        jwt_secret,
     });
     
     if room_idle_timeout_seconds > 0 {
@@ -168,6 +208,10 @@ async fn main() {
     let app = Router::new()
         .route("/", get(root_handler))
         .route("/health", get(health_check))
+        .route("/api/auth/register", post(register_handler))
+        .route("/api/auth/login", post(login_handler))
+        .route("/api/auth/logout", post(logout_handler))
+        .route("/api/auth/me", get(me_handler))
         .route(
             "/api/rooms", 
             post(create_room).layer(tower_governor::GovernorLayer {
@@ -178,9 +222,10 @@ async fn main() {
         .route("/ws", get(ws_handler))
         .layer(
             tower_http::cors::CorsLayer::new()
-                .allow_origin(tower_http::cors::Any)
-                .allow_methods(tower_http::cors::Any)
-                .allow_headers(tower_http::cors::Any),
+                .allow_origin("http://localhost:5173".parse::<axum::http::HeaderValue>().unwrap())
+                .allow_methods([axum::http::Method::GET, axum::http::Method::POST, axum::http::Method::PUT, axum::http::Method::DELETE])
+                .allow_headers([axum::http::header::CONTENT_TYPE, axum::http::header::AUTHORIZATION])
+                .allow_credentials(true),
         )
         .with_state(state);
 
@@ -248,6 +293,150 @@ async fn health_check(State(state): State<SharedState>) -> impl IntoResponse {
     }))
 }
 
+async fn register_handler(
+    State(state): State<SharedState>,
+    Json(payload): Json<AuthRequest>,
+) -> axum::response::Response {
+    let users: Collection<User> = state.db.collection("users");
+
+    // Check if user already exists
+    let existing_user = match users.find_one(doc! { "email": &payload.email }, None).await {
+        Ok(user) => user,
+        Err(e) => {
+            return (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                axum::Json(serde_json::json!({ "error": format!("Database error: {}", e) })),
+            ).into_response();
+        }
+    };
+
+    if existing_user.is_some() {
+        return (
+            axum::http::StatusCode::BAD_REQUEST,
+            axum::Json(serde_json::json!({ "error": "User already exists" })),
+        ).into_response();
+    }
+
+    // Hash password
+    let password_hash = hash(payload.password, DEFAULT_COST).unwrap();
+
+    let new_user = User {
+        id: None,
+        email: payload.email,
+        password_hash,
+        created_at: chrono::Utc::now(),
+    };
+
+    match users.insert_one(new_user, None).await {
+        Ok(_) => axum::Json(serde_json::json!({ "success": true })).into_response(),
+        Err(e) => (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            axum::Json(serde_json::json!({ "error": e.to_string() })),
+        ).into_response(),
+    }
+}
+
+async fn login_handler(
+    State(state): State<SharedState>,
+    jar: CookieJar,
+    Json(payload): Json<AuthRequest>,
+) -> axum::response::Response {
+    let users: Collection<User> = state.db.collection("users");
+
+    let user = match users.find_one(doc! { "email": &payload.email }, None).await {
+        Ok(Some(u)) => u,
+        Ok(None) => return (
+            axum::http::StatusCode::UNAUTHORIZED,
+            axum::Json(serde_json::json!({ "error": "Invalid email or password" })),
+        ).into_response(),
+        Err(e) => return (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            axum::Json(serde_json::json!({ "error": format!("Database error: {}", e) })),
+        ).into_response(),
+    };
+
+    if !verify(payload.password, &user.password_hash).unwrap() {
+        return (
+            axum::http::StatusCode::UNAUTHORIZED,
+            axum::Json(serde_json::json!({ "error": "Invalid email or password" })),
+        ).into_response();
+    }
+
+    // Generate JWT
+    let expiration = chrono::Utc::now()
+        .checked_add_signed(chrono::Duration::days(7))
+        .expect("valid timestamp")
+        .timestamp() as usize;
+
+    let claims = Claims {
+        sub: user.id.unwrap().to_hex(),
+        exp: expiration,
+    };
+
+    let token = encode(
+        &Header::default(),
+        &claims,
+        &EncodingKey::from_secret(state.jwt_secret.as_ref()),
+    ).unwrap();
+
+    // Create cookie
+    let cookie = Cookie::build(("_khun_ph_token", token))
+        .path("/")
+        .http_only(true)
+        .max_age(time::Duration::hours(24 * 7))
+        .build();
+
+    (jar.add(cookie), axum::Json(serde_json::json!({ "success": true, "email": user.email }))).into_response()
+}
+
+async fn logout_handler(jar: CookieJar) -> axum::response::Response {
+    let cookie = Cookie::build(("_khun_ph_token", ""))
+        .path("/")
+        .max_age(time::Duration::seconds(0))
+        .build();
+    (jar.add(cookie), axum::Json(serde_json::json!({ "success": true }))).into_response()
+}
+
+async fn me_handler(
+    State(state): State<SharedState>,
+    jar: CookieJar,
+) -> axum::response::Response {
+    let token = match jar.get("_khun_ph_token").map(|c| c.value()) {
+        Some(t) => t,
+        None => return (
+            axum::http::StatusCode::UNAUTHORIZED,
+            axum::Json(serde_json::json!({ "error": "Not logged in" })),
+        ).into_response(),
+    };
+
+    let token_data = match decode::<Claims>(
+        token,
+        &DecodingKey::from_secret(state.jwt_secret.as_ref()),
+        &Validation::default(),
+    ) {
+        Ok(c) => c,
+        Err(_) => return (
+            axum::http::StatusCode::UNAUTHORIZED,
+            axum::Json(serde_json::json!({ "error": "Invalid token" })),
+        ).into_response(),
+    };
+
+    let user_id = ObjectId::parse_str(&token_data.claims.sub).unwrap();
+    let users: Collection<User> = state.db.collection("users");
+
+    match users.find_one(doc! { "_id": user_id }, None).await {
+        Ok(Some(user)) => axum::Json(serde_json::json!({ "email": user.email })).into_response(),
+        Ok(None) => (
+            axum::http::StatusCode::UNAUTHORIZED,
+            axum::Json(serde_json::json!({ "error": "User not found" })),
+        ).into_response(),
+        Err(e) => (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            axum::Json(serde_json::json!({ "error": format!("Database error: {}", e) })),
+        ).into_response(),
+    }
+}
+
 async fn create_room(
     State(state): State<SharedState>,
     payload: Option<Json<CreateRoomRequest>>,
@@ -268,9 +457,21 @@ async fn create_room(
             "room_id": room.id,
             "host_id": room.host_id,
             "websocket_url": format!("ws://localhost:3001/ws"),
-            "restored": true
+            "restored": true,
+            "has_document": room.document_state.is_some()
         }));
     }
+
+    // Try to load from MongoDB
+    let rooms_coll = state.db.collection::<serde_json::Value>("rooms");
+    let existing_room_doc = match rooms_coll.find_one(doc! { "room_code": &room_code }, None).await {
+        Ok(doc) => doc,
+        Err(e) => {
+            warn!("Database error checking room {}: {}", room_code, e);
+            None
+        }
+    };
+    let document_state = existing_room_doc.and_then(|d| d.get("document").and_then(|v| v.as_str().map(|s| s.to_string())));
 
     let room_id = Uuid::new_v4().to_string();
     let host_id = requested_host_id.unwrap_or_else(|| format!("host_{}", generate_random_id()));
@@ -283,7 +484,7 @@ async fn create_room(
         created_at: chrono::Utc::now(),
         tx,
         peers: DashMap::new(),
-        document_state: None,
+        document_state,
         last_sync: chrono::Utc::now(),
         empty_since: Some(chrono::Utc::now()), 
     };
@@ -615,6 +816,22 @@ async fn handle_client_message(
                         document: document.clone(),
                     };
                     let _ = room.tx.send(event);
+
+                    // Persist to MongoDB
+                    let rooms_coll = state.db.collection::<serde_json::Value>("rooms");
+                    let room_code_clone = room_code.clone();
+                    let document_clone = document.clone();
+                    tokio::spawn(async move {
+                        let filter = doc! { "room_code": room_code_clone };
+                        let update = doc! {
+                            "$set": {
+                                "document": document_clone,
+                                "last_sync": mongodb::bson::DateTime::now()
+                            },
+                        };
+                        let options = mongodb::options::UpdateOptions::builder().upsert(true).build();
+                        let _ = rooms_coll.update_one(filter, update, options).await;
+                    });
 
                     info!("📄 Document synced by {} in room {}", peer_id, room_code);
                 }

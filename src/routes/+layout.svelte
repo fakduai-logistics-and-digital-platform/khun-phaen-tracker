@@ -12,6 +12,12 @@
 	import WhiteboardModal from '$lib/components/WhiteboardModal.svelte';
 	import QuickNotes from '$lib/components/QuickNotes.svelte';
 	import { _ } from 'svelte-i18n';
+	import { initAuth, user, authLoading } from '$lib/stores/auth';
+	import { LogIn, LogOut, User as UserIcon } from 'lucide-svelte';
+	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
+	import { base } from '$app/paths';
+	import { api } from '$lib/apis';
 
 	let loading = true;
 	let error = '';
@@ -42,7 +48,10 @@
 
 	onMount(async () => {
 		try {
-			await initDB();
+			await Promise.all([
+				initDB(),
+				initAuth()
+			]);
 			loading = false;
 		} catch (e) {
 			error = $_('layout__db_error');
@@ -108,6 +117,21 @@
 			whiteboardMessage = '';
 		}, 2500);
 	}
+
+	async function handleLogout() {
+		try {
+			await api.auth.logout();
+			user.set(null);
+			goto(`${base}/login`);
+		} catch (e) {
+			console.error('Logout failed:', e);
+		}
+	}
+
+	$: isAuthPage = $page.url.pathname.endsWith('/login') || $page.url.pathname.endsWith('/register');
+	$: if (!$authLoading && !$user && !isAuthPage && browser) {
+		goto(`${base}/login`);
+	}
 </script>
 
 <svelte:head>
@@ -138,6 +162,10 @@
 				{$_('layout__refresh_page')}
 			</button>
 		</div>
+	{:else if isAuthPage}
+		<main class="w-full h-screen overflow-hidden">
+			<slot />
+		</main>
 	{:else}
 		<header class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-999 transition-colors">
 			<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -228,6 +256,34 @@
 						>
 							<Github size={20} />
 						</a>
+
+						<!-- Auth Profile -->
+						{#if $user}
+							<div class="flex items-center gap-3 border-l border-gray-200 dark:border-gray-700 pl-4 h-10">
+								<div class="hidden md:flex flex-col items-end">
+									<span class="text-xs font-semibold text-gray-900 dark:text-white">{$user.email.split('@')[0]}</span>
+									<span class="text-[10px] text-gray-500 dark:text-gray-400 capitalize">User</span>
+								</div>
+								<div class="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-white ring-2 ring-indigo-500/20">
+									<UserIcon size={16} />
+								</div>
+								<button 
+									on:click={handleLogout}
+									class="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 transition-colors"
+									title="Logout"
+								>
+									<LogOut size={20} />
+								</button>
+							</div>
+						{:else if !isAuthPage && !$authLoading}
+							<a 
+								href="{base}/login"
+								class="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-semibold transition-all shadow-lg shadow-indigo-600/20 ring-1 ring-indigo-500/50"
+							>
+								<LogIn size={18} />
+								Login
+							</a>
+						{/if}
 					</div>
 				</div>
 			</div>
@@ -274,13 +330,13 @@
 				</div>
 			</div>
 		</footer>
+
+		{#if showWhiteboard}
+			<WhiteboardModal
+				open={showWhiteboard}
+				on:close={() => showWhiteboard = false}
+				on:notify={(event) => showWhiteboardToast(event.detail.message, event.detail.type)}
+			/>
+		{/if}
 	{/if}
 </div>
-
-{#if showWhiteboard}
-	<WhiteboardModal
-		open={showWhiteboard}
-		on:close={() => showWhiteboard = false}
-		on:notify={(event) => showWhiteboardToast(event.detail.message, event.detail.type)}
-	/>
-{/if}

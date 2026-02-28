@@ -28,9 +28,25 @@ services:
     environment:
       - PORT=3001
       - RUST_LOG=info
+      - MONGODB_URI=mongodb://mongodb:27017
+      - JWT_SECRET=your-super-secret-key-change-this-in-production
     restart: unless-stopped
+    depends_on:
+      - mongodb
     healthcheck:
       test: ["CMD", "nc", "-z", "localhost", "3001"]
       interval: 30s
       timeout: 3s
       retries: 3
+
+  # MongoDB - Persistence for Auth and Rooms
+  mongodb:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    restart: unless-stopped
+
+volumes:
+  mongodb_data:
