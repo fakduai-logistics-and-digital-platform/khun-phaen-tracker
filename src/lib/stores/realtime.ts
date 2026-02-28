@@ -27,7 +27,7 @@ let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 let currentRoomCode: string | null = null;
 let _onDataChanged: ((payload: any) => void) | null = null;
 
-const WS_BASE = "ws://127.0.0.1:3002/ws";
+const WS_BASE = import.meta.env.VITE_WS_URL || "ws://127.0.0.1:3002/ws";
 
 /** Connect to the workspace room for real-time updates */
 export function connectRealtime(
