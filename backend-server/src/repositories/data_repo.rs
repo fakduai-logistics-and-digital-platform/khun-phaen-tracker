@@ -1,5 +1,5 @@
 use mongodb::{bson::{doc, oid::ObjectId, Document, Bson}, Collection, Database};
-use crate::models::data::{TaskDocument, ProjectDocument, AssigneeDocument, TaskFilterQuery};
+use crate::models::data::{TaskDocument, ProjectDocument, AssigneeDocument, SprintDocument, TaskFilterQuery};
 use futures::stream::StreamExt;
 
 #[derive(Clone)]
@@ -7,6 +7,7 @@ pub struct DataRepository {
     tasks: Collection<TaskDocument>,
     projects: Collection<ProjectDocument>,
     assignees: Collection<AssigneeDocument>,
+    sprints: Collection<SprintDocument>,
 }
 
 impl DataRepository {
@@ -15,6 +16,7 @@ impl DataRepository {
             tasks: db.collection("tasks"),
             projects: db.collection("projects"),
             assignees: db.collection("assignees"),
+            sprints: db.collection("sprints"),
         }
     }
 
@@ -210,12 +212,53 @@ impl DataRepository {
         Ok(res.deleted_count > 0)
     }
 
+    // ===== SPRINTS =====
+
+    pub async fn find_sprints(&self, workspace_id: &ObjectId) -> mongodb::error::Result<Vec<SprintDocument>> {
+        let mut cursor = self.sprints.find(doc! { "workspace_id": workspace_id }, None).await?;
+        let mut sprints = Vec::new();
+        while let Some(result) = cursor.next().await {
+            match result {
+                Ok(doc) => sprints.push(doc),
+                Err(e) => return Err(e),
+            }
+        }
+        Ok(sprints)
+    }
+
+    pub async fn create_sprint(&self, mut sprint: SprintDocument) -> mongodb::error::Result<SprintDocument> {
+        sprint.created_at = Some(chrono::Utc::now().to_rfc3339());
+        let res = self.sprints.insert_one(sprint.clone(), None).await?;
+        if let Some(id) = res.inserted_id.as_object_id() {
+            sprint.id = Some(id);
+        }
+        Ok(sprint)
+    }
+
+    pub async fn update_sprint(&self, id: &ObjectId, workspace_id: &ObjectId, updates: Document) -> mongodb::error::Result<bool> {
+        let res = self.sprints.update_one(
+            doc! { "_id": id, "workspace_id": workspace_id },
+            doc! { "$set": updates },
+            None,
+        ).await?;
+        Ok(res.matched_count > 0)
+    }
+
+    pub async fn delete_sprint(&self, id: &ObjectId, workspace_id: &ObjectId) -> mongodb::error::Result<bool> {
+        let res = self.sprints.delete_one(
+            doc! { "_id": id, "workspace_id": workspace_id },
+            None,
+        ).await?;
+        Ok(res.deleted_count > 0)
+    }
+
     // ===== CLEANUP (when workspace is deleted) =====
 
     pub async fn delete_all_workspace_data(&self, workspace_id: &ObjectId) -> mongodb::error::Result<()> {
         self.tasks.delete_many(doc! { "workspace_id": workspace_id }, None).await?;
         self.projects.delete_many(doc! { "workspace_id": workspace_id }, None).await?;
         self.assignees.delete_many(doc! { "workspace_id": workspace_id }, None).await?;
+        self.sprints.delete_many(doc! { "workspace_id": workspace_id }, None).await?;
         Ok(())
     }
 }

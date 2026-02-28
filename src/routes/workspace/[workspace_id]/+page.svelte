@@ -7,7 +7,7 @@
 	import { api } from '$lib/apis';
 	import { _ } from 'svelte-i18n';
 	import type { Task, Project, Assignee, ViewMode, FilterOptions } from '$lib/types';
-	import { getTasks, getTasksBySprint, addTask, updateTask, deleteTask, getStats, exportToCSV, importFromCSV, importAllData, mergeAllData, getCategories, getAssignees, getProjects, getProjectsList, addProject, updateProject, deleteProject, getProjectStats, addAssignee as addAssigneeDB, getAssigneeStats, updateAssignee, deleteAssignee, archiveTasksBySprint, exportFilteredSQLiteBinary } from '$lib/db';
+	import { getTasks, getTasksBySprint, addTask, updateTask, deleteTask, getStats, getStatsFromTasks, exportToCSV, importFromCSV, importAllData, mergeAllData, getCategories, getAssignees, getProjects, getProjectsList, addProject, updateProject, deleteProject, getProjectStats, addAssignee as addAssigneeDB, getAssigneeStats, updateAssignee, deleteAssignee, archiveTasksBySprint, exportFilteredSQLiteBinary } from '$lib/db';
 	import TaskForm from '$lib/components/TaskForm.svelte';
 	import TaskList from '$lib/components/TaskList.svelte';
 	import CalendarView from '$lib/components/CalendarView.svelte';
@@ -19,9 +19,8 @@
 	import ExportImport from '$lib/components/ExportImport.svelte';
 	import WorkerManager from '$lib/components/WorkerManager.svelte';
 	import ProjectManager from '$lib/components/ProjectManager.svelte';
-	import { List, CalendarDays, Columns3, Table, GanttChart, UsersRound, Filter, Search, Plus, Users, Folder, Sparkles, MessageSquareQuote, Settings2, Flag, FileText, FileSpreadsheet, Image as ImageIcon, Video, Presentation, CheckCircle, Moon, Sun, Bookmark, Play } from 'lucide-svelte';
+	import { List, CalendarDays, Columns3, Table, GanttChart, UsersRound, Filter, Search, Plus, Users, Folder, Sparkles, MessageSquareQuote, Settings2, Flag, FileText, FileSpreadsheet, Image as ImageIcon, Video, Presentation, CheckCircle, Moon, Sun, Bookmark, Play, ListTodo } from 'lucide-svelte';
 	import { initWasmSearch, indexTasks, performSearch, clearSearch, searchQuery, wasmReady, wasmLoading } from '$lib/stores/search';
-	import { compressionReady, compressionStats, getStorageInfo } from '$lib/stores/storage';
 	import { connectRealtime, disconnectRealtime, realtimeStatus, realtimePeers } from '$lib/stores/realtime';
 	import { user } from '$lib/stores/auth';
 	import { currentWorkspaceOwnerId, setWorkspaceId } from '$lib/stores/workspace';
@@ -59,6 +58,7 @@
 
 	let tasks: Task[] = [];
 	let sprintManagerTasks: Task[] = [];
+	let allTasksIncludingArchived: Task[] = [];
 	let monthlySummaryTasks: Task[] = [];
 	let filteredTasks: Task[] = [];
 	let categories: string[] = [];
@@ -110,6 +110,14 @@
 	let pendingLoadData = false;
 	let visibleTabs: { id: TabId; icon: string }[] = [];
 	let lastLoadedView: ViewMode | null = null;
+	let loadDataTimer: ReturnType<typeof setTimeout>;
+
+	function debouncedLoadData() {
+		clearTimeout(loadDataTimer);
+		loadDataTimer = setTimeout(() => {
+			void loadData();
+		}, 50);
+	}
 
 	$: isOwner = $currentWorkspaceOwnerId && $user?.id ? $currentWorkspaceOwnerId === $user.id : false;
 
@@ -125,7 +133,7 @@
 
 	// Proactively load data when switching to workload view
 	$: if (browser && currentView === 'workload' && (sprintManagerTasks.length === 0 || assignees.length === 0)) {
-		void loadData();
+		debouncedLoadData();
 	}
 
 	let filters: FilterOptions = { ...DEFAULT_FILTERS };
@@ -761,9 +769,8 @@
 					const savedView = loadSavedViewMode();
 					currentView = savedView;
 					
-					void loadData().then(() => {
-						initWasmSearch();
-					});
+					// Reactive filters block will trigger initial loadData
+					initWasmSearch();
 				} else {
 					hasAccess = false;
 				}
@@ -785,48 +792,53 @@
 		}
 	});
 	
+	let loadingData = false;
 	async function loadData() {
-		if (currentView === 'kanban' && isKanbanDragging) {
-			pendingLoadData = true;
-			return;
-		}
-
+		if (loadingData) return;
+		loadingData = true;
+		
 		try {
-			const [visibleTasks, allTasks, allTasksIncludingArchived] = await Promise.all([
+			// Fetch data in parallel
+			const [filtered, all] = await Promise.all([
 				getTasks(filters),
-				getTasks(),
 				getTasks({ includeArchived: true })
 			]);
-			tasks = visibleTasks;
-			sprintManagerTasks = allTasks;
-			monthlySummaryTasks = allTasksIncludingArchived;
+
+			tasks = filtered;
+			allTasksIncludingArchived = all;
+			monthlySummaryTasks = all;
 			
+			// Process stats locally from existing data
+			stats = getStatsFromTasks(all);
+			
+			if (currentView === 'workload') {
+				sprintManagerTasks = all.filter(t => t.sprint_id === filters.sprint_id);
+			}
+
 			// Index tasks for WASM search
 			if ($wasmReady) {
 				indexTasks(tasks);
 			}
 			
 			// Apply WASM search if there's a search query
-			if ($wasmReady && $searchQuery.trim()) {
-				filteredTasks = performSearch($searchQuery, tasks);
+			if (searchInput.trim()) {
+				filteredTasks = performSearch(searchInput, tasks);
 			} else {
 				filteredTasks = tasks;
 			}
 			
-			stats = await getStats();
 			categories = await getCategories();
 			projects = await getProjects();
 			projectList = await getProjectsList();
-			projectStats = await getProjectStats();
 			assignees = await getAssignees();
-			workerStats = await getAssigneeStats();
-			lastLoadedView = currentView;
 		} catch (e) {
 			console.error('❌ loadData failed:', e);
 			showMessage(`เกิดข้อผิดพลาดในการโหลดข้อมูล: ${e instanceof Error ? e.message : 'Unknown error'}`, 'error');
+		} finally {
+			loadingData = false;
 		}
 	}
-
+	
 	function handleKanbanDragState(event: CustomEvent<{ dragging: boolean }>) {
 		isKanbanDragging = event.detail.dragging;
 		if (!isKanbanDragging && pendingLoadData) {
@@ -842,7 +854,7 @@
 		searchQuery.set(searchInput);
 		
 		if ($wasmReady) {
-			filteredTasks = performSearch(searchInput, tasks);
+			filteredTasks = performSearch(searchInput, $tasks);
 		} else {
 			// Fallback to client-side filter
 			filters.search = searchInput;
@@ -854,7 +866,7 @@
 	function handleClearSearch() {
 		searchInput = '';
 		clearSearch([]);
-		filteredTasks = tasks;
+		filteredTasks = $tasks;
 	}
 	
 	let realtimeSyncDebounce: ReturnType<typeof setTimeout>;
@@ -886,7 +898,7 @@
 			}
 		} else if (entity === 'assignee') {
 			if (action === 'create' && data) {
-				assignees = [...assignees, data];
+				if (!assignees.find(a => a.id === data.id)) assignees = [...assignees, data];
 			} else if (action === 'update' && id && data) {
 				assignees = assignees.map(a => String(a.id) === String(id) ? { ...a, ...data } : a);
 			} else if (action === 'delete' && id) {
@@ -894,8 +906,8 @@
 			}
 		} else if (entity === 'project') {
 			if (action === 'create' && data) {
-				projectList = [...projectList, data];
-				if (data.name && !projects.includes(data.name)) projects = [...projects, data.name];
+				if (!projectList.find(p => p.id === data.id)) projectList = [...projectList, data];
+				if (!projects.includes(data.name)) projects = [...projects, data.name];
 			} else if (action === 'update' && id && data) {
 				const oldProject = projectList.find(p => String(p.id) === String(id));
 				projectList = projectList.map(p => String(p.id) === String(id) ? { ...p, ...data } : p);
@@ -907,43 +919,13 @@
 			} else if (action === 'delete' && id) {
 				const deletedProject = projectList.find(p => String(p.id) === String(id));
 				projectList = projectList.filter(p => String(p.id) !== String(id));
-				if (deletedProject) {
-					projects = projects.filter(name => name !== deletedProject.name);
-				}
+				if (deletedProject) projects = projects.filter(name => name !== deletedProject.name);
 			}
 		}
 
-		clearTimeout(realtimeSyncDebounce);
-		realtimeSyncDebounce = setTimeout(() => {
-			if (statNeedsUpdate) {
-				// Calculate stats locally instantly instead of fetching from DB
-				let total = 0, todo = 0, in_progress = 0, in_test = 0, done = 0, total_minutes = 0;
-				const catSet = new Set<string>();
-
-				for (const t of tasks) {
-					total++;
-					if (t.status === 'To Do') todo++;
-					else if (t.status === 'In Progress') in_progress++;
-					else if (t.status === 'In Test') in_test++;
-					else if (t.status === 'Done') done++;
-					if (t.duration_minutes) total_minutes += t.duration_minutes;
-					if (t.category) catSet.add(t.category);
-				}
-
-				stats = { total, todo, in_progress, in_test, done, total_minutes };
-				categories = Array.from(catSet);
-				
-				projectStats = projectList.map(p => ({
-					id: p.id as number,
-					taskCount: tasks.filter(t => t.project === p.name).length
-				}));
-				
-				workerStats = assignees.map(a => ({
-					id: a.id as number,
-					taskCount: tasks.filter(t => t.assignee_ids && t.assignee_ids.includes(String(a.id))).length
-				}));
-			}
-		}, 30);
+		if (statNeedsUpdate) {
+			void getStats().then(s => stats = s);
+		}
 	}
 
 	// Worker Management Functions
@@ -1059,7 +1041,7 @@
 			if (task.id === undefined || !taskIdSet.has(task.id)) return task;
 			return { ...task, sprint_id: sprintId };
 		};
-
+	
 		tasks = tasks.map(updateTaskSprint);
 		sprintManagerTasks = sprintManagerTasks.map(updateTaskSprint);
 		filteredTasks = filteredTasks.map(updateTaskSprint);
@@ -1150,7 +1132,7 @@
 	
 	async function handleAddTask(event: CustomEvent<Omit<Task, 'id' | 'created_at'>>) {
 		const isEditing = Boolean(editingTask);
-		const oldTasks = tasks;
+		const oldTasks = $tasks;
 		const oldFiltered = filteredTasks;
 
 		// Close modal immediately for smooth UX
@@ -1159,7 +1141,7 @@
 		try {
 			if (editingTask) {
 				const updatedTask = { ...editingTask, ...event.detail };
-				tasks = tasks.map(t => t.id === editingTask!.id ? updatedTask : t);
+				tasks = tasks.map(task => task.id === editingTask!.id ? updatedTask : task);
 				filteredTasks = tasks;
 				
 				const originalEditingTask = editingTask;
@@ -1296,12 +1278,11 @@
 		// Optimistic update
 		const oldTasks = tasks;
 		const oldFiltered = filteredTasks;
-		tasks = tasks.map(t => String(t.id) === String(id) ? { ...t, status } : t);
+		tasks = tasks.map(task => String(task.id) === String(id) ? { ...task, status } : task);
 		filteredTasks = tasks;
 
 		try {
 			await updateTask(id, { status });
-			await loadData();
 			queueRealtimeSync('update-task-status');
 		} catch (e) {
 			tasks = oldTasks;
@@ -1461,7 +1442,7 @@
 
 	function getMonthlyExportTaskContext(): { taskSnapshot: Task[]; scopeLabel: string } {
 		return {
-			taskSnapshot: monthlySummaryTasks.filter((task) => isWithinLastDays(task.date, 30)),
+			taskSnapshot: allTasksIncludingArchived.filter((task) => isWithinLastDays(task.date, 30)),
 			scopeLabel: `สรุปรายเดือน (${monthlySummary.periodLabel})`
 		};
 	}
@@ -2066,7 +2047,7 @@
 				no: index + 1,
 				title: task.title || '',
 				project: task.project || '',
-				assignee: task.assignee?.name || '',
+				assignee: task.assignees?.map(a => a.name).join(', ') || task.assignee?.name || '',
 				status: task.status,
 				date: normalizeTaskDate(task.date),
 				end_date: normalizeTaskDate(task.end_date),
@@ -2630,7 +2611,7 @@
 			filters = { ...filters, sprint_id: normalizedValue };
 		} else {
 			persistFilters();
-			void loadData();
+			debouncedLoadData();
 		}
 	}
 
@@ -2647,7 +2628,7 @@
 	}
 
 
-	$: monthlySummary = buildMonthlySummary(monthlySummaryTasks);
+	$: monthlySummary = buildMonthlySummary(allTasksIncludingArchived);
 </script>
 
 {#if videoExportInProgress}
@@ -2679,7 +2660,7 @@
 	</div>
 {/if}
 
-<div class="space-y-6">
+<div class="max-w-7xl mx-auto space-y-8 pb-32">
 	{#if checkingAccess}
 		<div class="flex flex-col items-center justify-center py-32 space-y-4">
 			<div class="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
@@ -2707,93 +2688,82 @@
 		<!-- Stats Panel -->
 	<StatsPanel {stats} />
 	
-	<!-- Search Bar - Always Visible -->
-	<div class="flex flex-col sm:flex-row gap-3">
-		<div class="flex-1 relative">
-			<Search size={18} class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
+	<!-- Search & Quick Actions -->
+	<div class="flex flex-col md:flex-row items-center gap-3 bg-white/50 dark:bg-gray-900/30 p-2 rounded-2xl border border-gray-200/50 dark:border-gray-800/50 backdrop-blur-sm transition-all group shadow-sm">
+		<!-- Search Component -->
+		<div class="relative flex-1 group/search w-full">
+			<div class="absolute left-4 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-400 group-focus-within/search:text-primary group-focus-within/search:bg-primary/10 transition-all duration-300">
+				<Search size={18} />
+			</div>
 			<input
 				bind:this={searchInputRef}
 				type="text"
 				value={searchInput}
 				on:input={handleSearchInput}
-				placeholder={$_('page__search_placeholder')}
-				class="w-full pl-10 pr-10 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none dark:bg-gray-700 dark:text-white text-base"
+				placeholder={$_('page__search_placeholder') + "... (press /)"}
+				class="w-full pl-14 pr-12 py-3.5 bg-white dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none text-gray-900 dark:text-white dark:placeholder-gray-500 font-medium transition-all shadow-sm"
 			/>
 			{#if searchInput}
 				<button
 					on:click={handleClearSearch}
-					class="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-full transition-colors text-lg"
+					class="absolute right-4 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center text-gray-400 hover:text-white hover:bg-red-500 rounded-lg transition-all"
 				>
 					×
 				</button>
-			{:else}
-				<span 
-					class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-green-600 flex items-center gap-0.5"
-					title={$_('page__search_wasm_active')}
-				>
-					{#if $wasmLoading}
-						<span class="text-gray-400">⏳</span>
-					{:else if $wasmReady}
-						
-						<span></span>
-					{/if}
-				</span>
 			{/if}
 		</div>
 		
-		<div class="flex gap-2">
+		<!-- Action Row -->
+		<div class="flex items-center gap-2 overflow-x-auto scrollbar-none pb-1 md:pb-0 w-full md:w-auto">
 			<!-- Filter Toggle -->
 			<button
 				on:click={() => showFilters = !showFilters}
-				class="flex items-center justify-center p-2.5 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors {showFilters ? 'bg-gray-100 dark:bg-gray-700' : ''}"
-			title={$_('page__filters')}
+				class="flex items-center justify-center p-3.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-all hover:scale-105 active:scale-95 shadow-sm {showFilters ? 'bg-primary/10 border-primary text-primary' : ''}"
+				title={$_('page__filters')}
 			>
-				<Filter size={16} />
-				</button>
+				<Filter size={20} />
+			</button>
 
-			<!-- Worker Management -->
 			<button
 				on:click={() => showWorkerManager = true}
-				class="flex items-center justify-center p-2.5 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
+				class="flex items-center justify-center p-3.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-all hover:scale-105 active:scale-95 shadow-sm"
 				title={$_('page__team')}
 			>
-				<Users size={16} />
+				<Users size={20} />
 			</button>
 
-			<!-- Project Management -->
+			<div class="h-8 w-[1px] bg-gray-200 dark:bg-gray-700 mx-1 hidden md:block"></div>
+
 			<button
 				on:click={() => showProjectManager = true}
-				class="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
+				class="flex items-center gap-2.5 px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-400 font-bold text-xs uppercase tracking-widest transition-all hover:scale-105 active:scale-95 shadow-sm hover:text-primary"
 			>
 				<Folder size={16} />
-				<span class="hidden sm:inline">{$_('page__projects')}</span>
+				<span class="hidden lg:inline">{$_('page__projects')}</span>
 			</button>
 			
-			<!-- Sprint Management -->
 			<button
 				on:click={() => showSprintManager = true}
-				class="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
+				class="flex items-center gap-2.5 px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-400 font-bold text-xs uppercase tracking-widest transition-all hover:scale-105 active:scale-95 shadow-sm hover:text-amber-500"
 			>
 				<Flag size={16} />
-				<span class="hidden sm:inline">{$_('page__sprint')}</span>
+				<span class="hidden lg:inline">{$_('page__sprint')}</span>
 			</button>
 
 			<button
 				on:click={() => showMonthlySummary = true}
-				class="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
-				title={$_('page__summary_30_days')}
+				class="flex items-center gap-2.5 px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-400 font-bold text-xs uppercase tracking-widest transition-all hover:scale-105 active:scale-95 shadow-sm hover:text-purple-500"
 			>
 				<CalendarDays size={16} />
-				<span class="hidden sm:inline">{$_('page__summary_30_days')}</span>
+				<span class="hidden lg:inline">Report 1M</span>
 			</button>
 
 			<button
 				on:click={() => showDailyReflect = true}
-				class="flex items-center gap-2 px-4 py-2 border border-blue-300 dark:border-blue-600 rounded-lg bg-blue-50 dark:bg-blue-900/40 hover:bg-blue-100 dark:hover:bg-blue-800 text-blue-700 dark:text-blue-300 transition-colors"
-				title={$_('dailyReflect__title')}
+				class="flex items-center gap-2.5 px-4 py-3 bg-blue-500/10 border border-blue-500/30 rounded-xl hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 font-bold text-xs uppercase tracking-widest transition-all hover:scale-105 active:scale-95 shadow-lg shadow-blue-500/10"
 			>
 				<MessageSquareQuote size={16} />
-				<span class="hidden sm:inline">{$_('dailyReflect__btn_open')}</span>
+				<span class="hidden lg:inline">Daily Summary</span>
 			</button>
 
 			<ExportImport
@@ -2807,28 +2777,6 @@
 				on:exportDatabase={handleExportDatabase}
 				on:importCSV={handleImportCSV}
 			/>
-			
-			<!-- Real-time Collaboration Status -->
-			{#if $realtimeStatus === 'connected'}
-				<div class="flex items-center gap-2 px-3 py-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg border border-emerald-200 dark:border-emerald-800">
-					<div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-					<span class="text-xs font-medium text-emerald-700 dark:text-emerald-400">
-						{$_('page__realtime_connected')}
-					</span>
-					{#if $realtimePeers > 1}
-						<span class="text-xs text-emerald-600 dark:text-emerald-500">
-							· {$realtimePeers} {$_('page__realtime_peers')}
-						</span>
-					{/if}
-				</div>
-			{:else if $realtimeStatus === 'connecting'}
-				<div class="flex items-center gap-2 px-3 py-2 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
-					<div class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></div>
-					<span class="text-xs font-medium text-amber-700 dark:text-amber-400">
-						{$_('page__realtime_connecting')}
-					</span>
-				</div>
-			{/if}
 		</div>
 	</div>
 	
@@ -2846,58 +2794,60 @@
 	{/if}
 
 	<!-- View Tabs -->
-	<div class="flex flex-col sm:flex-row gap-2">
-		<div class="flex-1 flex p-1 bg-gray-100 dark:bg-gray-800 rounded-lg transition-colors">
+	<div class="flex flex-col lg:flex-row gap-4 items-center bg-white/50 dark:bg-gray-900/30 p-2 rounded-2xl border border-gray-200/50 dark:border-gray-800/50 backdrop-blur-sm shadow-sm transition-all">
+		<div class="flex-1 flex p-1 bg-gray-200/80 dark:bg-gray-800/80 rounded-xl transition-all w-full overflow-x-auto scrollbar-none">
 			{#each visibleTabs as tab (tab.id)}
 				<button
 					on:click={() => switchView(tab.id)}
-					class="flex-1 flex items-center justify-center gap-2 px-2 sm:px-4 py-2 rounded-md text-sm font-medium transition-colors {currentView === tab.id ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}"
+					class="flex-1 min-w-[100px] flex items-center justify-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-bold uppercase tracking-wider transition-all duration-300 {currentView === tab.id ? 'bg-white dark:bg-gray-700 text-primary dark:text-white shadow-lg ring-1 ring-black/5' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-white/5'}"
 				>
-					{#if tab.icon === 'List'}
-						<List size={16} />
-					{:else if tab.icon === 'CalendarDays'}
-						<CalendarDays size={16} />
-					{:else if tab.icon === 'Columns3'}
-						<Columns3 size={16} />
-					{:else if tab.icon === 'Table'}
-						<Table size={16} />
-					{:else if tab.icon === 'GanttChart'}
-						<GanttChart size={16} />
-					{:else if tab.icon === 'UsersRound'}
-						<UsersRound size={16} />
-					{/if}
-					<span class="hidden sm:inline">{$_(`tabs__${tab.id}`)}</span>
+					<div class="p-1 rounded-md {currentView === tab.id ? 'bg-primary/10 text-primary dark:text-white' : 'text-gray-400 dark:text-gray-500'}">
+						{#if tab.icon === 'List'}
+							<List size={16} />
+						{:else if tab.icon === 'CalendarDays'}
+							<CalendarDays size={16} />
+						{:else if tab.icon === 'Columns3'}
+							<Columns3 size={16} />
+						{:else if tab.icon === 'Table'}
+							<Table size={16} />
+						{:else if tab.icon === 'GanttChart'}
+							<GanttChart size={16} />
+						{:else if tab.icon === 'UsersRound'}
+							<UsersRound size={16} />
+						{/if}
+					</div>
+					<span>{$_(`tabs__${tab.id}`)}</span>
 				</button>
 			{/each}
 		</div>
 		
-		<!-- Tab Settings -->
-		<div class="relative">
+		<div class="flex items-center gap-2 shrink-0 w-full lg:w-auto overflow-x-auto lg:overflow-visible">
+			<!-- Tab Settings -->
 			<button
 				on:click={() => showTabSettings = !showTabSettings}
-				class="flex items-center justify-center gap-2 px-4 py-2 h-10 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
+				class="flex items-center justify-center gap-2 p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-all hover:scale-105 active:scale-95 shadow-sm"
 				title={$_('page__tab_settings')}
 			>
-				<Settings2 size={16} />
+				<Settings2 size={18} />
 			</button>
 			
 			{#if showTabSettings}
-				<div class="absolute top-full right-0 mt-2 z-50">
+				<div class="absolute top-[calc(100%+1rem)] right-0 z-100 animate-fade-in origin-top-right">
 					<TabSettings 
 						on:close={() => showTabSettings = false}
 						on:save={() => showTabSettings = false}
 					/>
 				</div>
 			{/if}
+
+			<button
+				on:click={() => { showForm = !showForm; editingTask = null; }}
+				class="flex-1 lg:flex-none flex items-center justify-center gap-2.5 px-6 py-3 bg-primary hover:bg-primary-dark text-white rounded-xl font-black uppercase tracking-widest transition-all hover:scale-[1.02] active:scale-95 shadow-lg shadow-primary/20 ring-1 ring-white/10 text-sm"
+			>
+				<Plus size={20} strokeWidth={3} />
+				<span>{$_('page__add_task')}</span>
+			</button>
 		</div>
-		
-		<button
-			on:click={() => { showForm = !showForm; editingTask = null; }}
-			class="flex items-center justify-center gap-2 px-4 py-2 h-10 bg-primary hover:bg-primary-dark text-white rounded-lg font-medium transition-colors sm:w-auto w-full"
-		>
-			<Plus size={18} />
-			<span class="hidden sm:inline">{$_('page__add_task')}</span>
-		</button>
 	</div>
 	<!-- Filters Panel -->
 	{#if showFilters}
@@ -3033,8 +2983,24 @@
 	/>
 	
 	<!-- Views -->
-	<div class="mt-6">
-		{#if currentView === 'list'}
+	<div class="mt-8">
+		{#if filteredTasks.length === 0}
+			<div class="flex flex-col items-center justify-center py-32 bg-white/5 dark:bg-gray-800/20 rounded-3xl border border-dashed border-gray-200 dark:border-gray-700 space-y-6">
+				<div class="w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center">
+					<ListTodo size={48} class="text-gray-300 dark:text-gray-600" />
+				</div>
+				<div class="text-center">
+					<h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">No tasks at this time</h3>
+					<p class="text-gray-500 dark:text-gray-400">Try adding a new task!</p>
+				</div>
+				<button
+					on:click={() => { showForm = true; editingTask = null; }}
+					class="px-6 py-3 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/20 hover:scale-105 transition-all active:scale-95"
+				>
+					Add Your First Task
+				</button>
+			</div>
+		{:else if currentView === 'list'}
 			<TaskList
 				tasks={filteredTasks}
 				sprints={$sprints}
@@ -3237,6 +3203,7 @@
 			{assignees}
 			{workerStats}
 			{isOwner}
+			workspaceId={$page.params.workspace_id}
 			on:close={() => showWorkerManager = false}
 			on:add={handleAddWorker}
 			on:update={handleUpdateWorker}

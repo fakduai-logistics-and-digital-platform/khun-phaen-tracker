@@ -1,5 +1,5 @@
 use axum::{
-    extract::{State, Json},
+    extract::{State, Json, Query},
     response::IntoResponse,
 };
 use axum_extra::extract::cookie::CookieJar;
@@ -9,6 +9,7 @@ use mongodb::bson::oid::ObjectId;
 use crate::models::auth::{AuthRequest, Claims, InviteRequest, SetupPasswordPayload, SetupPasswordRequest, UpdateProfileRequest};
 use crate::repositories::user_repo::UserRepository;
 use crate::repositories::profile_repo::ProfileRepository;
+use crate::repositories::workspace_repo::WorkspaceRepository;
 use crate::services::auth_service::AuthService;
 use crate::state::SharedState;
 
@@ -209,6 +210,7 @@ pub async fn list_users_handler(
     State(state): State<SharedState>,
     jar: CookieJar,
     headers: axum::http::HeaderMap,
+    Query(query): Query<ListUsersQuery>,
 ) -> axum::response::Response {
     let claims = match extract_claims(&headers, &jar, &state.jwt_secret) {
         Some(c) => c,
@@ -218,11 +220,52 @@ pub async fn list_users_handler(
         ).into_response(),
     };
 
+    // Admin can always list users.
+    // Non-admin can list users only if they own the requested workspace.
     if claims.role != "admin" {
-        return (
-            axum::http::StatusCode::FORBIDDEN,
-            axum::Json(serde_json::json!({ "error": "Admin access required" })),
-        ).into_response();
+        let requester_id = match ObjectId::parse_str(&claims.sub) {
+            Ok(id) => id,
+            Err(_) => return (
+                axum::http::StatusCode::UNAUTHORIZED,
+                axum::Json(serde_json::json!({ "error": "Unauthorized" })),
+            ).into_response(),
+        };
+
+        let workspace_id = match query.workspace_id {
+            Some(id) => id,
+            None => return (
+                axum::http::StatusCode::FORBIDDEN,
+                axum::Json(serde_json::json!({ "error": "workspace_id is required for non-admin users" })),
+            ).into_response(),
+        };
+
+        let ws_oid = match ObjectId::parse_str(&workspace_id) {
+            Ok(id) => id,
+            Err(_) => return (
+                axum::http::StatusCode::BAD_REQUEST,
+                axum::Json(serde_json::json!({ "error": "Invalid workspace ID syntax" })),
+            ).into_response(),
+        };
+
+        let workspace_repo = WorkspaceRepository::new(&state.db);
+        let workspace = match workspace_repo.find_by_id(&ws_oid).await {
+            Ok(Some(ws)) => ws,
+            Ok(None) => return (
+                axum::http::StatusCode::NOT_FOUND,
+                axum::Json(serde_json::json!({ "error": "Workspace not found" })),
+            ).into_response(),
+            Err(_) => return (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                axum::Json(serde_json::json!({ "error": "Database error" })),
+            ).into_response(),
+        };
+
+        if workspace.owner_id != requester_id {
+            return (
+                axum::http::StatusCode::FORBIDDEN,
+                axum::Json(serde_json::json!({ "error": "Only admin or workspace owner can list users" })),
+            ).into_response();
+        }
     }
 
     let user_repo = UserRepository::new(&state.db);
@@ -235,6 +278,11 @@ pub async fn list_users_handler(
             axum::Json(serde_json::json!({ "error": e })),
         ).into_response()
     }
+}
+
+#[derive(serde::Deserialize)]
+pub struct ListUsersQuery {
+    pub workspace_id: Option<String>,
 }
 
 pub fn extract_user_id(

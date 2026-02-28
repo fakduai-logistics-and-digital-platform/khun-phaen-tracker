@@ -139,6 +139,10 @@ async fn main() {
         .route("/api/workspaces/:ws_id/assignees", post(handlers::data_handler::create_assignee))
         .route("/api/workspaces/:ws_id/assignees/:assignee_id", put(handlers::data_handler::update_assignee))
         .route("/api/workspaces/:ws_id/assignees/:assignee_id", delete(handlers::data_handler::delete_assignee))
+        .route("/api/workspaces/:ws_id/sprints", get(handlers::data_handler::list_sprints))
+        .route("/api/workspaces/:ws_id/sprints", post(handlers::data_handler::create_sprint))
+        .route("/api/workspaces/:ws_id/sprints/:sprint_id", put(handlers::data_handler::update_sprint))
+        .route("/api/workspaces/:ws_id/sprints/:sprint_id", delete(handlers::data_handler::delete_sprint))
         .route("/ws", get(handlers::ws_handler::ws_handler))
         .layer(
             tower_http::cors::CorsLayer::new()

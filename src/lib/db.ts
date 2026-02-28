@@ -5,7 +5,7 @@
  * This module replaces the previous SQLite WASM / localStorage approach.
  */
 
-import type { Task, Project, Assignee, FilterOptions } from "./types";
+import type { Task, Project, Assignee, Sprint, FilterOptions } from "./types";
 import { api } from "./apis";
 import { getWorkspaceId, loadWorkspaceId } from "./stores/workspace";
 import { broadcastChange } from "./stores/realtime";
@@ -13,6 +13,13 @@ import { broadcastChange } from "./stores/realtime";
 // ===== Initialisation =====
 
 let _initialized = false;
+let _assigneesCache: Assignee[] | null = null;
+let _projectsCache: Project[] | null = null;
+let _sprintsCache: Sprint[] | null = null;
+let _lastAssigneeFetch = 0;
+let _lastProjectFetch = 0;
+let _lastSprintFetch = 0;
+const CACHE_TTL = 2000; // 2 seconds cache for metadata
 
 export async function initDB(): Promise<void> {
   if (_initialized) return;
@@ -87,6 +94,19 @@ function docToAssignee(doc: any): Assignee {
   };
 }
 
+function docToSprint(doc: any): Sprint {
+  return {
+    id: extractId(doc),
+    name: doc.name || "",
+    start_date: doc.start_date || "",
+    end_date: doc.end_date || "",
+    status: doc.status || "planned",
+    completed_at: doc.completed_at || undefined,
+    archived_count: doc.archived_count || undefined,
+    created_at: doc.created_at || "",
+  };
+}
+
 // ===== Task Functions =====
 
 export async function addTask(
@@ -109,6 +129,7 @@ export async function addTask(
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Failed to create task");
   const newTask = docToTask(data.task);
+  _assigneesCache = null; // Invalidate cache in case of new assignee IDs
   broadcastChange("task", "create", newTask.id as string, newTask);
   return newTask.id as string;
 }
@@ -213,8 +234,9 @@ export async function getTasks(filter?: FilterOptions): Promise<Task[]> {
         task.assignee_id = task.assignees[0]?.id ?? null;
       }
     }
-  } catch {
+  } catch (e) {
     // Assignee enrichment is best-effort
+    console.error("Assignee enrichment failed:", e);
   }
 
   return tasks;
@@ -254,10 +276,17 @@ export async function getProjects(): Promise<string[]> {
 }
 
 export async function getProjectsList(): Promise<Project[]> {
+  const now = Date.now();
+  if (_projectsCache && now - _lastProjectFetch < CACHE_TTL) {
+    return _projectsCache;
+  }
+
   const res = await api.data.projects.list(wsId());
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Failed to fetch projects");
-  return (data.projects || []).map(docToProject);
+  _projectsCache = (data.projects || []).map(docToProject);
+  _lastProjectFetch = now;
+  return _projectsCache || [];
 }
 
 export async function getProjectStats(): Promise<
@@ -283,6 +312,7 @@ export async function addProject(
     throw new Error(data.error || "Failed to create project");
   }
   const newProject = docToProject(data.project);
+  _projectsCache = null; // Invalidate
   broadcastChange("project", "create", newProject.id as string, newProject);
 }
 
@@ -300,6 +330,7 @@ export async function updateProject(
   if (!res.ok) {
     throw new Error(data.error || "Failed to update project");
   }
+  _projectsCache = null; // Invalidate
   broadcastChange("project", "update", String(id), payload);
 }
 
@@ -309,16 +340,24 @@ export async function deleteProject(id: string | number): Promise<void> {
     const data = await res.json();
     throw new Error(data.error || "Failed to delete project");
   }
+  _projectsCache = null; // Invalidate
   broadcastChange("project", "delete", String(id));
 }
 
 // ===== Assignee Functions =====
 
 export async function getAssignees(): Promise<Assignee[]> {
+  const now = Date.now();
+  if (_assigneesCache && now - _lastAssigneeFetch < CACHE_TTL) {
+    return _assigneesCache;
+  }
+
   const res = await api.data.assignees.list(wsId());
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Failed to fetch assignees");
-  return (data.assignees || []).map(docToAssignee);
+  _assigneesCache = (data.assignees || []).map(docToAssignee);
+  _lastAssigneeFetch = now;
+  return _assigneesCache || [];
 }
 
 export async function getAssigneeStats(): Promise<
@@ -348,6 +387,7 @@ export async function addAssignee(
     throw new Error(data.error || "Failed to create assignee");
   }
   const newAssignee = docToAssignee(data.assignee);
+  _assigneesCache = null; // Invalidate
   broadcastChange("assignee", "create", newAssignee.id as string, newAssignee);
 }
 
@@ -367,6 +407,7 @@ export async function updateAssignee(
   if (!res.ok) {
     throw new Error(data.error || "Failed to update assignee");
   }
+  _assigneesCache = null; // Invalidate
   broadcastChange("assignee", "update", String(id), payload);
 }
 
@@ -376,7 +417,72 @@ export async function deleteAssignee(id: string | number): Promise<void> {
     const data = await res.json();
     throw new Error(data.error || "Failed to delete assignee");
   }
+  _assigneesCache = null; // Invalidate
   broadcastChange("assignee", "delete", String(id));
+}
+
+// ===== Sprint Functions =====
+
+export async function getSprints(): Promise<Sprint[]> {
+  const now = Date.now();
+  if (_sprintsCache && now - _lastSprintFetch < CACHE_TTL) {
+    return _sprintsCache;
+  }
+
+  const res = await api.data.sprints.list(wsId());
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Failed to fetch sprints");
+  _sprintsCache = (data.sprints || []).map(docToSprint);
+  _lastSprintFetch = now;
+  return _sprintsCache || [];
+}
+
+export async function addSprint(
+  sprint: Omit<Sprint, "id" | "created_at">,
+): Promise<Sprint> {
+  const res = await api.data.sprints.create(wsId(), {
+    name: sprint.name,
+    start_date: sprint.start_date,
+    end_date: sprint.end_date,
+    status: sprint.status || "planned",
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Failed to create sprint");
+  const newSprint = docToSprint(data.sprint);
+  _sprintsCache = null;
+  broadcastChange("sprint", "create", newSprint.id as string, newSprint);
+  return newSprint;
+}
+
+export async function updateSprint(
+  id: string | number,
+  updates: Partial<Sprint>,
+): Promise<void> {
+  const payload: Record<string, any> = {};
+  if (updates.name !== undefined) payload.name = updates.name;
+  if (updates.start_date !== undefined) payload.start_date = updates.start_date;
+  if (updates.end_date !== undefined) payload.end_date = updates.end_date;
+  if (updates.status !== undefined) payload.status = updates.status;
+  if (updates.completed_at !== undefined)
+    payload.completed_at = updates.completed_at || null;
+  if (updates.archived_count !== undefined)
+    payload.archived_count = updates.archived_count;
+
+  const res = await api.data.sprints.update(wsId(), String(id), payload);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Failed to update sprint");
+  _sprintsCache = null;
+  broadcastChange("sprint", "update", String(id), payload);
+}
+
+export async function deleteSprint(id: string | number): Promise<void> {
+  const res = await api.data.sprints.delete(wsId(), String(id));
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.error || "Failed to delete sprint");
+  }
+  _sprintsCache = null;
+  broadcastChange("sprint", "delete", String(id));
 }
 
 // ===== Stats / Categories =====
@@ -387,8 +493,7 @@ export async function getCategories(): Promise<string[]> {
   return Array.from(cats).sort();
 }
 
-export async function getStats() {
-  const tasks = await getTasks({ includeArchived: true });
+export function getStatsFromTasks(tasks: Task[]) {
   const total = tasks.length;
   const todo = tasks.filter((t) => t.status === "todo").length;
   const in_progress = tasks.filter((t) => t.status === "in-progress").length;
@@ -400,6 +505,11 @@ export async function getStats() {
   );
 
   return { total, todo, in_progress, in_test, done, total_minutes };
+}
+
+export async function getStats() {
+  const tasks = await getTasks({ includeArchived: true });
+  return getStatsFromTasks(tasks);
 }
 
 export function getTaskStats(): {
@@ -475,7 +585,8 @@ export async function exportAllData(): Promise<string> {
   const tasks = await getTasks({ includeArchived: true });
   const projects = await getProjectsList();
   const assignees = await getAssignees();
-  return JSON.stringify({ tasks, projects, assignees }, null, 2);
+  const sprints = await getSprints();
+  return JSON.stringify({ tasks, projects, assignees, sprints }, null, 2);
 }
 
 export async function importAllData(

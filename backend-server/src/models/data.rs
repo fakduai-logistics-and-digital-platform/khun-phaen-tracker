@@ -147,6 +147,47 @@ pub struct UpdateAssigneeRequest {
     pub user_id: Option<Option<String>>,
 }
 
+// ===== Sprint Document =====
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SprintDocument {
+    #[serde(rename = "_id", skip_serializing_if = "Option::is_none")]
+    pub id: Option<ObjectId>,
+    pub workspace_id: ObjectId,
+    pub name: String,
+    pub start_date: String,
+    pub end_date: String,
+    #[serde(default = "default_sprint_status")]
+    pub status: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub completed_at: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub archived_count: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<String>,
+}
+
+fn default_sprint_status() -> String { "planned".to_string() }
+
+#[derive(Debug, Deserialize)]
+pub struct CreateSprintRequest {
+    pub name: String,
+    pub start_date: String,
+    pub end_date: String,
+    #[serde(default = "default_sprint_status")]
+    pub status: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UpdateSprintRequest {
+    pub name: Option<String>,
+    pub start_date: Option<String>,
+    pub end_date: Option<String>,
+    pub status: Option<String>,
+    pub completed_at: Option<Option<String>>,
+    pub archived_count: Option<i64>,
+}
+
 // ===== Filter / Query =====
 
 #[derive(Debug, Deserialize, Default)]

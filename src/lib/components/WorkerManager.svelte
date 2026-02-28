@@ -16,6 +16,7 @@
 	export let assignees: Assignee[] = [];
 	export let workerStats: { id: string | number; taskCount: number }[] = [];
 	export let isOwner = true;
+	export let workspaceId = '';
 	
 	let showAddForm = false;
 	let editingWorker: Assignee | null = null;
@@ -42,7 +43,7 @@
 	async function fetchSystemUsers() {
 		loadingUsers = true;
 		try {
-			const res = await api.auth.listUsers();
+			const res = await api.auth.listUsers(workspaceId || undefined);
 			if (res.ok) {
 				const data = await res.json();
 				systemUsers = data.users || [];
@@ -411,5 +412,4 @@
 		</div>
 	</div>
 </div>
-
 

@@ -100,7 +100,7 @@ export const api = {
         body: JSON.stringify(payload),
       });
     },
-    listUsers: async (): Promise<Response> => {
+    listUsers: async (workspaceId?: string): Promise<Response> => {
       let token = "";
       if (typeof document !== "undefined") {
         const match = document.cookie.match(
@@ -112,7 +112,11 @@ export const api = {
       const headers: Record<string, string> = { Accept: "application/json" };
       if (token) headers["Authorization"] = `Bearer ${token}`;
 
-      return fetch(`${API_BASE_URL}/auth/users`, {
+      const query = workspaceId
+        ? `?workspace_id=${encodeURIComponent(workspaceId)}`
+        : "";
+
+      return fetch(`${API_BASE_URL}/auth/users${query}`, {
         headers,
         credentials: "include",
       });
@@ -402,6 +406,52 @@ export const api = {
       delete: (wsId: string, assigneeId: string): Promise<Response> => {
         return fetch(
           `${API_BASE_URL}/workspaces/${wsId}/assignees/${assigneeId}`,
+          {
+            method: "DELETE",
+            headers: api.data._headers(),
+            credentials: "include",
+          },
+        );
+      },
+    },
+
+    // Sprints
+    sprints: {
+      list: (wsId: string): Promise<Response> => {
+        return fetch(`${API_BASE_URL}/workspaces/${wsId}/sprints`, {
+          headers: api.data._headers(),
+          credentials: "include",
+        });
+      },
+      create: (
+        wsId: string,
+        sprint: Record<string, any>,
+      ): Promise<Response> => {
+        return fetch(`${API_BASE_URL}/workspaces/${wsId}/sprints`, {
+          method: "POST",
+          headers: api.data._headers(true),
+          credentials: "include",
+          body: JSON.stringify(sprint),
+        });
+      },
+      update: (
+        wsId: string,
+        sprintId: string,
+        updates: Record<string, any>,
+      ): Promise<Response> => {
+        return fetch(
+          `${API_BASE_URL}/workspaces/${wsId}/sprints/${sprintId}`,
+          {
+            method: "PUT",
+            headers: api.data._headers(true),
+            credentials: "include",
+            body: JSON.stringify(updates),
+          },
+        );
+      },
+      delete: (wsId: string, sprintId: string): Promise<Response> => {
+        return fetch(
+          `${API_BASE_URL}/workspaces/${wsId}/sprints/${sprintId}`,
           {
             method: "DELETE",
             headers: api.data._headers(),

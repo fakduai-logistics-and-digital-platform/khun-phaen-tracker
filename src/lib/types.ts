@@ -15,7 +15,7 @@ export interface Assignee {
 }
 
 export interface Sprint {
-  id?: number;
+  id?: string | number;
   name: string;
   start_date: string;
   end_date: string;
