@@ -10,6 +10,7 @@ export interface Assignee {
   name: string;
   color?: string; // สำหรับสีประจำตัว เช่น #FF5733
   discord_id?: string;
+  user_id?: string;
   created_at?: string;
 }
 

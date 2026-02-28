@@ -13,7 +13,7 @@
 	import QuickNotes from '$lib/components/QuickNotes.svelte';
 	import { _ } from 'svelte-i18n';
 	import { initAuth, user, authLoading } from '$lib/stores/auth';
-	import { LogIn, LogOut, User as UserIcon } from 'lucide-svelte';
+	import { LogIn, LogOut, User as UserIcon, Settings } from 'lucide-svelte';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import { base } from '$app/paths';
@@ -29,8 +29,25 @@
 	let showWhiteboard = false;
 	let showQuickNotes = false;
 	let showLanguageDropdown = false;
+	let showAccountDropdown = false;
 	let whiteboardMessage = '';
 	let whiteboardMessageType: 'success' | 'error' = 'success';
+	let githubStars = '...';
+
+	async function fetchGithubStars() {
+		try {
+			const res = await fetch('https://api.github.com/repos/watchakorn-18k/khun-phaen-tracker-offline');
+			const data = await res.json();
+			if (data.stargazers_count !== undefined) {
+				githubStars = data.stargazers_count.toLocaleString();
+			} else {
+				githubStars = '0';
+			}
+		} catch (e) {
+			console.error('Failed to fetch stars:', e);
+			githubStars = '0';
+		}
+	}
 
 	function handleOpenUtilityModal(event: Event) {
 		const customEvent = event as CustomEvent<{ kind?: string }>;
@@ -66,6 +83,8 @@
 		}, 1000);
 
 		document.addEventListener('open-utility-modal', handleOpenUtilityModal);
+		
+		fetchGithubStars();
 	});
 	
 	onDestroy(() => {
@@ -140,6 +159,7 @@
 
 	$: isAuthPage = $page.url.pathname.endsWith('/login') || $page.url.pathname.endsWith('/create-account') || $page.url.pathname.endsWith('/setup-password');
 	$: isDashboard = $page.url.pathname.endsWith('/dashboard');
+	$: isUsersPage = $page.url.pathname.endsWith('/settings/users');
 	$: containerWidth = isDashboard ? 'w-full max-w-full px-4 sm:px-8' : 'max-w-7xl px-4 sm:px-6 lg:px-8';
 	
 	$: if (!$authLoading && browser) {
@@ -194,24 +214,47 @@
 		<header class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-999 transition-colors">
 			<div class="{containerWidth} mx-auto">
 				<div class="flex items-center justify-between h-16">
-					<div class="flex items-center gap-3">
-						<div class="p-2 bg-primary/10 rounded-lg">
-							<img src={favicon} alt="Logo" class="w-6 h-6" />
-						</div>
-						<div>
-							<h1 class="text-xl font-bold text-gray-900 dark:text-white">{$_('layout__app_name')}</h1>
-							<p class="text-xs text-gray-500 dark:text-gray-400">{$_('layout__app_subtitle')}</p>
-						</div>
+					<div class="flex items-center gap-2 sm:gap-4">
+						<a 
+							href="{base}/dashboard" 
+							class="flex items-center gap-2.5 sm:gap-3 group transition-all"
+						>
+							<div class="p-2 bg-gradient-to-br from-indigo-500/20 to-purple-500/10 rounded-xl group-hover:scale-105 group-active:scale-95 transition-all ring-1 ring-indigo-500/20 shadow-sm">
+								<img src={favicon} alt="Khun Phaen Logo" class="w-6 h-6 object-contain" />
+							</div>
+							<div class="hidden sm:block">
+								<h1 class="text-lg font-black text-gray-900 dark:text-white tracking-tight leading-none group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{$_('layout__app_name')}</h1>
+								<p class="text-[10px] text-gray-500 dark:text-gray-400 leading-tight mt-0.5 opacity-80 font-medium">{$_('layout__app_subtitle')}</p>
+							</div>
+						</a>
 
-						<!-- GitHub Link -->
+						<div class="hidden sm:block h-6 w-[1px] bg-gray-200 dark:bg-gray-700 mx-1"></div>
+
+						<!-- SaaS Style GitHub Badge -->
 						<a
 							href="https://github.com/watchakorn-18k/khun-phaen-tracker-offline"
 							target="_blank"
 							rel="noopener noreferrer"
-							class="p-1.5 ml-2 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition-all border border-transparent hover:border-gray-200 dark:hover:border-gray-600"
-							title={$_('layout__github')}
+							class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/50 dark:bg-white/5 hover:bg-white dark:hover:bg-white/10 text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-white transition-all text-xs font-bold border border-gray-200 dark:border-gray-700 group/github shadow-sm backdrop-blur-md"
 						>
-							<Github size={18} />
+							<Github size={14} class="group-hover/github:rotate-12 transition-transform" />
+							<span>{$_('layout__github')}</span>
+							<div class="flex items-center gap-1.5 pl-2 ml-1 border-l border-gray-200 dark:border-gray-600">
+								<div class="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-indigo-500/10 dark:bg-indigo-500/20 text-[10px] text-indigo-600 dark:text-indigo-400 font-black">
+									<span class="text-xs text-amber-500 leading-none">★</span>
+									{githubStars}
+								</div>
+							</div>
+						</a>
+						
+						<!-- Mobile GitHub Icon Only -->
+						<a
+							href="https://github.com/watchakorn-18k/khun-phaen-tracker-offline"
+							target="_blank"
+							rel="noopener noreferrer"
+							class="flex sm:hidden p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+						>
+							<Github size={20} />
 						</a>
 					</div>
 					<div class="flex items-center gap-4">
@@ -292,23 +335,91 @@
 							</a>
 						{/if}
 
-						<!-- Auth Profile -->
+						<!-- Auth Profile Section -->
 						{#if $user}
-							<div class="flex items-center gap-3 border-l border-gray-200 dark:border-gray-700 pl-4 h-10">
-								<div class="hidden md:flex flex-col items-end">
-									<span class="text-xs font-semibold text-gray-900 dark:text-white">{$user.email.split('@')[0]}</span>
-									<span class="text-xs font-semibold text-gray-900 dark:text-white capitalize">{$user.role}</span>
+							<div class="flex items-center gap-4 border-l border-gray-200 dark:border-gray-700 pl-4 h-10">
+								<div class="relative">
+									<button
+										type="button"
+										on:click={() => showAccountDropdown = !showAccountDropdown}
+										class="flex items-center group transition-transform active:scale-95"
+										title="Account Settings"
+									>
+										<!-- Perfect Geometric Avatar -->
+										<div class="relative">
+											<div class="w-9 h-9 rounded-full border-2 border-indigo-500 bg-white dark:bg-gray-800 flex items-center justify-center overflow-hidden transition-colors">
+												<span class="text-xs font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-tighter">
+													{($user.profile?.nickname || $user.email.split('@')[0])[0]}
+												</span>
+											</div>
+
+											<!-- Consistent Status Dot -->
+											<div class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-white dark:bg-gray-800 rounded-full flex items-center justify-center">
+												<div class="w-2 h-2 bg-green-500 rounded-full"></div>
+											</div>
+										</div>
+									</button>
+
+									{#if showAccountDropdown}
+										<!-- svelte-ignore a11y-click-events-have-key-events -->
+										<!-- svelte-ignore a11y-no-static-element-interactions -->
+										<div 
+											class="fixed inset-0 z-20"
+											on:click={() => showAccountDropdown = false}
+										></div>
+										
+										<div class="absolute right-0 top-full mt-3 w-60 bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-700/50 py-2.5 z-30 animate-in fade-in zoom-in-95 duration-200 origin-top-right ring-1 ring-black/5 dark:ring-white/5">
+											<!-- Dropdown Header (Matches the style in the reference image) -->
+											<div class="px-4 py-3 border-b border-gray-100 dark:border-gray-700/50 mb-1.5">
+												<div class="flex items-center gap-3">
+													<div class="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-white font-bold text-sm shadow-sm ring-2 ring-indigo-500/10">
+														{($user.profile?.nickname || $user.email.split('@')[0])[0]}
+													</div>
+													<div class="flex flex-col overflow-hidden">
+														<span class="text-sm font-bold text-gray-900 dark:text-white truncate">
+															{$user.profile?.nickname || $user.email.split('@')[0]}
+														</span>
+														<span class="text-[10px] font-extrabold uppercase tracking-widest text-indigo-500 dark:text-indigo-400 mt-0.5">
+															{$user.role}
+														</span>
+													</div>
+												</div>
+											</div>
+
+											<div class="px-2 space-y-0.5">
+												<a
+													href="{base}/settings"
+													class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors group/item"
+													on:click={() => showAccountDropdown = false}
+												>
+													<div class="p-1.5 rounded-lg bg-gray-50 dark:bg-gray-900 group-hover/item:bg-white dark:group-hover/item:bg-gray-800 transition-colors">
+														<Settings size={14} class="text-gray-500 group-hover/item:text-indigo-500 transition-colors" />
+													</div>
+													<span class="font-medium">{$_('layout__profile_settings')}</span>
+												</a>
+
+												<button
+													on:click={() => {
+														showAccountDropdown = false;
+														handleLogout();
+													}}
+													class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors group/logout"
+												>
+													<div class="p-1.5 rounded-lg bg-red-50/50 dark:bg-red-900/10 group-hover/logout:bg-red-100 dark:group-hover/logout:bg-red-900/20 transition-colors">
+														<LogOut size={14} class="text-red-500" />
+													</div>
+													<span class="font-medium">{$_('layout__logout')}</span>
+												</button>
+											</div>
+
+											<div class="px-4 py-2 mt-1 border-t border-gray-100 dark:border-gray-700/50">
+												<p class="text-[10px] text-gray-400 dark:text-gray-500 truncate">
+													{$user.email}
+												</p>
+											</div>
+										</div>
+									{/if}
 								</div>
-								<div class="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-white ring-2 ring-indigo-500/20">
-									<UserIcon size={16} />
-								</div>
-								<button 
-									on:click={handleLogout}
-									class="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 transition-colors"
-									title="Logout"
-								>
-									<LogOut size={20} />
-								</button>
 							</div>
 						{:else if !isAuthPage && !$authLoading}
 							<a 
@@ -337,7 +448,7 @@
 		{/if}
 
 		<!-- Dev Timer - Fixed Bottom Right -->
-		{#if !isDashboard}
+		{#if !isDashboard && !isUsersPage}
 			<DevTimer 
 				on:showBookmarks={() => showBookmarkManager = true}
 				on:showWhiteboard={() => showWhiteboard = true}

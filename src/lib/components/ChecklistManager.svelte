@@ -88,6 +88,10 @@
 		else next.add(id);
 		selectedChecklistIds = next;
 	}
+
+	function focusOnMount(node: HTMLInputElement) {
+		node.focus();
+	}
 </script>
 
 <div class="space-y-4">
@@ -251,7 +255,7 @@
 				}}
 				placeholder="Add an item"
 				class="w-full px-3 py-2 text-sm bg-white dark:bg-gray-950 border-2 border-primary/50 rounded-md focus:border-primary outline-none transition-all text-gray-900 dark:text-white"
-				autofocus
+				use:focusOnMount
 			/>
 			<div class="flex items-center gap-3">
 				<button

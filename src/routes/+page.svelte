@@ -919,12 +919,13 @@
 	}
 
 	// Worker Management Functions
-	async function handleAddWorker(event: CustomEvent<{ name: string; color: string; discord_id?: string }>) {
+	async function handleAddWorker(event: CustomEvent<{ name: string; color: string; discord_id?: string; user_id?: string }>) {
 		try {
 			await addAssigneeDB({ 
 				name: event.detail.name, 
 				color: event.detail.color,
-				discord_id: event.detail.discord_id 
+				discord_id: event.detail.discord_id,
+				user_id: event.detail.user_id
 			});
 			await loadData();
 			showMessage($_('page__add_worker_success'));
@@ -934,12 +935,13 @@
 		}
 	}
 	
-	async function handleUpdateWorker(event: CustomEvent<{ id: number; name: string; color: string; discord_id?: string }>) {
+	async function handleUpdateWorker(event: CustomEvent<{ id: string | number; name: string; color: string; discord_id?: string; user_id?: string }>) {
 		try {
 			await updateAssignee(event.detail.id, { 
 				name: event.detail.name, 
 				color: event.detail.color,
-				discord_id: event.detail.discord_id 
+				discord_id: event.detail.discord_id,
+				user_id: event.detail.user_id
 			});
 			await loadData();
 			showMessage($_('page__update_worker_success'));
@@ -949,7 +951,7 @@
 		}
 	}
 	
-	async function handleDeleteWorker(event: CustomEvent<number>) {
+	async function handleDeleteWorker(event: CustomEvent<string | number>) {
 		try {
 			await deleteAssignee(event.detail);
 			await loadData();

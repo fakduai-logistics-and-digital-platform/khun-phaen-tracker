@@ -45,11 +45,21 @@ pub async fn invite_handler(
     }
 
     match AuthService::invite(&user_repo, &profile_repo, payload).await {
-        Ok(token) => axum::Json(serde_json::json!({ 
-            "success": true, 
-            "message": "Invitation created",
-            "setup_link": format!("/setup-password?token={}", token) // In real app, this would be emailed
-        })).into_response(),
+        Ok(token) => {
+            if token == "ACTV" {
+                axum::Json(serde_json::json!({ 
+                    "success": true, 
+                    "message": "User account created and activated successfully",
+                    "activated": true
+                })).into_response()
+            } else {
+                axum::Json(serde_json::json!({ 
+                    "success": true, 
+                    "message": "Invitation created successfully",
+                    "setup_link": format!("/setup-password?token={}", token)
+                })).into_response()
+            }
+        },
         Err(e) => (
             axum::http::StatusCode::BAD_REQUEST,
             axum::Json(serde_json::json!({ "error": e })),
@@ -249,3 +259,35 @@ pub fn extract_claims(
     ).ok().map(|data| data.claims)
 }
 
+pub async fn delete_user_handler(
+    State(state): State<SharedState>,
+    jar: CookieJar,
+    headers: axum::http::HeaderMap,
+    axum::extract::Path(id): axum::extract::Path<String>,
+) -> axum::response::Response {
+    let claims = match extract_claims(&headers, &jar, &state.jwt_secret) {
+        Some(c) => c,
+        None => return (
+            axum::http::StatusCode::UNAUTHORIZED,
+            axum::Json(serde_json::json!({ "error": "Unauthorized" })),
+        ).into_response(),
+    };
+
+    if claims.role != "admin" {
+        return (
+            axum::http::StatusCode::FORBIDDEN,
+            axum::Json(serde_json::json!({ "error": "Admin access required" })),
+        ).into_response();
+    }
+
+    let user_repo = UserRepository::new(&state.db);
+    let profile_repo = ProfileRepository::new(&state.db);
+
+    match AuthService::delete_user(&user_repo, &profile_repo, &id).await {
+        Ok(_) => axum::Json(serde_json::json!({ "success": true })).into_response(),
+        Err(e) => (
+            axum::http::StatusCode::BAD_REQUEST,
+            axum::Json(serde_json::json!({ "error": e })),
+        ).into_response()
+    }
+}

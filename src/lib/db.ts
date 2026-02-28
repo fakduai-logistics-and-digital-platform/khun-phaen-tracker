@@ -82,6 +82,7 @@ function docToAssignee(doc: any): Assignee {
     name: doc.name || "",
     color: doc.color || "#6366F1",
     discord_id: doc.discord_id || undefined,
+    user_id: doc.user_id || undefined,
     created_at: doc.created_at || "",
   };
 }
@@ -344,6 +345,7 @@ export async function addAssignee(
     name: assignee.name,
     color: assignee.color || "#6366F1",
     discord_id: assignee.discord_id || null,
+    user_id: assignee.user_id || null,
   });
   const data = await res.json();
   if (!res.ok) {
@@ -361,6 +363,7 @@ export async function updateAssignee(
   if (updates.color !== undefined) payload.color = updates.color;
   if (updates.discord_id !== undefined)
     payload.discord_id = updates.discord_id || null;
+  if (updates.user_id !== undefined) payload.user_id = updates.user_id || null;
 
   const res = await api.data.assignees.update(wsId(), String(id), payload);
   const data = await res.json();

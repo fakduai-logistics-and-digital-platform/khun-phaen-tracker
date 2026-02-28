@@ -204,12 +204,13 @@
 </script>
 
 {#if show}
-	<!-- svelte-ignore a11y-click-events-have-key-events -->
-	<!-- svelte-ignore a11y-no-static-element-interactions -->
 	<div class="fixed inset-0 bg-black/20 backdrop-blur-sm z-[999] pointer-events-none !m-0"></div>
 	<div
 		class="fixed inset-0 z-[999] overflow-y-auto !m-0"
 		on:click|self={handleClose}
+		on:keydown|self={(e) => e.key === 'Escape' && handleClose()}
+		role="button"
+		tabindex="-1"
 	>
 		<div class="flex min-h-full items-center justify-center p-4">
 			<div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-2xl w-full animate-modal-in relative max-h-[90vh] flex flex-col">
@@ -414,7 +415,7 @@
 		border-radius: 10px;
 	}
 
-	.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+	:global(.dark .custom-scrollbar::-webkit-scrollbar-thumb) {
 		background: #4b5563;
 	}
 

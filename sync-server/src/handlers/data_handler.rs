@@ -391,6 +391,7 @@ pub async fn create_assignee(
         name: payload.name,
         color: payload.color,
         discord_id: payload.discord_id,
+        user_id: payload.user_id,
         created_at: None,
     };
 
@@ -431,6 +432,12 @@ pub async fn update_assignee(
         match v {
             Some(d) => { updates.insert("discord_id", d); },
             None => { updates.insert("discord_id", mongodb::bson::Bson::Null); },
+        }
+    }
+    if let Some(v) = payload.user_id {
+        match v {
+            Some(u) => { updates.insert("user_id", u); },
+            None => { updates.insert("user_id", mongodb::bson::Bson::Null); },
         }
     }
 

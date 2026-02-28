@@ -532,23 +532,22 @@
 							<td colspan="9" class="px-4 py-2 lg:px-6">
 								<div class="ml-4 space-y-1 max-h-[180px] overflow-y-auto pr-2">
 									{#each task.checklist as item (item.id)}
-										<label
-											class="flex items-center gap-2 py-1 px-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700/50 cursor-pointer transition-colors group"
-											on:click|stopPropagation
+										<button
+											type="button"
+											class="w-full flex items-center gap-2 py-1 px-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700/50 cursor-pointer transition-colors group text-left"
+											on:click|stopPropagation={() => dispatch('checklistToggle', { taskId: task.id!, checklistItemId: item.id })}
 										>
-											<button
-												type="button"
-												on:click|stopPropagation={() => dispatch('checklistToggle', { taskId: task.id!, checklistItemId: item.id })}
-												class="w-4 h-4 flex items-center justify-center rounded border flex-shrink-0 transition-colors {item.completed ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300 dark:border-gray-600 hover:border-blue-500'}"
+											<div
+												class="w-4 h-4 flex items-center justify-center rounded border flex-shrink-0 transition-colors {item.completed ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300 dark:border-gray-600 group-hover:border-blue-500'}"
 											>
 												{#if item.completed}
 													<Check size={10} strokeWidth={3} />
 												{/if}
-											</button>
-											<span class="text-xs {item.completed ? 'text-gray-400 line-through' : 'text-gray-700 dark:text-gray-300'}">
+											</div>
+											<span class="text-xs {item.completed ? 'text-gray-400 line-through' : 'text-gray-700 dark:text-gray-300'} flex-1">
 												{item.text}
 											</span>
-										</label>
+										</button>
 									{/each}
 								</div>
 							</td>

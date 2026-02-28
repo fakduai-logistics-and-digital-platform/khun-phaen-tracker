@@ -1,4 +1,5 @@
 use crate::models::{auth::AuthRequest, auth::Claims, auth::InviteRequest, user::User, profile::UserProfile};
+use mongodb::bson::oid::ObjectId;
 use crate::repositories::{user_repo::UserRepository, profile_repo::ProfileRepository};
 use bcrypt::{hash, verify, DEFAULT_COST};
 use jsonwebtoken::{encode, EncodingKey, Header};
@@ -17,10 +18,23 @@ impl AuthService {
             return Err("User already exists".to_string());
         }
 
-        let setup_token = rand::Rng::sample_iter(&mut rand::thread_rng(), &rand::distributions::Alphanumeric)
-            .take(32)
-            .map(char::from)
-            .collect::<String>();
+        let mut setup_token = None;
+        let mut password_hash = None;
+        let mut is_active = false;
+
+        if let Some(pwd) = payload.password {
+            if !pwd.is_empty() {
+                password_hash = Some(hash(pwd, DEFAULT_COST).map_err(|e| e.to_string())?);
+                is_active = true;
+            }
+        }
+
+        if !is_active {
+            setup_token = Some(rand::Rng::sample_iter(&mut rand::thread_rng(), &rand::distributions::Alphanumeric)
+                .take(32)
+                .map(char::from)
+                .collect::<String>());
+        }
 
         let role = payload.role.unwrap_or_else(|| "user".to_string());
         
@@ -32,10 +46,10 @@ impl AuthService {
             user_id: user_id.clone(),
             email,
             role,
-            password_hash: None,
+            password_hash,
             created_at: chrono::Utc::now(),
-            setup_token: Some(setup_token.clone()),
-            is_active: false,
+            setup_token: setup_token.clone(),
+            is_active,
         };
 
         user_repo.create(new_user).await.map_err(|e| e.to_string())?;
@@ -53,7 +67,7 @@ impl AuthService {
 
         profile_repo.create(new_profile).await.map_err(|e| e.to_string())?;
 
-        Ok(setup_token)
+        Ok(setup_token.unwrap_or_else(|| "ACTV".to_string())) // Return "ACTV" if already active
     }
 
     pub async fn get_setup_info(user_repo: &UserRepository, token: &str) -> Result<String, String> {
@@ -133,10 +147,26 @@ impl AuthService {
                 "role": user.role,
                 "is_active": user.is_active,
                 "created_at": user.created_at,
+                "setup_token": user.setup_token,
                 "profile": profile
             }));
         }
 
         Ok(user_list)
+    }
+
+    pub async fn delete_user(user_repo: &UserRepository, profile_repo: &ProfileRepository, id_str: &str) -> Result<(), String> {
+        let oid = ObjectId::parse_str(id_str).map_err(|_| "Invalid User ID format".to_string())?;
+        
+        let user = user_repo.find_by_id(&oid).await.map_err(|e| format!("Database error: {}", e))?
+            .ok_or_else(|| "User not found".to_string())?;
+
+        // Delete profile first
+        profile_repo.delete_by_user_id(&user.user_id).await.map_err(|e| format!("Database error: {}", e))?;
+        
+        // Delete user
+        user_repo.delete_by_id(&oid).await.map_err(|e| format!("Database error: {}", e))?;
+
+        Ok(())
     }
 }

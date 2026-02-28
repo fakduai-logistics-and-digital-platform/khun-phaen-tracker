@@ -14,9 +14,22 @@ export const api = {
       });
     },
     invite: async (payload: Record<string, any>): Promise<Response> => {
+      let token = "";
+      if (typeof document !== "undefined") {
+        const match = document.cookie.match(
+          new RegExp("(^| )_khun_ph_token=([^;]+)"),
+        );
+        if (match) token = match[2];
+      }
+
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
       return fetch(`${API_BASE_URL}/auth/invite`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         credentials: "include",
         body: JSON.stringify(payload),
       });
@@ -78,6 +91,24 @@ export const api = {
       if (token) headers["Authorization"] = `Bearer ${token}`;
 
       return fetch(`${API_BASE_URL}/auth/users`, {
+        headers,
+        credentials: "include",
+      });
+    },
+    deleteUser: async (id: string): Promise<Response> => {
+      let token = "";
+      if (typeof document !== "undefined") {
+        const match = document.cookie.match(
+          new RegExp("(^| )_khun_ph_token=([^;]+)"),
+        );
+        if (match) token = match[2];
+      }
+
+      const headers: Record<string, string> = { Accept: "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      return fetch(`${API_BASE_URL}/auth/users/${id}`, {
+        method: "DELETE",
         headers,
         credentials: "include",
       });

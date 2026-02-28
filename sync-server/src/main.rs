@@ -111,6 +111,7 @@ async fn main() {
         .route("/api/auth/logout", post(handlers::auth_handler::logout_handler))
         .route("/api/auth/me", get(handlers::auth_handler::me_handler))
         .route("/api/auth/users", get(handlers::auth_handler::list_users_handler))
+        .route("/api/auth/users/:id", delete(handlers::auth_handler::delete_user_handler))
         .route(
             "/api/rooms",
             post(handlers::room_handler::create_room).layer(tower_governor::GovernorLayer {

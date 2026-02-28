@@ -121,6 +121,8 @@ pub struct AssigneeDocument {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub discord_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub user_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub created_at: Option<String>,
 }
 
@@ -133,6 +135,8 @@ pub struct CreateAssigneeRequest {
     pub color: String,
     #[serde(default)]
     pub discord_id: Option<String>,
+    #[serde(default)]
+    pub user_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -140,6 +144,7 @@ pub struct UpdateAssigneeRequest {
     pub name: Option<String>,
     pub color: Option<String>,
     pub discord_id: Option<Option<String>>,
+    pub user_id: Option<Option<String>>,
 }
 
 // ===== Filter / Query =====

@@ -16,6 +16,7 @@ pub struct AuthRequest {
 #[derive(Deserialize)]
 pub struct InviteRequest {
     pub email: String,
+    pub password: Option<String>,
     pub role: Option<String>,
     pub first_name: Option<String>,
     pub last_name: Option<String>,

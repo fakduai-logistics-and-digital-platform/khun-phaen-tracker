@@ -49,4 +49,9 @@ impl UserRepository {
     pub async fn count(&self) -> mongodb::error::Result<u64> {
         self.collection.estimated_document_count(None).await
     }
+
+    pub async fn delete_by_id(&self, id: &ObjectId) -> mongodb::error::Result<()> {
+        self.collection.delete_one(doc! { "_id": id }, None).await?;
+        Ok(())
+    }
 }
