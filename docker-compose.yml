@@ -3,6 +3,7 @@ version: "3.8"
 services:
   # Frontend - SvelteKit static site served by Nginx
   frontend:
+    image: ghcr.io/${GITHUB_REPOSITORY:-watchakorn-18k/khun-phaen-tracker-offline}/frontend:latest
     build:
       context: .
       dockerfile: Dockerfile
@@ -12,22 +13,14 @@ services:
     depends_on:
       backend:
         condition: service_healthy
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "wget",
-          "--no-verbose",
-          "--tries=1",
-          "--spider",
-          "http://localhost:80/khun-phaen-tracker/",
-        ]
-      interval: 30s
-      timeout: 3s
-      retries: 3
+    environment:
+      - VITE_API_URL=http://localhost:3001/api
+      - VITE_WS_URL=ws://localhost:3001/ws
+      - VITE_SERVER_URL=http://localhost:3001
 
   # Backend Server - Sync Server handling WebSockets and API
   backend:
+    image: ghcr.io/${GITHUB_REPOSITORY:-watchakorn-18k/khun-phaen-tracker-offline}/backend:latest
     build:
       context: ./backend-server
       dockerfile: Dockerfile
@@ -51,7 +44,7 @@ services:
       timeout: 3s
       retries: 3
 
-  # MongoDB - Local database instance with authentication
+  # MongoDB - Local database instance
   mongodb:
     image: mongo:latest
     ports:
