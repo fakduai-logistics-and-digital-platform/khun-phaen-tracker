@@ -3,7 +3,7 @@ version: "3.8"
 services:
   # Frontend - SvelteKit static site served by Nginx
   frontend:
-    image: ghcr.io/${GITHUB_REPOSITORY:-watchakorn-18k/khun-phaen-tracker-offline}/frontend:latest
+    image: ghcr.io/${GITHUB_REPOSITORY:-fakduai-logistics-and-digital-platform/khun-phaen-tracker}/frontend:latest
     build:
       context: .
       dockerfile: Dockerfile
@@ -21,7 +21,7 @@ services:
 
   # Backend Server - Sync Server handling WebSockets and API
   backend:
-    image: ghcr.io/${GITHUB_REPOSITORY:-watchakorn-18k/khun-phaen-tracker-offline}/backend:latest
+    image: ghcr.io/${GITHUB_REPOSITORY:-fakduai-logistics-and-digital-platform/khun-phaen-tracker}/backend:latest
     build:
       context: ./backend-server
       dockerfile: Dockerfile
