@@ -40,7 +40,7 @@ pub async fn login_handler(
     let user_repo = UserRepository::new(&state.db);
 
     match AuthService::login(&user_repo, payload, &state.jwt_secret).await {
-        Ok((id, email, token)) => axum::Json(serde_json::json!({ "success": true, "id": id.clone(), "user_id": id, "email": email, "token": token })).into_response(),
+        Ok((id, user_id, email, token)) => axum::Json(serde_json::json!({ "success": true, "id": id, "user_id": user_id, "email": email, "token": token })).into_response(),
         Err(e) => (
             axum::http::StatusCode::UNAUTHORIZED,
             axum::Json(serde_json::json!({ "error": e })),
@@ -96,10 +96,9 @@ pub async fn me_handler(
 
     match user_repo.find_by_id(&user_id).await {
         Ok(Some(user)) => {
-            let user_id_hex = user.id.unwrap().to_hex();
             axum::Json(serde_json::json!({ 
-                "id": user_id_hex.clone(),
-                "user_id": user_id_hex,
+                "id": user.id.unwrap().to_hex(),
+                "user_id": user.user_id,
                 "email": user.email 
             })).into_response()
         },

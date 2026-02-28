@@ -14,18 +14,21 @@ impl AuthService {
 
         let password_hash = hash(payload.password, DEFAULT_COST).map_err(|e| e.to_string())?;
 
+        let user_id = uuid::Uuid::now_v7().to_string();
+        
         let new_user = User {
             id: None,
+            user_id: user_id.clone(),
             email: payload.email,
             password_hash,
             created_at: chrono::Utc::now(),
         };
 
-        let user_id = user_repo.create(new_user).await.map_err(|e| e.to_string())?;
-        Ok(user_id.to_hex())
+        user_repo.create(new_user).await.map_err(|e| e.to_string())?;
+        Ok(user_id)
     }
 
-    pub async fn login(user_repo: &UserRepository, payload: AuthRequest, jwt_secret: &str) -> Result<(String, String, String), String> {
+    pub async fn login(user_repo: &UserRepository, payload: AuthRequest, jwt_secret: &str) -> Result<(String, String, String, String), String> {
         let user = user_repo.find_by_email(&payload.email).await.map_err(|e| format!("Database error: {}", e))?
             .ok_or_else(|| "Invalid email or password".to_string())?;
 
@@ -49,6 +52,6 @@ impl AuthService {
             &EncodingKey::from_secret(jwt_secret.as_ref()),
         ).map_err(|e| e.to_string())?;
 
-        Ok((user.id.unwrap().to_hex(), user.email, token))
+        Ok((user.id.unwrap().to_hex(), user.user_id, user.email, token))
     }
 }
