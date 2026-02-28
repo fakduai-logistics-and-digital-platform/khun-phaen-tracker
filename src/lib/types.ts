@@ -1,12 +1,12 @@
 export interface Project {
-  id?: number;
+  id?: string | number;
   name: string;
   repo_url?: string;
   created_at?: string;
 }
 
 export interface Assignee {
-  id?: number;
+  id?: string | number;
   name: string;
   color?: string; // สำหรับสีประจำตัว เช่น #FF5733
   discord_id?: string;
@@ -31,7 +31,7 @@ export interface ChecklistItem {
 }
 
 export interface Task {
-  id?: number;
+  id?: string | number;
   title: string;
   project?: string; // ชื่อโปรเจค
   duration_minutes: number;
@@ -39,17 +39,17 @@ export interface Task {
   status: "todo" | "in-progress" | "in-test" | "done";
   category: string;
   notes: string;
-  assignee_ids?: number[]; // Array of assignee IDs (multiple assignees)
+  assignee_ids?: (string | number)[]; // Array of assignee IDs (multiple assignees)
   assignees?: Assignee[]; // Array of assignee objects
   // Legacy fields for backward compatibility (will be removed later)
-  assignee_id?: number | null;
+  assignee_id?: string | number | null;
   assignee?: Assignee | null;
-  sprint_id?: number | null;
+  sprint_id?: string | number | null;
   is_archived?: boolean;
   created_at?: string;
   updated_at?: string;
   end_date?: string; // YYYY-MM-DD
-  dependencies?: number[];
+  dependencies?: (string | number)[];
   checklist?: ChecklistItem[];
 }
 
@@ -67,8 +67,8 @@ export interface FilterOptions {
   status?: Task["status"] | "all" | "archived" | "active" | "today";
   category?: string | "all";
   project?: string | "all";
-  assignee_id?: number | "all" | null;
-  sprint_id?: number | "all" | null;
+  assignee_id?: string | number | "all" | null;
+  sprint_id?: string | number | "all" | null;
   includeArchived?: boolean;
   search?: string;
   updatedAtStart?: string;

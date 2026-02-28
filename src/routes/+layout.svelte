@@ -19,6 +19,8 @@
 	import { base } from '$app/paths';
 	import { api } from '$lib/apis';
 
+	import { clearWorkspaceId } from '$lib/stores/workspace';
+
 	let loading = true;
 	let error = '';
 	let currentTime = new Date();
@@ -127,6 +129,7 @@
 			localStorage.removeItem('user_email');
 			localStorage.removeItem('sync-room-code');
 			localStorage.removeItem('sync-server-url');
+			clearWorkspaceId();
 			
 			user.set(null);
 			goto(`${base}/login`);

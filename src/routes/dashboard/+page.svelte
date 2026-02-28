@@ -5,6 +5,7 @@
     import { user, authLoading } from '$lib/stores/auth';
     import { _ } from '$lib/i18n';
     import { api } from '$lib/apis';
+    import { setWorkspaceId } from '$lib/stores/workspace';
     import { Plus, LayoutTemplate, ArrowRight, Loader2, FolderOpen, Pencil, Trash2 } from 'lucide-svelte';
 
     interface Workspace {
@@ -149,6 +150,10 @@
     }
 
     function enterWorkspace(workspace: Workspace) {
+        // Persist workspace _id for API calls
+        if (workspace._id?.$oid) {
+            setWorkspaceId(workspace._id.$oid, workspace.name);
+        }
         localStorage.setItem('sync-room-code', workspace.room_code);
         localStorage.setItem('sync-server-url', 'http://127.0.0.1:3002');
         
