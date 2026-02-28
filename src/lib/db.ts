@@ -108,7 +108,7 @@ export async function addTask(
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Failed to create task");
   const newId = extractId(data.task);
-  broadcastChange("task", "create", newId);
+  broadcastChange("task", "create", newId, data.task);
   return newId;
 }
 
@@ -137,11 +137,11 @@ export async function updateTask(
     payload.checklist = updates.checklist || null;
 
   const res = await api.data.tasks.update(wsId(), String(id), payload);
+  const data = await res.json();
   if (!res.ok) {
-    const data = await res.json();
     throw new Error(data.error || "Failed to update task");
   }
-  broadcastChange("task", "update", String(id));
+  broadcastChange("task", "update", String(id), payload);
 }
 
 export async function deleteTask(id: string | number): Promise<void> {
@@ -277,11 +277,16 @@ export async function addProject(
     name: project.name,
     repo_url: project.repo_url || null,
   });
+  const data = await res.json();
   if (!res.ok) {
-    const data = await res.json();
     throw new Error(data.error || "Failed to create project");
   }
-  broadcastChange("project", "create");
+  broadcastChange(
+    "project",
+    "create",
+    undefined,
+    data.project || { name: project.name, repo_url: project.repo_url || null },
+  );
 }
 
 export async function updateProject(
@@ -294,11 +299,11 @@ export async function updateProject(
     payload.repo_url = updates.repo_url || null;
 
   const res = await api.data.projects.update(wsId(), String(id), payload);
+  const data = await res.json();
   if (!res.ok) {
-    const data = await res.json();
     throw new Error(data.error || "Failed to update project");
   }
-  broadcastChange("project", "update", String(id));
+  broadcastChange("project", "update", String(id), payload);
 }
 
 export async function deleteProject(id: string | number): Promise<void> {
@@ -340,11 +345,11 @@ export async function addAssignee(
     color: assignee.color || "#6366F1",
     discord_id: assignee.discord_id || null,
   });
+  const data = await res.json();
   if (!res.ok) {
-    const data = await res.json();
     throw new Error(data.error || "Failed to create assignee");
   }
-  broadcastChange("assignee", "create");
+  broadcastChange("assignee", "create", undefined, data.assignee || assignee);
 }
 
 export async function updateAssignee(
@@ -358,11 +363,11 @@ export async function updateAssignee(
     payload.discord_id = updates.discord_id || null;
 
   const res = await api.data.assignees.update(wsId(), String(id), payload);
+  const data = await res.json();
   if (!res.ok) {
-    const data = await res.json();
     throw new Error(data.error || "Failed to update assignee");
   }
-  broadcastChange("assignee", "update", String(id));
+  broadcastChange("assignee", "update", String(id), payload);
 }
 
 export async function deleteAssignee(id: string | number): Promise<void> {

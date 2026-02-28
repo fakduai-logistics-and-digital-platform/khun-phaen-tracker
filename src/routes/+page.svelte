@@ -20,9 +20,7 @@
 	import { List, CalendarDays, Columns3, Table, GanttChart, UsersRound, Filter, Search, Plus, Users, Folder, Sparkles, MessageSquareQuote, Settings2, Flag, FileText, FileSpreadsheet, Image as ImageIcon, Video, Presentation, CheckCircle, Moon, Sun, Bookmark, Play } from 'lucide-svelte';
 	import { initWasmSearch, indexTasks, performSearch, clearSearch, searchQuery, wasmReady, wasmLoading } from '$lib/stores/search';
 	import { compressionReady, compressionStats, getStorageInfo } from '$lib/stores/storage';
-	import { enableAutoImport, setMergeCallback, scheduleRealtimeSync } from '$lib/stores/server-sync';
-	import { Zap } from 'lucide-svelte';
-	import ServerSyncPanel from '$lib/components/ServerSyncPanel.svelte';
+	import { connectRealtime, disconnectRealtime, realtimeStatus, realtimePeers } from '$lib/stores/realtime';
 	import { tabSettings, type TabId } from '$lib/stores/tabSettings';
 	import { theme } from '$lib/stores/theme';
 	import TabSettings from '$lib/components/TabSettings.svelte';
@@ -729,34 +727,19 @@
 			return;
 		}
 
-		// Enable auto-import for server sync (before any connection)
-		enableAutoImport();
-		
-		// Set merge callback for manual sync
-		setMergeCallback(async (csvData: string) => {
-			console.log('🔄 Merging data from server...');
-			const result = await mergeAllData(csvData);
-			console.log('✅ Merge result:', result);
-			
-			// Reload data to show merged results
-			await loadData();
-			
-			// Refresh sprints from localStorage
-			sprints.refresh();
-			
-			// Show message
-			showMessage(`Merge สำเร็จ: เพิ่ม ${result.tasks.added} งาน, ${result.projects.added} โปรเจค, ${result.assignees.added} ผู้รับผิดชอบ, ${result.sprints.added} Sprint`);
-			
-			return result;
+		// Connect to real-time collaboration (auto-refresh on remote changes)
+		connectRealtime(urlRoom, (payload) => {
+			if (!payload) return;
+			console.log('📡 Remote data change detected, updating UI optimistically:', payload);
+			handleRealtimeUpdate(payload);
 		});
 		
 		restoreFilters();
 		const savedView = loadSavedViewMode();
 		currentView = savedView;
 		
-		// Load data (SQL.js only, WASM search/compression disabled for memory)
 		void loadData().then(() => {
-			initWasmSearch(); // JS search, no delay needed
+			initWasmSearch();
 		});
 
 		// Add keyboard shortcuts listener
@@ -766,6 +749,7 @@
 	onDestroy(() => {
 		if (browser) {
 			document.removeEventListener('keydown', handleKeydown);
+			disconnectRealtime();
 		}
 	});
 	
@@ -841,6 +825,95 @@
 		filteredTasks = tasks;
 	}
 	
+	let realtimeSyncDebounce: ReturnType<typeof setTimeout>;
+
+	function handleRealtimeUpdate(payload: any) {
+		const { entity, action, id, data } = payload;
+		
+		let statNeedsUpdate = false;
+
+		if (entity === 'task') {
+			statNeedsUpdate = true;
+			if (action === 'create' && data) {
+				tasks = [...tasks, data];
+			} else if (action === 'update' && id && data) {
+				tasks = tasks.map(t => String(t.id) === String(id) ? { ...t, ...data } : t);
+			} else if (action === 'delete' && id) {
+				tasks = tasks.filter(t => String(t.id) !== String(id));
+			}
+
+			if ($wasmReady) {
+				indexTasks(tasks);
+				if (searchInput.trim()) {
+					filteredTasks = performSearch(searchInput, tasks);
+				} else {
+					filteredTasks = tasks;
+				}
+			} else {
+				filteredTasks = tasks;
+			}
+		} else if (entity === 'assignee') {
+			if (action === 'create' && data) {
+				assignees = [...assignees, data];
+			} else if (action === 'update' && id && data) {
+				assignees = assignees.map(a => String(a.id) === String(id) ? { ...a, ...data } : a);
+			} else if (action === 'delete' && id) {
+				assignees = assignees.filter(a => String(a.id) !== String(id));
+			}
+		} else if (entity === 'project') {
+			if (action === 'create' && data) {
+				projectList = [...projectList, data];
+				if (data.name && !projects.includes(data.name)) projects = [...projects, data.name];
+			} else if (action === 'update' && id && data) {
+				const oldProject = projectList.find(p => String(p.id) === String(id));
+				projectList = projectList.map(p => String(p.id) === String(id) ? { ...p, ...data } : p);
+				if (oldProject && data.name && oldProject.name !== data.name) {
+					projects = projects.map(name => name === oldProject.name ? data.name : name);
+					tasks = tasks.map(t => t.project === oldProject.name ? { ...t, project: data.name } : t);
+					filteredTasks = tasks;
+				}
+			} else if (action === 'delete' && id) {
+				const deletedProject = projectList.find(p => String(p.id) === String(id));
+				projectList = projectList.filter(p => String(p.id) !== String(id));
+				if (deletedProject) {
+					projects = projects.filter(name => name !== deletedProject.name);
+				}
+			}
+		}
+
+		clearTimeout(realtimeSyncDebounce);
+		realtimeSyncDebounce = setTimeout(() => {
+			if (statNeedsUpdate) {
+				// Calculate stats locally instantly instead of fetching from DB
+				let total = 0, todo = 0, in_progress = 0, in_test = 0, done = 0, total_minutes = 0;
+				const catSet = new Set<string>();
+
+				for (const t of tasks) {
+					total++;
+					if (t.status === 'To Do') todo++;
+					else if (t.status === 'In Progress') in_progress++;
+					else if (t.status === 'In Test') in_test++;
+					else if (t.status === 'Done') done++;
+					if (t.duration_minutes) total_minutes += t.duration_minutes;
+					if (t.category) catSet.add(t.category);
+				}
+
+				stats = { total, todo, in_progress, in_test, done, total_minutes };
+				categories = Array.from(catSet);
+				
+				projectStats = projectList.map(p => ({
+					id: p.id as number,
+					taskCount: tasks.filter(t => t.project === p.name).length
+				}));
+				
+				workerStats = assignees.map(a => ({
+					id: a.id as number,
+					taskCount: tasks.filter(t => t.assignee_ids && t.assignee_ids.includes(String(a.id))).length
+				}));
+			}
+		}, 30);
+	}
+
 	// Worker Management Functions
 	async function handleAddWorker(event: CustomEvent<{ name: string; color: string; discord_id?: string }>) {
 		try {
@@ -2642,18 +2715,27 @@
 				on:importCSV={handleImportCSV}
 			/>
 			
-			<!-- Server Sync Panel -->
-			<ServerSyncPanel 
-				on:dataImported={async (e) => {
-					console.log('🔄 Data imported from sync, reloading...');
-					await loadData();
-					showMessage($_('page__sync_success', { values: { count: e.detail.count } }));
-				}}
-				on:error={(e) => {
-					console.error('Sync error:', e.detail.message);
-					showMessage($_('page__sync_error') + ': ' + e.detail.message);
-				}}
-			/>
+			<!-- Real-time Collaboration Status -->
+			{#if $realtimeStatus === 'connected'}
+				<div class="flex items-center gap-2 px-3 py-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg border border-emerald-200 dark:border-emerald-800">
+					<div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+					<span class="text-xs font-medium text-emerald-700 dark:text-emerald-400">
+						{$_('page__realtime_connected')}
+					</span>
+					{#if $realtimePeers > 1}
+						<span class="text-xs text-emerald-600 dark:text-emerald-500">
+							· {$realtimePeers} {$_('page__realtime_peers')}
+						</span>
+					{/if}
+				</div>
+			{:else if $realtimeStatus === 'connecting'}
+				<div class="flex items-center gap-2 px-3 py-2 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+					<div class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></div>
+					<span class="text-xs font-medium text-amber-700 dark:text-amber-400">
+						{$_('page__realtime_connecting')}
+					</span>
+				</div>
+			{/if}
 		</div>
 	</div>
 	

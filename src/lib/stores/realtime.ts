@@ -13,24 +13,27 @@ export type RealtimeStatus = "disconnected" | "connecting" | "connected";
 export const realtimeStatus = writable<RealtimeStatus>("disconnected");
 export const realtimePeers = writable<number>(0);
 
-/** Fires whenever remote data changes so the UI can re-fetch */
+/** Fires whenever remote data changes so the UI can update instantly */
 export const dataChanged = writable<{
   entity: string;
   action: string;
   id?: string;
+  data?: any;
   timestamp: number;
 } | null>(null);
 
 let ws: WebSocket | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 let currentRoomCode: string | null = null;
-let _onDataChanged: (() => void) | null = null;
+let _onDataChanged: ((payload: any) => void) | null = null;
 
 const WS_BASE = "ws://127.0.0.1:3002/ws";
 
 /** Connect to the workspace room for real-time updates */
-export function connectRealtime(roomCode: string, onDataChanged?: () => void) {
-  // Don't reconnect to the same room
+export function connectRealtime(
+  roomCode: string,
+  onDataChanged?: (payload: any) => void,
+) {
   if (currentRoomCode === roomCode && ws?.readyState === WebSocket.OPEN) return;
 
   disconnectRealtime();
@@ -46,12 +49,14 @@ export function connectRealtime(roomCode: string, onDataChanged?: () => void) {
       console.log("🔗 Realtime: connected");
       realtimeStatus.set("connected");
 
-      // Join the room
+      // Join the room (MATCHES RUST EXPECTATIONS)
       ws?.send(
         JSON.stringify({
-          type: "join",
-          room: roomCode,
-          peerId: generatePeerId(),
+          action: "join",
+          room_code: roomCode,
+          peer_id: generatePeerId(),
+          is_host: false,
+          metadata: null,
         }),
       );
     };
@@ -74,7 +79,6 @@ export function connectRealtime(roomCode: string, onDataChanged?: () => void) {
       if (currentRoomCode) {
         reconnectTimer = setTimeout(() => {
           if (currentRoomCode) {
-            console.log("🔄 Realtime: reconnecting...");
             connectRealtime(currentRoomCode, _onDataChanged || undefined);
           }
         }, 3000);
@@ -108,20 +112,27 @@ export function disconnectRealtime() {
   realtimePeers.set(0);
 }
 
-/** Broadcast a data change to all peers in the room */
+/** Broadcast a data change with payload to all peers */
 export function broadcastChange(
   entity: "task" | "project" | "assignee",
   action: "create" | "update" | "delete",
   id?: string,
+  data?: any,
 ) {
   if (!ws || ws.readyState !== WebSocket.OPEN) return;
 
-  const event = {
-    type: "data_change",
+  // We wrap our structural event into the string `data` field expected by the Rust server's `Broadcast` action
+  const payload = JSON.stringify({
     entity,
     action,
     id: id || undefined,
+    data,
     timestamp: Date.now(),
+  });
+
+  const event = {
+    action: "broadcast",
+    data: payload,
   };
 
   ws.send(JSON.stringify(event));
@@ -130,31 +141,44 @@ export function broadcastChange(
 // ===== Internal =====
 
 function handleMessage(msg: any) {
+  // Handle ServerMessage format from Rust
   switch (msg.type) {
-    case "system":
-      // Peer count updates
-      if (msg.event === "peer_joined" || msg.event === "peer_left") {
-        if (typeof msg.peer_count === "number") {
-          realtimePeers.set(msg.peer_count);
-        }
+    case "room_info":
+      if (Array.isArray(msg.peers)) {
+        realtimePeers.set(msg.peers.length);
       }
       break;
 
-    case "data_change":
-      // Another user changed data — trigger refresh
-      console.log(
-        `📡 Realtime: ${msg.entity} ${msg.action}${msg.id ? ` (${msg.id})` : ""}`,
-      );
-      dataChanged.set({
-        entity: msg.entity,
-        action: msg.action,
-        id: msg.id,
-        timestamp: msg.timestamp || Date.now(),
-      });
+    case "peer_joined":
+      realtimePeers.set(get(realtimePeers) + 1);
+      break;
 
-      // Call the callback to refresh data
-      if (_onDataChanged) {
-        _onDataChanged();
+    case "peer_left":
+      const count = get(realtimePeers);
+      if (count > 0) realtimePeers.set(count - 1);
+      break;
+
+    case "data":
+      // Message comes wrapped inside the 'data' field
+      try {
+        const payload = JSON.parse(msg.data);
+        console.log(
+          `📡 Realtime: ${payload.entity} ${payload.action}${payload.id ? ` (${payload.id})` : ""}`,
+        );
+        dataChanged.set({
+          entity: payload.entity,
+          action: payload.action,
+          id: payload.id,
+          data: payload.data,
+          timestamp: payload.timestamp || Date.now(),
+        });
+
+        // Call callback passing the payload to mutate local state immediately
+        if (_onDataChanged) {
+          _onDataChanged(payload);
+        }
+      } catch (e) {
+        console.warn("Realtime: Failed to parse data payload", e);
       }
       break;
   }
