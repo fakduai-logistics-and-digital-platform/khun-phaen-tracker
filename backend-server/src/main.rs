@@ -142,7 +142,12 @@ async fn main() {
         .route("/ws", get(handlers::ws_handler::ws_handler))
         .layer(
             tower_http::cors::CorsLayer::new()
-                .allow_origin("http://localhost:5173".parse::<axum::http::HeaderValue>().unwrap())
+                .allow_origin([
+                    "http://localhost:5173".parse::<axum::http::HeaderValue>().unwrap(),
+                    "http://localhost:4173".parse::<axum::http::HeaderValue>().unwrap(),
+                    "http://localhost:8080".parse::<axum::http::HeaderValue>().unwrap(),
+                    "https://fakduai-logistics-and-digital-platform.github.io".parse::<axum::http::HeaderValue>().unwrap(),
+                ])
                 .allow_methods([
                     axum::http::Method::GET,
                     axum::http::Method::POST,
@@ -152,6 +157,7 @@ async fn main() {
                 .allow_headers([
                     axum::http::header::CONTENT_TYPE,
                     axum::http::header::AUTHORIZATION,
+                    "x-setup-token".parse::<axum::http::HeaderName>().unwrap(),
                 ])
                 .allow_credentials(true),
         )
