@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <title>Khun Phaen</title>
+  <rect width="512" height="512" rx="128" fill="#3b82f6"/>
+  <path d="M152 112v288m176-288L152 256l176 152" stroke="#fff" stroke-width="72" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>
