@@ -26,6 +26,10 @@ impl WorkspaceRepository {
         Ok(workspaces)
     }
 
+    pub async fn find_by_id(&self, id: &ObjectId) -> mongodb::error::Result<Option<Workspace>> {
+        self.collection.find_one(doc! { "_id": id }, None).await
+    }
+
     pub async fn create(&self, mut workspace: Workspace) -> mongodb::error::Result<Workspace> {
         let insert_res = self.collection.insert_one(workspace.clone(), None).await?;
         if let Some(id) = insert_res.inserted_id.as_object_id() {

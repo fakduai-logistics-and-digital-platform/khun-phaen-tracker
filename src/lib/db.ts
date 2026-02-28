@@ -590,8 +590,10 @@ export async function addTask(
   if (!db) throw new Error("DB not initialized");
 
   // Support both old (assignee_id) and new (assignee_ids) formats
-  const assigneeIds = task.assignee_ids || (task.assignee_id ? [task.assignee_id] : []);
-  const assigneeIdsJson = assigneeIds.length > 0 ? JSON.stringify(assigneeIds) : null;
+  const assigneeIds =
+    task.assignee_ids || (task.assignee_id ? [task.assignee_id] : []);
+  const assigneeIdsJson =
+    assigneeIds.length > 0 ? JSON.stringify(assigneeIds) : null;
   const legacyAssigneeId = assigneeIds.length > 0 ? assigneeIds[0] : null;
 
   runSql(
@@ -810,7 +812,7 @@ export async function applyCRDTTasksToSQLite(
       } else if (task.assignees && task.assignees.length > 0) {
         // Resolve by name
         resolvedAssigneeIds = task.assignees
-          .map(a => assigneeMap.get(a.name))
+          .map((a) => assigneeMap.get(a.name))
           .filter((id): id is number => id !== undefined);
       } else if (task.assignee?.name) {
         // Fallback to legacy single assignee
@@ -820,8 +822,12 @@ export async function applyCRDTTasksToSQLite(
         resolvedAssigneeIds = [task.assignee_id];
       }
 
-      const resolvedAssigneeId = resolvedAssigneeIds.length > 0 ? resolvedAssigneeIds[0] : null;
-      const assigneeIdsJson = resolvedAssigneeIds.length > 0 ? JSON.stringify(resolvedAssigneeIds) : null;
+      const resolvedAssigneeId =
+        resolvedAssigneeIds.length > 0 ? resolvedAssigneeIds[0] : null;
+      const assigneeIdsJson =
+        resolvedAssigneeIds.length > 0
+          ? JSON.stringify(resolvedAssigneeIds)
+          : null;
 
       if (existingTaskIds.has(task.id)) {
         updated++;
@@ -977,7 +983,7 @@ export async function getTasks(filter?: FilterOptions): Promise<Task[]> {
     if (obj.assignee_ids) {
       try {
         assigneeIds = JSON.parse(obj.assignee_ids as string);
-        assigneeIds.forEach(id => allAssigneeIds.add(id));
+        assigneeIds.forEach((id) => allAssigneeIds.add(id));
       } catch (e) {
         // Invalid JSON, fallback to legacy assignee_id
         if (obj.assignee_id) {
@@ -999,7 +1005,7 @@ export async function getTasks(filter?: FilterOptions): Promise<Task[]> {
   const assigneesMap = new Map<number, Assignee>();
   if (allAssigneeIds.size > 0) {
     const assigneesResult = execQuery(
-      `SELECT * FROM assignees WHERE id IN (${Array.from(allAssigneeIds).join(',')})`,
+      `SELECT * FROM assignees WHERE id IN (${Array.from(allAssigneeIds).join(",")})`,
     );
     assigneesResult.values.forEach((row) => {
       const assigneeObj = Object.fromEntries(
@@ -1017,7 +1023,9 @@ export async function getTasks(filter?: FilterOptions): Promise<Task[]> {
 
   // Map tasks with their assignees
   return taskData.map((obj) => {
-    const assignees = obj.assignee_ids.map((id: number) => assigneesMap.get(id)).filter(Boolean) as Assignee[];
+    const assignees = obj.assignee_ids
+      .map((id: number) => assigneesMap.get(id))
+      .filter(Boolean) as Assignee[];
 
     return {
       id: obj.id as number,
@@ -1053,7 +1061,9 @@ export async function getTaskById(id: number): Promise<Task | null> {
   if (result.values.length === 0) return null;
 
   const row = result.values[0];
-  const obj: any = Object.fromEntries(result.columns.map((col, i) => [col, row[i]]));
+  const obj: any = Object.fromEntries(
+    result.columns.map((col, i) => [col, row[i]]),
+  );
 
   // Parse assignee_ids from JSON
   let assigneeIds: number[] = [];
@@ -1075,7 +1085,7 @@ export async function getTaskById(id: number): Promise<Task | null> {
   const assignees: Assignee[] = [];
   if (assigneeIds.length > 0) {
     const assigneesResult = execQuery(
-      `SELECT * FROM assignees WHERE id IN (${assigneeIds.join(',')})`,
+      `SELECT * FROM assignees WHERE id IN (${assigneeIds.join(",")})`,
     );
     assigneesResult.values.forEach((aRow) => {
       const assigneeObj: any = Object.fromEntries(
@@ -1336,7 +1346,7 @@ export async function getTasksBySprint(sprintId: number): Promise<Task[]> {
     if (obj.assignee_ids) {
       try {
         assigneeIds = JSON.parse(obj.assignee_ids as string);
-        assigneeIds.forEach(id => allAssigneeIds.add(id));
+        assigneeIds.forEach((id) => allAssigneeIds.add(id));
       } catch (e) {
         // Invalid JSON, fallback to legacy assignee_id
         if (obj.assignee_id) {
@@ -1358,7 +1368,7 @@ export async function getTasksBySprint(sprintId: number): Promise<Task[]> {
   const assigneesMap = new Map<number, Assignee>();
   if (allAssigneeIds.size > 0) {
     const assigneesResult = execQuery(
-      `SELECT * FROM assignees WHERE id IN (${Array.from(allAssigneeIds).join(',')})`,
+      `SELECT * FROM assignees WHERE id IN (${Array.from(allAssigneeIds).join(",")})`,
     );
     assigneesResult.values.forEach((row) => {
       const assigneeObj: any = Object.fromEntries(
@@ -1376,7 +1386,9 @@ export async function getTasksBySprint(sprintId: number): Promise<Task[]> {
 
   // Map tasks with their assignees
   return taskData.map((obj) => {
-    const assignees = obj.assignee_ids.map((id: number) => assigneesMap.get(id)).filter(Boolean) as Assignee[];
+    const assignees = obj.assignee_ids
+      .map((id: number) => assigneesMap.get(id))
+      .filter(Boolean) as Assignee[];
 
     return {
       id: obj.id as number,
@@ -1778,7 +1790,8 @@ export async function mergeTasksFromCSV(
           }
 
           assigneeId = assigneeIds.length > 0 ? assigneeIds[0] : null;
-          assigneeIdsJson = assigneeIds.length > 0 ? JSON.stringify(assigneeIds) : null;
+          assigneeIdsJson =
+            assigneeIds.length > 0 ? JSON.stringify(assigneeIds) : null;
 
           runSql(
             `
@@ -1842,7 +1855,8 @@ export async function mergeTasksFromCSV(
             }
 
             assigneeId = assigneeIds.length > 0 ? assigneeIds[0] : null;
-            assigneeIdsJson = assigneeIds.length > 0 ? JSON.stringify(assigneeIds) : null;
+            assigneeIdsJson =
+              assigneeIds.length > 0 ? JSON.stringify(assigneeIds) : null;
 
             runSql(
               `
@@ -2008,7 +2022,10 @@ export async function exportAllData(): Promise<string> {
       assigneeIds = [obj.assignee_id];
     }
 
-    const assigneeNames = assigneeIds.map(id => assigneeMap.get(id) || '').filter(Boolean).join('|');
+    const assigneeNames = assigneeIds
+      .map((id) => assigneeMap.get(id) || "")
+      .filter(Boolean)
+      .join("|");
     obj.assignee_names = assigneeNames;
 
     const values = taskHeaders.map((h) => {
@@ -2427,7 +2444,10 @@ export async function importAllData(
           }
         } else if (row.assignee_names && row.assignee_names.trim()) {
           // Parse multiple assignee names (pipe-separated)
-          const names = row.assignee_names.split('|').map((n: string) => n.trim()).filter(Boolean);
+          const names = row.assignee_names
+            .split("|")
+            .map((n: string) => n.trim())
+            .filter(Boolean);
           for (const name of names) {
             const existingId = assigneeNameToId.get(name);
             if (existingId) {
@@ -2438,7 +2458,9 @@ export async function importAllData(
                 `INSERT INTO assignees (name, color, created_at) VALUES (?, ?, ?)`,
                 [name, "#6366F1", new Date().toISOString()],
               );
-              const newAssigneeResult = execQuery("SELECT last_insert_rowid() as id");
+              const newAssigneeResult = execQuery(
+                "SELECT last_insert_rowid() as id",
+              );
               const newId = Number(newAssigneeResult.values[0][0]);
               if (newId) {
                 assigneeIds.push(newId);
@@ -2457,7 +2479,9 @@ export async function importAllData(
               `INSERT INTO assignees (name, color, created_at) VALUES (?, ?, ?)`,
               [row.assignee_name.trim(), "#6366F1", new Date().toISOString()],
             );
-            const newAssigneeResult = execQuery("SELECT last_insert_rowid() as id");
+            const newAssigneeResult = execQuery(
+              "SELECT last_insert_rowid() as id",
+            );
             const newId = Number(newAssigneeResult.values[0][0]);
             if (newId) {
               assigneeIds = [newId];
@@ -2471,7 +2495,8 @@ export async function importAllData(
         }
 
         const assigneeId = assigneeIds.length > 0 ? assigneeIds[0] : null;
-        const assigneeIdsJson = assigneeIds.length > 0 ? JSON.stringify(assigneeIds) : null;
+        const assigneeIdsJson =
+          assigneeIds.length > 0 ? JSON.stringify(assigneeIds) : null;
 
         // Check if we should use existing ID or create new one
         const rowId = row.id ? parseInt(row.id) : null;

@@ -7,6 +7,7 @@ use axum_extra::extract::cookie::CookieJar;
 
 use crate::models::workspace::{CreateWorkspaceRequest, UpdateWorkspaceRequest};
 use crate::repositories::workspace_repo::WorkspaceRepository;
+use crate::repositories::room_repo::RoomRepository;
 use crate::services::workspace_service::WorkspaceService;
 use crate::state::SharedState;
 use crate::handlers::auth_handler::extract_user_id;
@@ -119,7 +120,8 @@ pub async fn delete_workspace_handler(
     };
 
     let workspace_repo = WorkspaceRepository::new(&state.db);
-    match WorkspaceService::delete_workspace(&workspace_repo, &user_id, &workspace_id).await {
+    let room_repo = RoomRepository::new(&state.db);
+    match WorkspaceService::delete_workspace(&workspace_repo, &room_repo, &state.rooms, &user_id, &workspace_id).await {
         Ok(true) => axum::Json(serde_json::json!({ "success": true })).into_response(),
         Ok(false) => (
             axum::http::StatusCode::NOT_FOUND,

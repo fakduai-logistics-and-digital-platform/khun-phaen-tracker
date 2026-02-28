@@ -129,4 +129,157 @@ export const api = {
       });
     },
   },
+
+  // Workspace-scoped data APIs
+  data: {
+    _token: (): string => {
+      if (typeof document === "undefined") return "";
+      const match = document.cookie.match(
+        new RegExp("(^| )_khun_ph_token=([^;]+)"),
+      );
+      return match ? match[2] : "";
+    },
+    _headers: (json = false): Record<string, string> => {
+      const h: Record<string, string> = { Accept: "application/json" };
+      const t = api.data._token();
+      if (t) h["Authorization"] = `Bearer ${t}`;
+      if (json) h["Content-Type"] = "application/json";
+      return h;
+    },
+
+    // Tasks
+    tasks: {
+      list: (
+        wsId: string,
+        filter?: Record<string, string>,
+      ): Promise<Response> => {
+        const params = filter
+          ? "?" + new URLSearchParams(filter).toString()
+          : "";
+        return fetch(`${API_BASE_URL}/workspaces/${wsId}/tasks${params}`, {
+          headers: api.data._headers(),
+          credentials: "include",
+        });
+      },
+      create: (wsId: string, task: Record<string, any>): Promise<Response> => {
+        return fetch(`${API_BASE_URL}/workspaces/${wsId}/tasks`, {
+          method: "POST",
+          headers: api.data._headers(true),
+          credentials: "include",
+          body: JSON.stringify(task),
+        });
+      },
+      update: (
+        wsId: string,
+        taskId: string,
+        updates: Record<string, any>,
+      ): Promise<Response> => {
+        return fetch(`${API_BASE_URL}/workspaces/${wsId}/tasks/${taskId}`, {
+          method: "PUT",
+          headers: api.data._headers(true),
+          credentials: "include",
+          body: JSON.stringify(updates),
+        });
+      },
+      delete: (wsId: string, taskId: string): Promise<Response> => {
+        return fetch(`${API_BASE_URL}/workspaces/${wsId}/tasks/${taskId}`, {
+          method: "DELETE",
+          headers: api.data._headers(),
+          credentials: "include",
+        });
+      },
+    },
+
+    // Projects
+    projects: {
+      list: (wsId: string): Promise<Response> => {
+        return fetch(`${API_BASE_URL}/workspaces/${wsId}/projects`, {
+          headers: api.data._headers(),
+          credentials: "include",
+        });
+      },
+      create: (
+        wsId: string,
+        project: Record<string, any>,
+      ): Promise<Response> => {
+        return fetch(`${API_BASE_URL}/workspaces/${wsId}/projects`, {
+          method: "POST",
+          headers: api.data._headers(true),
+          credentials: "include",
+          body: JSON.stringify(project),
+        });
+      },
+      update: (
+        wsId: string,
+        projectId: string,
+        updates: Record<string, any>,
+      ): Promise<Response> => {
+        return fetch(
+          `${API_BASE_URL}/workspaces/${wsId}/projects/${projectId}`,
+          {
+            method: "PUT",
+            headers: api.data._headers(true),
+            credentials: "include",
+            body: JSON.stringify(updates),
+          },
+        );
+      },
+      delete: (wsId: string, projectId: string): Promise<Response> => {
+        return fetch(
+          `${API_BASE_URL}/workspaces/${wsId}/projects/${projectId}`,
+          {
+            method: "DELETE",
+            headers: api.data._headers(),
+            credentials: "include",
+          },
+        );
+      },
+    },
+
+    // Assignees
+    assignees: {
+      list: (wsId: string): Promise<Response> => {
+        return fetch(`${API_BASE_URL}/workspaces/${wsId}/assignees`, {
+          headers: api.data._headers(),
+          credentials: "include",
+        });
+      },
+      create: (
+        wsId: string,
+        assignee: Record<string, any>,
+      ): Promise<Response> => {
+        return fetch(`${API_BASE_URL}/workspaces/${wsId}/assignees`, {
+          method: "POST",
+          headers: api.data._headers(true),
+          credentials: "include",
+          body: JSON.stringify(assignee),
+        });
+      },
+      update: (
+        wsId: string,
+        assigneeId: string,
+        updates: Record<string, any>,
+      ): Promise<Response> => {
+        return fetch(
+          `${API_BASE_URL}/workspaces/${wsId}/assignees/${assigneeId}`,
+          {
+            method: "PUT",
+            headers: api.data._headers(true),
+            credentials: "include",
+            body: JSON.stringify(updates),
+          },
+        );
+      },
+      delete: (wsId: string, assigneeId: string): Promise<Response> => {
+        return fetch(
+          `${API_BASE_URL}/workspaces/${wsId}/assignees/${assigneeId}`,
+          {
+            method: "DELETE",
+            headers: api.data._headers(),
+            credentials: "include",
+          },
+        );
+      },
+    },
+  },
 };

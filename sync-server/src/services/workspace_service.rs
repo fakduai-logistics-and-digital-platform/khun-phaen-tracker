@@ -1,5 +1,8 @@
 use crate::models::workspace::{CreateWorkspaceRequest, UpdateWorkspaceRequest, Workspace};
 use crate::repositories::workspace_repo::WorkspaceRepository;
+use crate::repositories::room_repo::RoomRepository;
+use dashmap::DashMap;
+use crate::models::room::Room;
 use mongodb::bson::oid::ObjectId;
 use uuid::Uuid;
 
@@ -49,12 +52,36 @@ impl WorkspaceService {
     }
 
     pub async fn delete_workspace(
-        repo: &WorkspaceRepository,
+        workspace_repo: &WorkspaceRepository,
+        room_repo: &RoomRepository,
+        rooms: &DashMap<String, Room>,
         owner_id: &ObjectId,
         workspace_id: &ObjectId,
     ) -> Result<bool, String> {
-        repo.delete(workspace_id, owner_id)
+        // 1. Look up workspace to get the room_code
+        let workspace = workspace_repo.find_by_id(workspace_id)
             .await
-            .map_err(|e| format!("Database error: {}", e))
+            .map_err(|e| format!("Database error: {}", e))?;
+
+        let room_code = match &workspace {
+            Some(ws) if ws.owner_id == *owner_id => ws.room_code.clone(),
+            Some(_) => return Ok(false), // Not the owner
+            None => return Ok(false),    // Not found
+        };
+
+        // 2. Delete workspace document
+        let deleted = workspace_repo.delete(workspace_id, owner_id)
+            .await
+            .map_err(|e| format!("Database error: {}", e))?;
+
+        if deleted {
+            // 3. Clean up room data from MongoDB (synced documents)
+            let _ = room_repo.delete_by_room_code(&room_code).await;
+
+            // 4. Remove in-memory room from DashMap
+            rooms.remove(&room_code);
+        }
+
+        Ok(deleted)
     }
 }

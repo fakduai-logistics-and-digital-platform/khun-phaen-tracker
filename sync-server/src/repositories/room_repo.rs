@@ -28,4 +28,9 @@ impl RoomRepository {
         self.collection.update_one(filter, update, options).await?;
         Ok(())
     }
+
+    pub async fn delete_by_room_code(&self, room_code: &str) -> mongodb::error::Result<()> {
+        self.collection.delete_many(doc! { "room_code": room_code }, None).await?;
+        Ok(())
+    }
 }
