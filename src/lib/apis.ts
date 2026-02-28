@@ -13,12 +13,30 @@ export const api = {
         body: JSON.stringify({ email, password }),
       });
     },
-    register: async (email: string, password: string): Promise<Response> => {
-      return fetch(`${API_BASE_URL}/auth/register`, {
+    invite: async (payload: Record<string, any>): Promise<Response> => {
+      return fetch(`${API_BASE_URL}/auth/invite`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify(payload),
+      });
+    },
+    getSetupInfo: async (token: string): Promise<Response> => {
+      return fetch(`${API_BASE_URL}/auth/setup-info?token=${token}`, {
+        method: "GET",
+        headers: { Accept: "application/json" },
+        credentials: "include",
+      });
+    },
+    setupPassword: async (
+      token: string,
+      password: string,
+    ): Promise<Response> => {
+      return fetch(`${API_BASE_URL}/auth/setup-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ token, password }),
       });
     },
     logout: async (): Promise<Response> => {
@@ -43,6 +61,23 @@ export const api = {
       }
 
       return fetch(`${API_BASE_URL}/auth/me`, {
+        headers,
+        credentials: "include",
+      });
+    },
+    listUsers: async (): Promise<Response> => {
+      let token = "";
+      if (typeof document !== "undefined") {
+        const match = document.cookie.match(
+          new RegExp("(^| )_khun_ph_token=([^;]+)"),
+        );
+        if (match) token = match[2];
+      }
+
+      const headers: Record<string, string> = { Accept: "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      return fetch(`${API_BASE_URL}/auth/users`, {
         headers,
         credentials: "include",
       });

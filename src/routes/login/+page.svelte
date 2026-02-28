@@ -27,9 +27,23 @@
                 
                 const userEmail = data.email || email;
                 const userId = data.id || "";
+                const userUuid = data.user_id || "";
+                const userRole = data.role || "user";
+                const profile = data.profile;
+
                 localStorage.setItem("user_email", userEmail);
                 if (userId) localStorage.setItem("user_id", userId);
-                user.set({ id: userId, email: userEmail });
+                if (userUuid) localStorage.setItem("user_uuid", userUuid);
+                localStorage.setItem("user_role", userRole);
+                if (profile) localStorage.setItem("user_profile", JSON.stringify(profile));
+                
+                user.set({ 
+                    id: userId, 
+                    email: userEmail, 
+                    user_id: userUuid,
+                    role: userRole,
+                    profile: profile 
+                });
                 goto(`${base}/dashboard`);
             } else {
                 error = data.error || 'Login failed';
@@ -174,10 +188,7 @@
             </form>
 
             <div class="mt-8 text-center text-sm">
-                <span class="text-slate-500">Don't have an account?</span>
-                <a href="{base}/register" class="text-indigo-400 hover:text-indigo-300 font-medium ml-1.5 hover:underline underline-offset-4 transition-colors">
-                    Sign up
-                </a>
+                <span class="text-slate-500">Accounts are by invitation only.</span>
             </div>
         </div>
     </div>

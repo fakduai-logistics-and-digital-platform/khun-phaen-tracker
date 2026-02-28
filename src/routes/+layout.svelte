@@ -4,7 +4,7 @@
 	import { initDB } from '$lib/db';
 	import { onMount, onDestroy } from 'svelte';
 	import { browser } from '$app/environment';
-	import { Sun, Moon, Github, Calendar, Clock, Globe } from 'lucide-svelte';
+	import { Sun, Moon, Github, Calendar, Clock, Globe, Users } from 'lucide-svelte';
 	import { theme } from '$lib/stores/theme';
 	import favicon from '$lib/assets/favicon.svg';
 	import DevTimer from '$lib/components/DevTimer.svelte';
@@ -138,7 +138,7 @@
 		}
 	}
 
-	$: isAuthPage = $page.url.pathname.endsWith('/login') || $page.url.pathname.endsWith('/register');
+	$: isAuthPage = $page.url.pathname.endsWith('/login') || $page.url.pathname.endsWith('/create-account') || $page.url.pathname.endsWith('/setup-password');
 	$: isDashboard = $page.url.pathname.endsWith('/dashboard');
 	$: containerWidth = isDashboard ? 'w-full max-w-full px-4 sm:px-8' : 'max-w-7xl px-4 sm:px-6 lg:px-8';
 	
@@ -202,6 +202,17 @@
 							<h1 class="text-xl font-bold text-gray-900 dark:text-white">{$_('layout__app_name')}</h1>
 							<p class="text-xs text-gray-500 dark:text-gray-400">{$_('layout__app_subtitle')}</p>
 						</div>
+
+						<!-- GitHub Link -->
+						<a
+							href="https://github.com/watchakorn-18k/khun-phaen-tracker-offline"
+							target="_blank"
+							rel="noopener noreferrer"
+							class="p-1.5 ml-2 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition-all border border-transparent hover:border-gray-200 dark:hover:border-gray-600"
+							title={$_('layout__github')}
+						>
+							<Github size={18} />
+						</a>
 					</div>
 					<div class="flex items-center gap-4">
 						<!-- DateTime Pill -->
@@ -270,23 +281,23 @@
 							{/if}
 						</button>
 
-						<!-- GitHub Link -->
-						<a
-							href="https://github.com/watchakorn-18k/khun-phaen-tracker-offline"
-							target="_blank"
-							rel="noopener noreferrer"
-							class="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-							title={$_('layout__github')}
-						>
-							<Github size={20} />
-						</a>
+						<!-- Admin User Management Link -->
+						{#if $user?.role === 'admin'}
+							<a
+								href="{base}/settings/users"
+								class="p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+								title="User Management"
+							>
+								<Users size={20} />
+							</a>
+						{/if}
 
 						<!-- Auth Profile -->
 						{#if $user}
 							<div class="flex items-center gap-3 border-l border-gray-200 dark:border-gray-700 pl-4 h-10">
 								<div class="hidden md:flex flex-col items-end">
 									<span class="text-xs font-semibold text-gray-900 dark:text-white">{$user.email.split('@')[0]}</span>
-									<span class="text-[10px] text-gray-500 dark:text-gray-400 capitalize">User</span>
+									<span class="text-xs font-semibold text-gray-900 dark:text-white capitalize">{$user.role}</span>
 								</div>
 								<div class="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-white ring-2 ring-indigo-500/20">
 									<UserIcon size={16} />

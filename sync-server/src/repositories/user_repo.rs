@@ -25,4 +25,28 @@ impl UserRepository {
         let result = self.collection.insert_one(user, None).await?;
         Ok(result.inserted_id.as_object_id().unwrap())
     }
+
+    pub async fn find_by_setup_token(&self, token: &str) -> mongodb::error::Result<Option<User>> {
+        self.collection.find_one(doc! { "setup_token": token }, None).await
+    }
+
+    pub async fn update(&self, user: &User) -> mongodb::error::Result<()> {
+        let id = user.id.unwrap();
+        self.collection.replace_one(doc! { "_id": id }, user, None).await?;
+        Ok(())
+    }
+
+    pub async fn find_all(&self) -> mongodb::error::Result<Vec<User>> {
+        use futures::TryStreamExt;
+        let mut cursor = self.collection.find(None, None).await?;
+        let mut users = Vec::new();
+        while let Some(user) = cursor.try_next().await? {
+            users.push(user);
+        }
+        Ok(users)
+    }
+
+    pub async fn count(&self) -> mongodb::error::Result<u64> {
+        self.collection.estimated_document_count(None).await
+    }
 }

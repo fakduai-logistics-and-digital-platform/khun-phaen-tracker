@@ -2,9 +2,19 @@ import { writable } from "svelte/store";
 import { browser } from "$app/environment";
 import { api } from "$lib/apis";
 
+export interface UserProfile {
+  first_name?: string;
+  last_name?: string;
+  nickname?: string;
+  position?: string;
+}
+
 export interface User {
   id: string;
   email: string;
+  user_id: string;
+  role: string;
+  profile?: UserProfile;
 }
 
 export const user = writable<User | null>(null);
@@ -28,17 +38,38 @@ export async function initAuth() {
       // First, set user from local storage for instant UI render
       const cachedEmail = localStorage.getItem("user_email");
       const cachedId = localStorage.getItem("user_id");
+      const cachedProfile = localStorage.getItem("user_profile");
+      const cachedUserId = localStorage.getItem("user_uuid");
+
+      const cachedRole = localStorage.getItem("user_role");
+
       if (cachedEmail && cachedId) {
-        user.set({ id: cachedId, email: cachedEmail });
+        user.set({
+          id: cachedId,
+          email: cachedEmail,
+          user_id: cachedUserId || "",
+          role: cachedRole || "user",
+          profile: cachedProfile ? JSON.parse(cachedProfile) : undefined,
+        });
       }
 
       // Then quietly verify with backend to ensure the token isn't expired/fake
       const res = await api.auth.me();
       if (res.ok) {
         const data = await res.json();
-        user.set({ id: data.id, email: data.email });
-        localStorage.setItem("user_email", data.email); // keep cache fresh
+        user.set({
+          id: data.id,
+          email: data.email,
+          user_id: data.user_id,
+          role: data.role || "user",
+          profile: data.profile,
+        });
+        localStorage.setItem("user_email", data.email);
         localStorage.setItem("user_id", data.id);
+        localStorage.setItem("user_uuid", data.user_id);
+        localStorage.setItem("user_role", data.role || "user");
+        if (data.profile)
+          localStorage.setItem("user_profile", JSON.stringify(data.profile));
       } else {
         // Token is invalid/expired according to backend
         document.cookie = "_khun_ph_token=; path=/; max-age=0; samesite=Lax";

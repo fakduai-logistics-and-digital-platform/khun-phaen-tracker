@@ -6,30 +6,84 @@ use axum_extra::extract::cookie::CookieJar;
 use jsonwebtoken::{decode, DecodingKey, Validation};
 use mongodb::bson::oid::ObjectId;
 
-use crate::models::auth::{AuthRequest, Claims};
+use crate::models::auth::{AuthRequest, Claims, InviteRequest, SetupPasswordPayload, SetupPasswordRequest};
 use crate::repositories::user_repo::UserRepository;
+use crate::repositories::profile_repo::ProfileRepository;
 use crate::services::auth_service::AuthService;
 use crate::state::SharedState;
 
-pub async fn register_handler(
+pub async fn invite_handler(
     State(state): State<SharedState>,
-    Json(payload): Json<AuthRequest>,
+    jar: CookieJar,
+    headers: axum::http::HeaderMap,
+    Json(payload): Json<InviteRequest>,
+) -> axum::response::Response {
+    let user_repo = UserRepository::new(&state.db);
+    let profile_repo = ProfileRepository::new(&state.db);
+
+    // If no users exist yet, allow the first invite without auth (initial setup)
+    let user_count = match user_repo.count().await {
+        Ok(c) => c,
+        Err(_) => 0,
+    };
+
+    if user_count > 0 {
+        let claims = match extract_claims(&headers, &jar, &state.jwt_secret) {
+            Some(c) => c,
+            None => return (
+                axum::http::StatusCode::UNAUTHORIZED,
+                axum::Json(serde_json::json!({ "error": "Unauthorized" })),
+            ).into_response(),
+        };
+
+        if claims.role != "admin" {
+            return (
+                axum::http::StatusCode::FORBIDDEN,
+                axum::Json(serde_json::json!({ "error": "Admin access required" })),
+            ).into_response();
+        }
+    }
+
+    match AuthService::invite(&user_repo, &profile_repo, payload).await {
+        Ok(token) => axum::Json(serde_json::json!({ 
+            "success": true, 
+            "message": "Invitation created",
+            "setup_link": format!("/setup-password?token={}", token) // In real app, this would be emailed
+        })).into_response(),
+        Err(e) => (
+            axum::http::StatusCode::BAD_REQUEST,
+            axum::Json(serde_json::json!({ "error": e })),
+        ).into_response()
+    }
+}
+
+pub async fn setup_password_handler(
+    State(state): State<SharedState>,
+    Json(payload): Json<SetupPasswordPayload>,
 ) -> axum::response::Response {
     let user_repo = UserRepository::new(&state.db);
 
-    match AuthService::register(&user_repo, payload).await {
-        Ok(user_id) => axum::Json(serde_json::json!({ "success": true, "user_id": user_id })).into_response(),
-        Err(e) => {
-            let status = if e == "User already exists" {
-                axum::http::StatusCode::BAD_REQUEST
-            } else {
-                axum::http::StatusCode::INTERNAL_SERVER_ERROR
-            };
-            (
-                status,
-                axum::Json(serde_json::json!({ "error": e })),
-            ).into_response()
-        }
+    match AuthService::setup_password(&user_repo, &payload.token, &payload.password).await {
+        Ok(email) => axum::Json(serde_json::json!({ "success": true, "email": email })).into_response(),
+        Err(e) => (
+            axum::http::StatusCode::BAD_REQUEST,
+            axum::Json(serde_json::json!({ "error": e })),
+        ).into_response()
+    }
+}
+
+pub async fn get_setup_info_handler(
+    State(state): State<SharedState>,
+    axum::extract::Query(payload): axum::extract::Query<SetupPasswordRequest>,
+) -> axum::response::Response {
+    let user_repo = UserRepository::new(&state.db);
+
+    match AuthService::get_setup_info(&user_repo, &payload.token).await {
+        Ok(email) => axum::Json(serde_json::json!({ "success": true, "email": email })).into_response(),
+        Err(e) => (
+            axum::http::StatusCode::BAD_REQUEST,
+            axum::Json(serde_json::json!({ "error": e })),
+        ).into_response()
     }
 }
 
@@ -38,9 +92,18 @@ pub async fn login_handler(
     Json(payload): Json<AuthRequest>,
 ) -> axum::response::Response {
     let user_repo = UserRepository::new(&state.db);
+    let profile_repo = ProfileRepository::new(&state.db);
 
-    match AuthService::login(&user_repo, payload, &state.jwt_secret).await {
-        Ok((id, user_id, email, token)) => axum::Json(serde_json::json!({ "success": true, "id": id, "user_id": user_id, "email": email, "token": token })).into_response(),
+    match AuthService::login(&user_repo, &profile_repo, payload, &state.jwt_secret).await {
+        Ok((id, user_id, email, role, token, profile)) => axum::Json(serde_json::json!({ 
+            "success": true, 
+            "id": id, 
+            "user_id": user_id, 
+            "email": email, 
+            "role": role,
+            "token": token,
+            "profile": profile 
+        })).into_response(),
         Err(e) => (
             axum::http::StatusCode::UNAUTHORIZED,
             axum::Json(serde_json::json!({ "error": e })),
@@ -55,9 +118,9 @@ pub async fn logout_handler() -> axum::response::Response {
 pub async fn me_handler(
     State(state): State<SharedState>,
     jar: CookieJar,
-    req: axum::extract::Request,
+    headers: axum::http::HeaderMap,
 ) -> axum::response::Response {
-    let auth_header = req.headers().get("Authorization").and_then(|h| h.to_str().ok());
+    let auth_header = headers.get("Authorization").and_then(|h| h.to_str().ok());
     
     // First try to get token from Authorization: Bearer <token>
     let token = if let Some(header) = auth_header {
@@ -93,13 +156,19 @@ pub async fn me_handler(
 
     let user_id = ObjectId::parse_str(&token_data.claims.sub).unwrap();
     let user_repo = UserRepository::new(&state.db);
+    let profile_repo = ProfileRepository::new(&state.db);
 
     match user_repo.find_by_id(&user_id).await {
         Ok(Some(user)) => {
+            let profile = profile_repo.find_by_user_id(&user.user_id).await.ok().flatten();
+            
             axum::Json(serde_json::json!({ 
+                "success": true,
                 "id": user.id.unwrap().to_hex(),
                 "user_id": user.user_id,
-                "email": user.email 
+                "email": user.email,
+                "role": user.role,
+                "profile": profile
             })).into_response()
         },
         Ok(None) => (
@@ -113,11 +182,52 @@ pub async fn me_handler(
     }
 }
 
+pub async fn list_users_handler(
+    State(state): State<SharedState>,
+    jar: CookieJar,
+    headers: axum::http::HeaderMap,
+) -> axum::response::Response {
+    let claims = match extract_claims(&headers, &jar, &state.jwt_secret) {
+        Some(c) => c,
+        None => return (
+            axum::http::StatusCode::UNAUTHORIZED,
+            axum::Json(serde_json::json!({ "error": "Unauthorized" })),
+        ).into_response(),
+    };
+
+    if claims.role != "admin" {
+        return (
+            axum::http::StatusCode::FORBIDDEN,
+            axum::Json(serde_json::json!({ "error": "Admin access required" })),
+        ).into_response();
+    }
+
+    let user_repo = UserRepository::new(&state.db);
+    let profile_repo = ProfileRepository::new(&state.db);
+
+    match AuthService::list_all_users(&user_repo, &profile_repo).await {
+        Ok(users) => axum::Json(serde_json::json!({ "success": true, "users": users })).into_response(),
+        Err(e) => (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            axum::Json(serde_json::json!({ "error": e })),
+        ).into_response()
+    }
+}
+
 pub fn extract_user_id(
     headers: &axum::http::HeaderMap,
     jar: &CookieJar,
     secret: &str,
 ) -> Option<ObjectId> {
+    let claims = extract_claims(headers, jar, secret)?;
+    ObjectId::parse_str(&claims.sub).ok()
+}
+
+pub fn extract_claims(
+    headers: &axum::http::HeaderMap,
+    jar: &CookieJar,
+    secret: &str,
+) -> Option<Claims> {
     let auth_header = headers.get("Authorization").and_then(|h| h.to_str().ok());
     
     let token = if let Some(header) = auth_header {
@@ -132,12 +242,10 @@ pub fn extract_user_id(
 
     let token_str = token?;
     
-    let token_data = decode::<Claims>(
+    decode::<Claims>(
         &token_str,
         &DecodingKey::from_secret(secret.as_ref()),
         &Validation::default(),
-    ).ok()?;
-
-    ObjectId::parse_str(&token_data.claims.sub).ok()
+    ).ok().map(|data| data.claims)
 }
 

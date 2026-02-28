@@ -104,10 +104,13 @@ async fn main() {
     let app = Router::new()
         .route("/", get(root_handler))
         .route("/health", get(health_check))
-        .route("/api/auth/register", post(handlers::auth_handler::register_handler))
+        .route("/api/auth/invite", post(handlers::auth_handler::invite_handler))
+        .route("/api/auth/setup-info", get(handlers::auth_handler::get_setup_info_handler))
+        .route("/api/auth/setup-password", post(handlers::auth_handler::setup_password_handler))
         .route("/api/auth/login", post(handlers::auth_handler::login_handler))
         .route("/api/auth/logout", post(handlers::auth_handler::logout_handler))
         .route("/api/auth/me", get(handlers::auth_handler::me_handler))
+        .route("/api/auth/users", get(handlers::auth_handler::list_users_handler))
         .route(
             "/api/rooms",
             post(handlers::room_handler::create_room).layer(tower_governor::GovernorLayer {
