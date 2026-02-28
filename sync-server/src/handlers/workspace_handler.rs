@@ -28,7 +28,18 @@ pub async fn get_workspaces_handler(
 
     let workspace_repo = WorkspaceRepository::new(&state.db);
     match WorkspaceService::get_user_workspaces(&workspace_repo, &user_id).await {
-        Ok(workspaces) => axum::Json(serde_json::json!({ "success": true, "workspaces": workspaces })).into_response(),
+        Ok(workspaces) => {
+            let workspaces_json: Vec<_> = workspaces.into_iter().map(|w| {
+                serde_json::json!({
+                    "id": w.id.map(|id| id.to_hex()).unwrap_or_default(),
+                    "name": w.name,
+                    "owner_id": w.owner_id.to_hex(),
+                    "room_code": w.room_code,
+                    "created_at": w.created_at,
+                })
+            }).collect();
+            axum::Json(serde_json::json!({ "success": true, "workspaces": workspaces_json })).into_response()
+        },
         Err(e) => (
             axum::http::StatusCode::INTERNAL_SERVER_ERROR,
             axum::Json(serde_json::json!({ "error": e })),
@@ -52,7 +63,16 @@ pub async fn create_workspace_handler(
 
     let workspace_repo = WorkspaceRepository::new(&state.db);
     match WorkspaceService::create_workspace(&workspace_repo, &user_id, payload).await {
-        Ok(workspace) => axum::Json(serde_json::json!({ "success": true, "workspace": workspace })).into_response(),
+        Ok(workspace) => {
+            let workspace_json = serde_json::json!({
+                "id": workspace.id.map(|id| id.to_hex()).unwrap_or_default(),
+                "name": workspace.name,
+                "owner_id": workspace.owner_id.to_hex(),
+                "room_code": workspace.room_code,
+                "created_at": workspace.created_at,
+            });
+            axum::Json(serde_json::json!({ "success": true, "workspace": workspace_json })).into_response()
+        },
         Err(e) => (
             axum::http::StatusCode::INTERNAL_SERVER_ERROR,
             axum::Json(serde_json::json!({ "error": e })),

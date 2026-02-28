@@ -3,6 +3,7 @@ import { browser } from "$app/environment";
 import { api } from "$lib/apis";
 
 export interface User {
+  id: string;
   email: string;
 }
 
@@ -26,20 +27,23 @@ export async function initAuth() {
     if (token) {
       // First, set user from local storage for instant UI render
       const cachedEmail = localStorage.getItem("user_email");
-      if (cachedEmail) {
-        user.set({ email: cachedEmail });
+      const cachedId = localStorage.getItem("user_id");
+      if (cachedEmail && cachedId) {
+        user.set({ id: cachedId, email: cachedEmail });
       }
 
       // Then quietly verify with backend to ensure the token isn't expired/fake
       const res = await api.auth.me();
       if (res.ok) {
         const data = await res.json();
-        user.set({ email: data.email });
+        user.set({ id: data.id, email: data.email });
         localStorage.setItem("user_email", data.email); // keep cache fresh
+        localStorage.setItem("user_id", data.id);
       } else {
         // Token is invalid/expired according to backend
         document.cookie = "_khun_ph_token=; path=/; max-age=0; samesite=Lax";
         localStorage.removeItem("user_email");
+        localStorage.removeItem("user_id");
         user.set(null);
       }
     } else {

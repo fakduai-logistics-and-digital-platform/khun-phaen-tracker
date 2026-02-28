@@ -26,8 +26,10 @@
                 document.cookie = `_khun_ph_token=${data.token}; path=/; max-age=${60 * 60 * 24 * 7}; samesite=Lax`;
                 
                 const userEmail = data.email || email;
+                const userId = data.id || "";
                 localStorage.setItem("user_email", userEmail);
-                user.set({ email: userEmail });
+                if (userId) localStorage.setItem("user_id", userId);
+                user.set({ id: userId, email: userEmail });
                 goto(`${base}/dashboard`);
             } else {
                 error = data.error || 'Login failed';

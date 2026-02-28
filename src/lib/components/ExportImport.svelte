@@ -20,6 +20,8 @@
 		importCSV: string;
 	}>()
 
+	export let showImport: boolean = true;
+
 	let fileInput: HTMLInputElement;
 	let showImportConfirm = false;
 	let importContent = '';
@@ -271,6 +273,7 @@
 		{/if}
 	</div>
 
+	{#if showImport}
 	<input
 		type="file"
 		accept=".csv"
@@ -287,6 +290,7 @@
 		<span class="hidden sm:inline">{$_('exportImport__import')}</span>
 		<span class="sm:hidden">{$_('exportImport__import_short')}</span>
 	</button>
+	{/if}
 </div>
 
 {#if showImportConfirm}

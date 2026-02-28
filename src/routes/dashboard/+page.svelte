@@ -9,10 +9,11 @@
     import { Plus, LayoutTemplate, ArrowRight, Loader2, FolderOpen, Pencil, Trash2 } from 'lucide-svelte';
 
     interface Workspace {
-        _id?: { $oid: string };
+        id: string;
         name: string;
         room_code: string;
         created_at: string;
+        owner_id: string;
     }
 
     let workspaces: Workspace[] = [];
@@ -94,16 +95,16 @@
     }
 
     async function updateWorkspace() {
-        if (!editingWorkspace || !editingWorkspace._id || !editWorkspaceName.trim()) return;
+        if (!editingWorkspace || !editingWorkspace.id || !editWorkspaceName.trim()) return;
         
         updating = true;
         error = '';
         try {
-            const res = await api.workspaces.update(editingWorkspace._id.$oid, editWorkspaceName);
+            const res = await api.workspaces.update(editingWorkspace.id, editWorkspaceName);
             if (res.ok) {
                 // Update workspace in list
                 workspaces = workspaces.map(ws => 
-                    ws._id?.$oid === editingWorkspace!._id?.$oid 
+                    ws.id === editingWorkspace!.id 
                         ? { ...ws, name: editWorkspaceName } 
                         : ws
                 );
@@ -127,15 +128,15 @@
     }
 
     async function deleteWorkspace() {
-        if (!deletingWorkspace || !deletingWorkspace._id) return;
+        if (!deletingWorkspace || !deletingWorkspace.id) return;
         
         deleting = true;
         error = '';
         try {
-            const res = await api.workspaces.delete(deletingWorkspace._id.$oid);
+            const res = await api.workspaces.delete(deletingWorkspace.id);
             if (res.ok) {
                 // Remove workspace from list
-                workspaces = workspaces.filter(ws => ws._id?.$oid !== deletingWorkspace!._id?.$oid);
+                workspaces = workspaces.filter(ws => ws.id !== deletingWorkspace!.id);
                 showDeleteModal = false;
                 deletingWorkspace = null;
             } else {
@@ -150,9 +151,9 @@
     }
 
     function enterWorkspace(workspace: Workspace) {
-        // Persist workspace _id for API calls
-        if (workspace._id?.$oid) {
-            setWorkspaceId(workspace._id.$oid, workspace.name);
+        // Persist workspace id for API calls
+        if (workspace.id) {
+            setWorkspaceId(workspace.id, workspace.name, workspace.owner_id);
         }
         localStorage.setItem('sync-room-code', workspace.room_code);
         localStorage.setItem('sync-server-url', 'http://127.0.0.1:3002');

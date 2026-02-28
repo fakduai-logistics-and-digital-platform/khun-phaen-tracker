@@ -18,7 +18,7 @@ pub async fn register_handler(
     let user_repo = UserRepository::new(&state.db);
 
     match AuthService::register(&user_repo, payload).await {
-        Ok(_) => axum::Json(serde_json::json!({ "success": true })).into_response(),
+        Ok(user_id) => axum::Json(serde_json::json!({ "success": true, "user_id": user_id })).into_response(),
         Err(e) => {
             let status = if e == "User already exists" {
                 axum::http::StatusCode::BAD_REQUEST
@@ -40,7 +40,7 @@ pub async fn login_handler(
     let user_repo = UserRepository::new(&state.db);
 
     match AuthService::login(&user_repo, payload, &state.jwt_secret).await {
-        Ok((email, token)) => axum::Json(serde_json::json!({ "success": true, "email": email, "token": token })).into_response(),
+        Ok((id, email, token)) => axum::Json(serde_json::json!({ "success": true, "id": id.clone(), "user_id": id, "email": email, "token": token })).into_response(),
         Err(e) => (
             axum::http::StatusCode::UNAUTHORIZED,
             axum::Json(serde_json::json!({ "error": e })),
@@ -95,7 +95,14 @@ pub async fn me_handler(
     let user_repo = UserRepository::new(&state.db);
 
     match user_repo.find_by_id(&user_id).await {
-        Ok(Some(user)) => axum::Json(serde_json::json!({ "email": user.email })).into_response(),
+        Ok(Some(user)) => {
+            let user_id_hex = user.id.unwrap().to_hex();
+            axum::Json(serde_json::json!({ 
+                "id": user_id_hex.clone(),
+                "user_id": user_id_hex,
+                "email": user.email 
+            })).into_response()
+        },
         Ok(None) => (
             axum::http::StatusCode::UNAUTHORIZED,
             axum::Json(serde_json::json!({ "error": "User not found" })),

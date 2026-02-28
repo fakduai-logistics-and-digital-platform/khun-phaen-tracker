@@ -6,7 +6,7 @@ use jsonwebtoken::{encode, EncodingKey, Header};
 pub struct AuthService;
 
 impl AuthService {
-    pub async fn register(user_repo: &UserRepository, payload: AuthRequest) -> Result<(), String> {
+    pub async fn register(user_repo: &UserRepository, payload: AuthRequest) -> Result<String, String> {
         let existing = user_repo.find_by_email(&payload.email).await.map_err(|e| format!("Database error: {}", e))?;
         if existing.is_some() {
             return Err("User already exists".to_string());
@@ -21,11 +21,11 @@ impl AuthService {
             created_at: chrono::Utc::now(),
         };
 
-        user_repo.create(new_user).await.map_err(|e| e.to_string())?;
-        Ok(())
+        let user_id = user_repo.create(new_user).await.map_err(|e| e.to_string())?;
+        Ok(user_id.to_hex())
     }
 
-    pub async fn login(user_repo: &UserRepository, payload: AuthRequest, jwt_secret: &str) -> Result<(String, String), String> {
+    pub async fn login(user_repo: &UserRepository, payload: AuthRequest, jwt_secret: &str) -> Result<(String, String, String), String> {
         let user = user_repo.find_by_email(&payload.email).await.map_err(|e| format!("Database error: {}", e))?
             .ok_or_else(|| "Invalid email or password".to_string())?;
 
@@ -49,6 +49,6 @@ impl AuthService {
             &EncodingKey::from_secret(jwt_secret.as_ref()),
         ).map_err(|e| e.to_string())?;
 
-        Ok((user.email, token))
+        Ok((user.id.unwrap().to_hex(), user.email, token))
     }
 }

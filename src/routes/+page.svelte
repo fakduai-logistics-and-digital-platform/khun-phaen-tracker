@@ -21,6 +21,8 @@
 	import { initWasmSearch, indexTasks, performSearch, clearSearch, searchQuery, wasmReady, wasmLoading } from '$lib/stores/search';
 	import { compressionReady, compressionStats, getStorageInfo } from '$lib/stores/storage';
 	import { connectRealtime, disconnectRealtime, realtimeStatus, realtimePeers } from '$lib/stores/realtime';
+	import { user } from '$lib/stores/auth';
+	import { currentWorkspaceOwnerId } from '$lib/stores/workspace';
 	import { tabSettings, type TabId } from '$lib/stores/tabSettings';
 	import { theme } from '$lib/stores/theme';
 	import TabSettings from '$lib/components/TabSettings.svelte';
@@ -105,6 +107,8 @@
 	let pendingLoadData = false;
 	let visibleTabs: { id: TabId; icon: string }[] = [];
 	let lastLoadedView: ViewMode | null = null;
+
+	$: isOwner = $currentWorkspaceOwnerId && $user?.id ? $currentWorkspaceOwnerId === $user.id : false;
 
 	function handleSelectAssigneeFromWorkload(event: CustomEvent<{ assigneeId: number | 'all' | null }>) {
 		filters = { ...filters, assignee_id: event.detail.assigneeId };
@@ -2705,6 +2709,7 @@
 			</button>
 
 			<ExportImport
+				showImport={isOwner}
 				on:exportCSV={handleExportCSV}
 				on:exportPDF={handleExportPDF}
 				on:exportPNG={() => showMessage($_('page__export_png_success'))}

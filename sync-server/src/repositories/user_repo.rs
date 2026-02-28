@@ -21,8 +21,8 @@ impl UserRepository {
         self.collection.find_one(doc! { "_id": id }, None).await
     }
 
-    pub async fn create(&self, user: User) -> mongodb::error::Result<()> {
-        self.collection.insert_one(user, None).await?;
-        Ok(())
+    pub async fn create(&self, user: User) -> mongodb::error::Result<ObjectId> {
+        let result = self.collection.insert_one(user, None).await?;
+        Ok(result.inserted_id.as_object_id().unwrap())
     }
 }
