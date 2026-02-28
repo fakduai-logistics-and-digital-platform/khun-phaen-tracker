@@ -48,6 +48,45 @@ export const api = {
       });
     },
   },
-  // You can add more modules here e.g.
-  // rooms: { ... }
+  workspaces: {
+    getList: async (): Promise<Response> => {
+      let token = "";
+      if (typeof document !== "undefined") {
+        const match = document.cookie.match(
+          new RegExp("(^| )_khun_ph_token=([^;]+)"),
+        );
+        if (match) token = match[2];
+      }
+
+      const headers: Record<string, string> = { Accept: "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      return fetch(`${API_BASE_URL}/workspaces`, {
+        headers,
+        credentials: "include",
+      });
+    },
+    create: async (name: string): Promise<Response> => {
+      let token = "";
+      if (typeof document !== "undefined") {
+        const match = document.cookie.match(
+          new RegExp("(^| )_khun_ph_token=([^;]+)"),
+        );
+        if (match) token = match[2];
+      }
+
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      return fetch(`${API_BASE_URL}/workspaces`, {
+        method: "POST",
+        headers,
+        credentials: "include",
+        body: JSON.stringify({ name }),
+      });
+    },
+  },
 };

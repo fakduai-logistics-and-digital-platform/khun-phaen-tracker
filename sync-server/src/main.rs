@@ -72,7 +72,7 @@ async fn main() {
         std::env::var("JWT_SECRET").unwrap_or_else(|_| "default_secret_keep_it_safe".to_string());
     let db_name = std::env::var("DB_NAME").unwrap_or_else(|_| "tracker-db".to_string());
 
-    info!("🔌 Connecting to MongoDB at {}...", mongodb_uri);
+    info!("🔌 Connecting to MongoDB...");
     let mongo_client = Client::with_uri_str(&mongodb_uri)
         .await
         .expect("Failed to connect to MongoDB");
@@ -115,6 +115,8 @@ async fn main() {
             }),
         )
         .route("/api/rooms/:room_code", get(handlers::room_handler::get_room_info))
+        .route("/api/workspaces", get(handlers::workspace_handler::get_workspaces_handler))
+        .route("/api/workspaces", post(handlers::workspace_handler::create_workspace_handler))
         .route("/ws", get(handlers::ws_handler::ws_handler))
         .layer(
             tower_http::cors::CorsLayer::new()

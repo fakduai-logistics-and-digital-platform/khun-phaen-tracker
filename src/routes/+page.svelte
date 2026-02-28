@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { onMount, onDestroy, tick } from 'svelte';
 	import { browser } from '$app/environment';
+	import { goto } from '$app/navigation';
+	import { base } from '$app/paths';
 	import { _ } from 'svelte-i18n';
 	import type { Task, Project, Assignee, ViewMode, FilterOptions } from '$lib/types';
 	import { getTasks, getTasksBySprint, addTask, updateTask, deleteTask, getStats, exportToCSV, importFromCSV, importAllData, mergeAllData, getCategories, getAssignees, getProjects, getProjectsList, addProject, updateProject, deleteProject, getProjectStats, addAssignee as addAssigneeDB, getAssigneeStats, updateAssignee, deleteAssignee, archiveTasksBySprint, exportFilteredSQLiteBinary } from '$lib/db';
@@ -719,6 +721,14 @@
 	}
 
 	onMount(() => {
+		// Enforce workspace selection
+		const urlParams = new URLSearchParams(window.location.search);
+		const urlRoom = urlParams.get('room');
+		if (!urlRoom) {
+			goto(`${base}/dashboard`);
+			return;
+		}
+
 		// Enable auto-import for server sync (before any connection)
 		enableAutoImport();
 		

@@ -28,7 +28,7 @@
                 const userEmail = data.email || email;
                 localStorage.setItem("user_email", userEmail);
                 user.set({ email: userEmail });
-                goto(base || '/');
+                goto(`${base}/dashboard`);
             } else {
                 error = data.error || 'Login failed';
             }

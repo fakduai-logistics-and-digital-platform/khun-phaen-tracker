@@ -125,6 +125,8 @@
 			// Clear cookie on client side
 			document.cookie = '_khun_ph_token=; path=/; max-age=0; samesite=Lax';
 			localStorage.removeItem('user_email');
+			localStorage.removeItem('sync-room-code');
+			localStorage.removeItem('sync-server-url');
 			
 			user.set(null);
 			goto(`${base}/login`);
@@ -134,8 +136,22 @@
 	}
 
 	$: isAuthPage = $page.url.pathname.endsWith('/login') || $page.url.pathname.endsWith('/register');
-	$: if (!$authLoading && !$user && !isAuthPage && browser) {
-		goto(`${base}/login`);
+	$: isDashboard = $page.url.pathname.endsWith('/dashboard');
+	$: containerWidth = isDashboard ? 'w-full max-w-full px-4 sm:px-8' : 'max-w-7xl px-4 sm:px-6 lg:px-8';
+	
+	$: if (!$authLoading && browser) {
+		if (!$user && !isAuthPage) {
+			goto(`${base}/login`);
+		} else if ($user && !isAuthPage && !isDashboard) {
+			// Check if trying to access main app without a room
+			const urlParams = new URLSearchParams(window.location.search);
+			const urlRoom = urlParams.get('room');
+			const savedRoom = localStorage.getItem('sync-room-code');
+			
+			if (!urlRoom && ($page.url.pathname === base || $page.url.pathname === base + '/')) {
+				goto(`${base}/dashboard`);
+			}
+		}
 	}
 </script>
 
@@ -173,7 +189,7 @@
 		</main>
 	{:else}
 		<header class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-999 transition-colors">
-			<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+			<div class="{containerWidth} mx-auto">
 				<div class="flex items-center justify-between h-16">
 					<div class="flex items-center gap-3">
 						<div class="p-2 bg-primary/10 rounded-lg">
@@ -294,7 +310,7 @@
 			</div>
 		</header>
 
-		<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1">
+		<main class="{containerWidth} mx-auto py-6 flex-1">
 			<slot />
 		</main>
 
@@ -307,11 +323,13 @@
 		{/if}
 
 		<!-- Dev Timer - Fixed Bottom Right -->
-		<DevTimer 
-			on:showBookmarks={() => showBookmarkManager = true}
-			on:showWhiteboard={() => showWhiteboard = true}
-			on:showQuickNotes={() => showQuickNotes = true}
-		/>
+		{#if !isDashboard}
+			<DevTimer 
+				on:showBookmarks={() => showBookmarkManager = true}
+				on:showWhiteboard={() => showWhiteboard = true}
+				on:showQuickNotes={() => showQuickNotes = true}
+			/>
+		{/if}
 		
 		<!-- Bookmark Manager Modal -->
 		{#if showBookmarkManager}

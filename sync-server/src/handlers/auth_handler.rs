@@ -106,3 +106,32 @@ pub async fn me_handler(
         ).into_response(),
     }
 }
+
+pub fn extract_user_id(
+    headers: &axum::http::HeaderMap,
+    jar: &CookieJar,
+    secret: &str,
+) -> Option<ObjectId> {
+    let auth_header = headers.get("Authorization").and_then(|h| h.to_str().ok());
+    
+    let token = if let Some(header) = auth_header {
+        if header.starts_with("Bearer ") {
+            Some(header[7..].to_string())
+        } else {
+            None
+        }
+    } else {
+        jar.get("_khun_ph_token").map(|c| c.value().to_string())
+    };
+
+    let token_str = token?;
+    
+    let token_data = decode::<Claims>(
+        &token_str,
+        &DecodingKey::from_secret(secret.as_ref()),
+        &Validation::default(),
+    ).ok()?;
+
+    ObjectId::parse_str(&token_data.claims.sub).ok()
+}
+
