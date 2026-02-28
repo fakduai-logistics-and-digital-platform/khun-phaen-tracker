@@ -15,3 +15,8 @@ pub struct Workspace {
 pub struct CreateWorkspaceRequest {
     pub name: String,
 }
+
+#[derive(Deserialize)]
+pub struct UpdateWorkspaceRequest {
+    pub name: String,
+}

@@ -88,5 +88,45 @@ export const api = {
         body: JSON.stringify({ name }),
       });
     },
+    update: async (id: string, name: string): Promise<Response> => {
+      let token = "";
+      if (typeof document !== "undefined") {
+        const match = document.cookie.match(
+          new RegExp("(^| )_khun_ph_token=([^;]+)"),
+        );
+        if (match) token = match[2];
+      }
+
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      return fetch(`${API_BASE_URL}/workspaces/${id}`, {
+        method: "PUT",
+        headers,
+        credentials: "include",
+        body: JSON.stringify({ name }),
+      });
+    },
+    delete: async (id: string): Promise<Response> => {
+      let token = "";
+      if (typeof document !== "undefined") {
+        const match = document.cookie.match(
+          new RegExp("(^| )_khun_ph_token=([^;]+)"),
+        );
+        if (match) token = match[2];
+      }
+
+      const headers: Record<string, string> = { Accept: "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      return fetch(`${API_BASE_URL}/workspaces/${id}`, {
+        method: "DELETE",
+        headers,
+        credentials: "include",
+      });
+    },
   },
 };

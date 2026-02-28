@@ -26,8 +26,28 @@ impl WorkspaceRepository {
         Ok(workspaces)
     }
 
-    pub async fn create(&self, workspace: Workspace) -> mongodb::error::Result<()> {
-        self.collection.insert_one(workspace, None).await?;
-        Ok(())
+    pub async fn create(&self, mut workspace: Workspace) -> mongodb::error::Result<Workspace> {
+        let insert_res = self.collection.insert_one(workspace.clone(), None).await?;
+        if let Some(id) = insert_res.inserted_id.as_object_id() {
+            workspace.id = Some(id);
+        }
+        Ok(workspace)
+    }
+
+    pub async fn update(&self, id: &ObjectId, owner_id: &ObjectId, new_name: &str) -> mongodb::error::Result<bool> {
+        let update_res = self.collection.update_one(
+            doc! { "_id": id, "owner_id": owner_id },
+            doc! { "$set": { "name": new_name } },
+            None
+        ).await?;
+        Ok(update_res.matched_count > 0)
+    }
+
+    pub async fn delete(&self, id: &ObjectId, owner_id: &ObjectId) -> mongodb::error::Result<bool> {
+        let delete_res = self.collection.delete_one(
+            doc! { "_id": id, "owner_id": owner_id },
+            None
+        ).await?;
+        Ok(delete_res.deleted_count > 0)
     }
 }

@@ -7,7 +7,7 @@ mod state;
 use axum::{
     extract::State,
     response::IntoResponse,
-    routing::{get, post},
+    routing::{get, post, put, delete},
     Router,
 };
 use dashmap::DashMap;
@@ -117,6 +117,8 @@ async fn main() {
         .route("/api/rooms/:room_code", get(handlers::room_handler::get_room_info))
         .route("/api/workspaces", get(handlers::workspace_handler::get_workspaces_handler))
         .route("/api/workspaces", post(handlers::workspace_handler::create_workspace_handler))
+        .route("/api/workspaces/:id", put(handlers::workspace_handler::update_workspace_handler))
+        .route("/api/workspaces/:id", delete(handlers::workspace_handler::delete_workspace_handler))
         .route("/ws", get(handlers::ws_handler::ws_handler))
         .layer(
             tower_http::cors::CorsLayer::new()
