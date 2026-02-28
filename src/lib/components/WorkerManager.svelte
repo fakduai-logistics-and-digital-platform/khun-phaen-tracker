@@ -412,14 +412,4 @@
 	</div>
 </div>
 
-<style>
-	/* Standard CSS for select options as @apply is failing in scoped styles with Tailwind v4 */
-	select option {
-		background-color: white;
-		color: black;
-	}
-	:global(.dark) select option {
-		background-color: #1f2937;
-		color: white;
-	}
-</style>
+

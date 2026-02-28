@@ -442,7 +442,12 @@
     <!-- Delete Confirmation Modal -->
     {#if showDeleteConfirm}
         <div class="fixed inset-0 z-[1100] flex items-center justify-center p-4">
-            <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" on:click={() => showDeleteConfirm = false}></div>
+            <button 
+                class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm w-full h-full border-none cursor-default" 
+                on:click={() => showDeleteConfirm = false}
+                aria-label="Close modal"
+                type="button"
+            ></button>
             <div class="relative w-full max-w-sm bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 p-6 animate-zoom-in">
                 <div class="flex flex-col items-center text-center">
                     <div class="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center text-red-500 mb-4 ring-8 ring-red-50 dark:ring-red-900/10">
