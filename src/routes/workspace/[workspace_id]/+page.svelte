@@ -66,6 +66,7 @@
 	let projectList: Project[] = [];
 	let projectStats: { id: number; taskCount: number }[] = [];
 	let assignees: Assignee[] = [];
+	$: myAssigneeId = assignees.find(a => a.user_id === $user?.user_id)?.id;
 	let workerStats: { id: number; taskCount: number }[] = [];
 	let stats = { total: 0, todo: 0, in_progress: 0, in_test: 0, done: 0, total_minutes: 0 };
 	const VIEW_MODE_STORAGE_KEY = 'khunphaen-view-mode';
@@ -2972,10 +2973,16 @@
 						id="assignee"
 						bind:value={filters.assignee_id}
 						options={[
+							...(myAssigneeId ? [{ 
+								value: myAssigneeId, 
+								label: $_('page__filter_assignee_me'), 
+								badge: true, 
+								badgeColor: 'bg-indigo-500' 
+							}] : []),
 							{ value: 'all', label: $_('page__filter_assignee_all') },
 							{ value: null, label: $_('page__unassigned'), badge: true, badgeColor: 'bg-gray-300' },
 							...assignees
-							.filter((a) => a.id !== undefined)
+							.filter((a) => a.id !== undefined && a.id !== myAssigneeId)
 							.map(a => ({ 
 								value: a.id!, 
 								label: a.name,
@@ -3229,6 +3236,7 @@
 		<WorkerManager
 			{assignees}
 			{workerStats}
+			{isOwner}
 			on:close={() => showWorkerManager = false}
 			on:add={handleAddWorker}
 			on:update={handleUpdateWorker}

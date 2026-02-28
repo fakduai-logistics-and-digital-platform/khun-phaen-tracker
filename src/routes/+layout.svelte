@@ -11,6 +11,7 @@
 	import BookmarkManager from '$lib/components/BookmarkManager.svelte';
 	import WhiteboardModal from '$lib/components/WhiteboardModal.svelte';
 	import QuickNotes from '$lib/components/QuickNotes.svelte';
+	import ProfileModal from '$lib/components/ProfileModal.svelte';
 	import { _ } from 'svelte-i18n';
 	import { initAuth, user, authLoading } from '$lib/stores/auth';
 	import { LogIn, LogOut, User as UserIcon, Settings } from 'lucide-svelte';
@@ -30,6 +31,7 @@
 	let showQuickNotes = false;
 	let showLanguageDropdown = false;
 	let showAccountDropdown = false;
+	let showProfileModal = false;
 	let whiteboardMessage = '';
 	let whiteboardMessageType: 'success' | 'error' = 'success';
 	let githubStars = '...';
@@ -131,7 +133,7 @@
 		});
 	}
 
-	function showWhiteboardToast(message: string, type: 'success' | 'error' = 'success') {
+	function showToast(message: string, type: 'success' | 'error' = 'success') {
 		whiteboardMessage = message;
 		whiteboardMessageType = type;
 		setTimeout(() => {
@@ -388,16 +390,18 @@
 											</div>
 
 											<div class="px-2 space-y-0.5">
-												<a
-													href="{base}/settings"
-													class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors group/item"
-													on:click={() => showAccountDropdown = false}
+												<button
+													class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors group/item text-left"
+													on:click={() => {
+														showAccountDropdown = false;
+														showProfileModal = true;
+													}}
 												>
 													<div class="p-1.5 rounded-lg bg-gray-50 dark:bg-gray-900 group-hover/item:bg-white dark:group-hover/item:bg-gray-800 transition-colors">
 														<Settings size={14} class="text-gray-500 group-hover/item:text-indigo-500 transition-colors" />
 													</div>
 													<span class="font-medium">{$_('layout__profile_settings')}</span>
-												</a>
+												</button>
 
 												<button
 													on:click={() => {
@@ -484,7 +488,15 @@
 			<WhiteboardModal
 				open={showWhiteboard}
 				on:close={() => showWhiteboard = false}
-				on:notify={(event) => showWhiteboardToast(event.detail.message, event.detail.type)}
+				on:notify={(event) => showToast(event.detail.message, event.detail.type)}
+			/>
+		{/if}
+
+		{#if showProfileModal}
+			<ProfileModal
+				open={showProfileModal}
+				on:close={() => showProfileModal = false}
+				on:notify={(event) => showToast(event.detail.message, event.detail.type)}
 			/>
 		{/if}
 	{/if}

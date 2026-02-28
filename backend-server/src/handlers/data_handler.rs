@@ -11,6 +11,7 @@ use crate::repositories::data_repo::DataRepository;
 use crate::repositories::workspace_repo::WorkspaceRepository;
 use crate::state::SharedState;
 use crate::handlers::auth_handler::extract_user_id;
+use futures::StreamExt;
 
 /// Helper: verify user owns workspace and return workspace_id as ObjectId
 async fn verify_workspace_access(
@@ -407,7 +408,6 @@ pub async fn create_assignee(
     if let (Some(u_id), None) = (&payload.user_id, &discord_id) {
         let user_repo = crate::repositories::user_repo::UserRepository::new(&state.db);
         // Find user by user_id (string UUID)
-        use futures::StreamExt;
         let mut cursor = state.db.collection::<crate::models::user::User>("users")
             .find(doc! { "user_id": u_id }, None).await.unwrap();
         if let Some(Ok(user)) = cursor.next().await {
@@ -458,13 +458,13 @@ pub async fn update_assignee(
     let mut updates = Document::new();
     if let Some(v) = payload.name { updates.insert("name", v); }
     if let Some(v) = payload.color { updates.insert("color", v); }
-    if let Some(v) = payload.discord_id {
+    if let Some(v) = payload.discord_id.as_ref() {
         match v {
             Some(d) => { updates.insert("discord_id", d); },
             None => { updates.insert("discord_id", mongodb::bson::Bson::Null); },
         }
     }
-    if let Some(v) = payload.user_id {
+    if let Some(v) = payload.user_id.as_ref() {
         match v {
             Some(u) => { 
                 updates.insert("user_id", &u);

@@ -89,8 +89,8 @@
 				if (!newWorkerName || (editingWorker && newWorkerName === editingWorker.name)) {
 					newWorkerName = user.nickname || user.first_name || user.email.split('@')[0];
 				}
-				if (user.profile?.discord_id && (!newWorkerDiscordId || (editingWorker && newWorkerDiscordId === editingWorker.discord_id))) {
-					newWorkerDiscordId = user.profile.discord_id;
+				if ((user.discord_id || user.profile?.discord_id) && (!newWorkerDiscordId || (editingWorker && newWorkerDiscordId === editingWorker.discord_id))) {
+					newWorkerDiscordId = user.discord_id || user.profile?.discord_id || '';
 				}
 			}
 		}
@@ -183,7 +183,7 @@
 		<!-- Content -->
 		<div class="flex-1 overflow-y-auto p-6">
 			<!-- Add/Edit Form -->
-			{#if showAddForm}
+			{#if showAddForm && isOwner}
 				<div class="bg-gray-50 dark:bg-gray-700 rounded-xl p-4 mb-6 space-y-4">
 					<!-- Link with System User -->
 					<div>
@@ -286,7 +286,7 @@
 						</button>
 					</div>
 				</div>
-			{:else}
+			{:else if isOwner}
 				<!-- Add Button -->
 				<button
 					on:click={startAdd}
@@ -353,22 +353,24 @@
 							</div>
 
 							<!-- Actions -->
-							<div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all scale-95 group-hover:scale-100">
-								<button
-									on:click={() => startEdit(worker)}
-									class="p-2 text-gray-400 dark:text-gray-500 hover:text-primary hover:bg-white dark:hover:bg-gray-700 rounded-lg transition-colors border border-transparent hover:border-gray-100 dark:hover:border-gray-600 shadow-sm"
-									title={$_('workerManager__btn_edit')}
-								>
-									<Edit2 size={14} />
-								</button>
-								<button
-									on:click={() => confirmDelete(worker.id!)}
-									class="p-2 text-gray-400 dark:text-gray-500 hover:text-red-500 hover:bg-white dark:hover:bg-gray-700 rounded-lg transition-colors border border-transparent hover:border-gray-100 dark:hover:border-gray-600 shadow-sm"
-									title={$_('workerManager__btn_delete')}
-								>
-									<Trash2 size={14} />
-								</button>
-							</div>
+							{#if isOwner}
+								<div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all scale-95 group-hover:scale-100">
+									<button
+										on:click={() => startEdit(worker)}
+										class="p-2 text-gray-400 dark:text-gray-500 hover:text-primary hover:bg-white dark:hover:bg-gray-700 rounded-lg transition-colors border border-transparent hover:border-gray-100 dark:hover:border-gray-600 shadow-sm"
+										title={$_('workerManager__btn_edit')}
+									>
+										<Edit2 size={14} />
+									</button>
+									<button
+										on:click={() => confirmDelete(worker.id!)}
+										class="p-2 text-gray-400 dark:text-gray-500 hover:text-red-500 hover:bg-white dark:hover:bg-gray-700 rounded-lg transition-colors border border-transparent hover:border-gray-100 dark:hover:border-gray-600 shadow-sm"
+										title={$_('workerManager__btn_delete')}
+									>
+										<Trash2 size={14} />
+									</button>
+								</div>
+							{/if}
 						</div>
 
 						<!-- Delete Confirmation -->

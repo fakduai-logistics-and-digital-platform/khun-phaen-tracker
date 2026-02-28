@@ -353,6 +353,12 @@
                                             <div class="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
                                                 <Mail size={12} /> {u.email}
                                             </div>
+                                            {#if u.discord_id}
+                                                <div class="text-[10px] text-indigo-500 font-medium flex items-center gap-1">
+                                                     <div class="w-2.5 h-2.5 rounded-full bg-indigo-500/20 flex items-center justify-center text-[6px] font-bold text-indigo-500">D</div>
+                                                     {u.discord_id}
+                                                </div>
+                                            {/if}
                                         </div>
                                     </div>
                                 </td>
@@ -645,7 +651,7 @@
 
                         <!-- Discord ID -->
                         <div>
-                            <label for="discord_id" class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Discord ID</label>
+                            <label for="discord_id" class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">{$_('users__form_discord_id')}</label>
                             <div class="relative">
                                 <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
                                     <div class="w-4 h-4 rounded-full bg-indigo-500/20 flex items-center justify-center text-[8px] font-bold text-indigo-500">D</div>

@@ -53,6 +53,7 @@
 	"page__filter_category_all": "หมวดหมู่ทั้งหมด",
 	"page__filter_project_all": "โปรเจคทั้งหมด",
 	"page__filter_assignee_all": "ผู้รับผิดชอบทั้งหมด",
+	"page__filter_assignee_me": "ตนเอง",
 	"page__btn_apply": "ใช้งาน",
 	"page__btn_clear": "ล้าง",
 	"page__video_export_progress": "กำลังสร้างวิดีโอรายงาน {percent}%",
