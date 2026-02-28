@@ -121,6 +121,11 @@
 	async function handleLogout() {
 		try {
 			await api.auth.logout();
+			
+			// Clear cookie on client side
+			document.cookie = '_khun_ph_token=; path=/; max-age=0; samesite=Lax';
+			localStorage.removeItem('user_email');
+			
 			user.set(null);
 			goto(`${base}/login`);
 		} catch (e) {

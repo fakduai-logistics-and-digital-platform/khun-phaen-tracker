@@ -22,7 +22,12 @@
             const data = await res.json();
 
             if (res.ok) {
-                user.set({ email: data.email || email });
+                // Set cookie on client side
+                document.cookie = `_khun_ph_token=${data.token}; path=/; max-age=${60 * 60 * 24 * 7}; samesite=Lax`;
+                
+                const userEmail = data.email || email;
+                localStorage.setItem("user_email", userEmail);
+                user.set({ email: userEmail });
                 goto(base || '/');
             } else {
                 error = data.error || 'Login failed';

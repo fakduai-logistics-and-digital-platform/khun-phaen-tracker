@@ -28,8 +28,22 @@ export const api = {
       });
     },
     me: async (): Promise<Response> => {
+      // Extract the cookie directly on the client to send via header
+      let token = "";
+      if (typeof document !== "undefined") {
+        const match = document.cookie.match(
+          new RegExp("(^| )_khun_ph_token=([^;]+)"),
+        );
+        if (match) token = match[2];
+      }
+
+      const headers: Record<string, string> = { Accept: "application/json" };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
       return fetch(`${API_BASE_URL}/auth/me`, {
-        headers: { Accept: "application/json" },
+        headers,
         credentials: "include",
       });
     },
