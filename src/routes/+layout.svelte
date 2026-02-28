@@ -159,10 +159,10 @@
 		}
 	}
 
-	$: isAuthPage = $page.url.pathname.endsWith('/login') || $page.url.pathname.endsWith('/create-account') || $page.url.pathname.endsWith('/setup-password');
-	$: isDashboard = $page.url.pathname.endsWith('/dashboard');
+	$: isAuthPage = $page.url.pathname.includes('/login') || $page.url.pathname.includes('/create-account') || $page.url.pathname.includes('/setup-password');
+	$: isDashboard = $page.url.pathname.includes('/dashboard');
 	$: isWorkspacePage = $page.url.pathname.includes('/workspace/');
-	$: isUsersPage = $page.url.pathname.endsWith('/settings/users');
+	$: isUsersPage = $page.url.pathname.includes('/settings/users');
 	$: containerWidth = (isDashboard || isWorkspacePage) ? 'w-full max-w-full px-4 sm:px-8' : 'max-w-7xl px-4 sm:px-6 lg:px-8';
 	
 	$: if (!$authLoading && browser) {
