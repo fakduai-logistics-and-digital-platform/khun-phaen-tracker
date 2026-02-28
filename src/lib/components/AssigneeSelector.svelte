@@ -12,6 +12,7 @@
 	export let assignees: Assignee[] = [];
 	export let assignee_ids: number[] = [];
 	export let assignee_id_to_add: number | null = null;
+	export let readonly = false;
 	let showAddAssigneeForm = false;
 	let newAssigneeName = '';
 	let newAssigneeColor = '#6366F1';
@@ -128,56 +129,62 @@
 					<div class="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-100 dark:bg-gray-700 rounded-lg text-sm">
 						<span class="w-2.5 h-2.5 rounded-full" style="background-color: {assignee.color}"></span>
 						<span class="text-gray-700 dark:text-gray-300">{assignee.name}</span>
-						<button
-							type="button"
-							on:click={() => removeAssigneeFromTask(assignee.id!)}
-							class="text-gray-400 hover:text-red-500 transition-colors"
-							title="Remove assignee"
-						>
-							<X size={14} />
-						</button>
+						{#if !readonly}
+							<button
+								type="button"
+								on:click={() => removeAssigneeFromTask(assignee.id!)}
+								class="text-gray-400 hover:text-red-500 transition-colors"
+								title="Remove assignee"
+							>
+								<X size={14} />
+							</button>
+						{/if}
 					</div>
 				{/each}
 			</div>
 		{/if}
 
 		<!-- Add assignee dropdown -->
-		<div class="flex gap-2">
-			<div class="flex-1">
-				<SearchableSelect
-					bind:value={assignee_id_to_add}
-					options={[
-						{ value: null, label: $_('taskForm__assignee_placeholder') },
-						...availableAssignees
-						.filter((assignee): assignee is typeof assignee & { id: number } => assignee.id !== undefined)
-						.map(assignee => ({
-							value: assignee.id,
-							label: assignee.name,
-							badge: true,
-							badgeColor: assignee.color
-						}))
-					]}
-					placeholder={$_('taskForm__assignee_placeholder')}
-				/>
+		{#if !readonly}
+			<div class="flex gap-2">
+				<div class="flex-1">
+					<SearchableSelect
+						bind:value={assignee_id_to_add}
+						options={[
+							{ value: null, label: $_('taskForm__assignee_placeholder') },
+							...availableAssignees
+							.filter((assignee): assignee is typeof assignee & { id: number } => assignee.id !== undefined)
+							.map(assignee => ({
+								value: assignee.id,
+								label: assignee.name,
+								badge: true,
+								badgeColor: assignee.color
+							}))
+						]}
+						placeholder={$_('taskForm__assignee_placeholder')}
+					/>
+				</div>
+				<button
+					type="button"
+					on:click={addAssigneeToTask}
+					disabled={assignee_id_to_add === null}
+					class="px-3 py-2 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
+					title="Add selected assignee"
+				>
+					<Plus size={16} />
+				</button>
+				<button
+					type="button"
+					on:click={() => showAddAssigneeForm = true}
+					class="px-3 py-2 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-1"
+					title={$_('taskForm__add_assignee')}
+				>
+					<User size={16} />
+					<Plus size={12} />
+				</button>
 			</div>
-			<button
-				type="button"
-				on:click={addAssigneeToTask}
-				disabled={assignee_id_to_add === null}
-				class="px-3 py-2 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
-				title="Add selected assignee"
-			>
-				<Plus size={16} />
-			</button>
-			<button
-				type="button"
-				on:click={() => showAddAssigneeForm = true}
-				class="px-3 py-2 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-1"
-				title={$_('taskForm__add_assignee')}
-			>
-				<User size={16} />
-				<Plus size={12} />
-			</button>
-		</div>
+		{:else if selectedAssignees.length === 0}
+			<p class="text-sm text-gray-500 dark:text-gray-400 italic">{$_('taskForm__unassigned')}</p>
+		{/if}
 	{/if}
 </div>

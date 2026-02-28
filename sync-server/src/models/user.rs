@@ -33,4 +33,6 @@ pub struct User {
     pub setup_token: Option<String>,
     #[serde(default = "default_is_active")]
     pub is_active: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub discord_id: Option<String>,
 }

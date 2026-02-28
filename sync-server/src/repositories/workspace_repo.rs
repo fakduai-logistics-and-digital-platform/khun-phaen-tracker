@@ -54,4 +54,8 @@ impl WorkspaceRepository {
         ).await?;
         Ok(delete_res.deleted_count > 0)
     }
+
+    pub async fn find_by_room_code(&self, room_code: &str) -> mongodb::error::Result<Option<Workspace>> {
+        self.collection.find_one(doc! { "room_code": room_code }, None).await
+    }
 }

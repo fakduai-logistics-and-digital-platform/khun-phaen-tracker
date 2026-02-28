@@ -187,6 +187,10 @@ async fn handle_client_message(
             is_host,
             metadata,
         } => {
+            if let Err(e) = crate::services::room_service::ensure_room_exists(state, room_code).await {
+                return Err(e);
+            }
+
             if let Some(mut room) = state.rooms.get_mut(room_code) {
                 if room.empty_since.is_some() {
                     room.empty_since = None;

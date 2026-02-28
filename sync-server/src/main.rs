@@ -110,7 +110,9 @@ async fn main() {
         .route("/api/auth/login", post(handlers::auth_handler::login_handler))
         .route("/api/auth/logout", post(handlers::auth_handler::logout_handler))
         .route("/api/auth/me", get(handlers::auth_handler::me_handler))
+        .route("/api/auth/me", put(handlers::auth_handler::update_me_handler))
         .route("/api/auth/users", get(handlers::auth_handler::list_users_handler))
+        .route("/api/auth/users/:id", put(handlers::auth_handler::update_user_handler))
         .route("/api/auth/users/:id", delete(handlers::auth_handler::delete_user_handler))
         .route(
             "/api/rooms",

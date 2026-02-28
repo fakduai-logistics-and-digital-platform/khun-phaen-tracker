@@ -15,6 +15,7 @@
 	
 	export let assignees: Assignee[] = [];
 	export let workerStats: { id: string | number; taskCount: number }[] = [];
+	export let isOwner = true;
 	
 	let showAddForm = false;
 	let editingWorker: Assignee | null = null;

@@ -83,13 +83,13 @@
 <div class="h-screen w-full flex bg-[#030712] overflow-hidden font-sans">
     <div class="hidden lg:flex w-1/2 relative flex-col justify-between p-12 overflow-hidden bg-[#0A0F1C] border-r border-white/5">
         <div class="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-            <div class="absolute -top-[20%] -left-[10%] w-[70%] h-[70%] bg-indigo-600/20 rounded-full blur-[120px] mix-blend-screen opacity-50"></div>
-            <div class="absolute bottom-[-10%] right-[-10%] w-[80%] h-[80%] bg-purple-600/20 rounded-full blur-[120px] mix-blend-screen opacity-50"></div>
+            <div class="absolute -top-[20%] -left-[10%] w-[70%] h-[70%] bg-primary/20 rounded-full blur-[120px] mix-blend-screen opacity-50"></div>
+            <div class="absolute bottom-[-10%] right-[-10%] w-[80%] h-[80%] bg-primary/15 rounded-full blur-[120px] mix-blend-screen opacity-50"></div>
         </div>
 
         <div class="relative z-10">
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 bg-gradient-to-tr from-indigo-500/20 to-purple-500/10 rounded-xl flex items-center justify-center ring-1 ring-indigo-500/20 shadow-lg shadow-indigo-500/20">
+                <div class="w-10 h-10 bg-gradient-to-tr from-primary/20 to-primary-dark/10 rounded-xl flex items-center justify-center ring-1 ring-primary/20 shadow-lg shadow-primary/20">
                     <img src={favicon} alt="Khun Phaen Logo" class="w-6 h-6 object-contain" />
                 </div>
                 <span class="text-2xl font-bold text-white tracking-tight">{$_('setup__brand_name')}</span>
@@ -99,7 +99,7 @@
         <div class="relative z-10 mb-10 pl-4">
             <h2 class="text-5xl font-extrabold text-white mb-6 leading-[1.15] tracking-tight">
                 {$_('setup__hero_title_1')} <br/>
-                <span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">{$_('setup__hero_title_2')}</span>
+                <span class="text-transparent bg-clip-text bg-gradient-to-r from-primary to-primary-dark">{$_('setup__hero_title_2')}</span>
             </h2>
             <p class="text-lg text-slate-400/90 max-w-md leading-relaxed mb-10">
                 {$_('setup__hero_desc')}
@@ -107,11 +107,11 @@
 
             <div class="space-y-4">
                 <div class="flex items-center gap-3 text-slate-300">
-                    <CheckCircle2 class="w-5 h-5 text-indigo-400" />
+                    <CheckCircle2 class="w-5 h-5 text-primary" />
                     <span class="font-medium text-sm">{$_('setup__value_prop_1')}</span>
                 </div>
                 <div class="flex items-center gap-3 text-slate-300">
-                    <CheckCircle2 class="w-5 h-5 text-indigo-400" />
+                    <CheckCircle2 class="w-5 h-5 text-primary" />
                     <span class="font-medium text-sm">{$_('setup__value_prop_2')}</span>
                 </div>
             </div>
@@ -127,7 +127,7 @@
 
             <!-- Mobile Logo -->
             <div class="lg:hidden flex justify-center mb-8">
-                <div class="w-12 h-12 bg-gradient-to-tr from-indigo-500/20 to-purple-500/10 rounded-2xl flex items-center justify-center ring-1 ring-indigo-500/20 shadow-lg shadow-indigo-500/20">
+                <div class="w-12 h-12 bg-gradient-to-tr from-primary/20 to-primary-dark/10 rounded-2xl flex items-center justify-center ring-1 ring-primary/20 shadow-lg shadow-primary/20">
                     <img src={favicon} alt="Khun Phaen Logo" class="w-7 h-7 object-contain" />
                 </div>
             </div>
@@ -147,10 +147,10 @@
                 <div class="text-center lg:text-left mb-10">
                     <h1 class="text-3xl font-bold text-white mb-3 tracking-tight">{$_('setup__title')}</h1>
                     {#if initializing}
-                        <p class="text-slate-400 text-sm animate-pulse text-indigo-400">{$_('setup__verifying_token')}</p>
+                        <p class="text-slate-400 text-sm animate-pulse text-primary">{$_('setup__verifying_token')}</p>
                     {:else if email}
                         <p class="text-slate-400 text-sm">
-                            {$_('setup__setting_up_for')} <span class="text-indigo-400 font-semibold">{email}</span>
+                            {$_('setup__setting_up_for')} <span class="text-primary font-semibold">{email}</span>
                         </p>
                     {:else}
                          <p class="text-slate-400 text-sm">{$_('setup__default_subtitle')}</p>
@@ -161,7 +161,7 @@
                     <div>
                         <label for="password" class="block text-sm font-medium text-slate-300 mb-2">{$_('setup__new_password_label')}</label>
                         <div class="relative group">
-                            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-500 group-focus-within:text-indigo-400 transition-colors">
+                            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-500 group-focus-within:text-primary transition-colors">
                                 <Lock size={18} />
                             </div>
                             <input
@@ -171,7 +171,7 @@
                                 required
                                 minlength="8"
                                 placeholder="••••••••"
-                                class="w-full pl-11 pr-4 py-3 bg-slate-900/50 border border-slate-700/50 rounded-xl text-white placeholder-slate-500 focus:bg-slate-900 focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 outline-none transition-all duration-300"
+                                class="w-full pl-11 pr-4 py-3 bg-slate-900/50 border border-slate-700/50 rounded-xl text-white placeholder-slate-500 focus:bg-slate-900 focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none transition-all duration-300"
                             />
                         </div>
                     </div>
@@ -179,7 +179,7 @@
                     <div>
                         <label for="confirmPassword" class="block text-sm font-medium text-slate-300 mb-2">{$_('setup__confirm_password_label')}</label>
                         <div class="relative group">
-                            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-500 group-focus-within:text-indigo-400 transition-colors">
+                            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-500 group-focus-within:text-primary transition-colors">
                                 <Lock size={18} />
                             </div>
                             <input
@@ -188,7 +188,7 @@
                                 bind:value={confirmPassword}
                                 required
                                 placeholder="••••••••"
-                                class="w-full pl-11 pr-4 py-3 bg-slate-900/50 border border-slate-700/50 rounded-xl text-white placeholder-slate-500 focus:bg-slate-900 focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 outline-none transition-all duration-300"
+                                class="w-full pl-11 pr-4 py-3 bg-slate-900/50 border border-slate-700/50 rounded-xl text-white placeholder-slate-500 focus:bg-slate-900 focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none transition-all duration-300"
                             />
                         </div>
                     </div>

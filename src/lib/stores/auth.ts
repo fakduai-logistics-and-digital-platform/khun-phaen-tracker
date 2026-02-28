@@ -14,6 +14,7 @@ export interface User {
   email: string;
   user_id: string;
   role: string;
+  discord_id?: string;
   profile?: UserProfile;
 }
 
@@ -42,6 +43,7 @@ export async function initAuth() {
       const cachedUserId = localStorage.getItem("user_uuid");
 
       const cachedRole = localStorage.getItem("user_role");
+      const cachedDiscordId = localStorage.getItem("user_discord_id");
 
       if (cachedEmail && cachedId) {
         user.set({
@@ -49,6 +51,7 @@ export async function initAuth() {
           email: cachedEmail,
           user_id: cachedUserId || "",
           role: cachedRole || "user",
+          discord_id: cachedDiscordId || undefined,
           profile: cachedProfile ? JSON.parse(cachedProfile) : undefined,
         });
       }
@@ -62,12 +65,16 @@ export async function initAuth() {
           email: data.email,
           user_id: data.user_id,
           role: data.role || "user",
+          discord_id: data.discord_id,
           profile: data.profile,
         });
         localStorage.setItem("user_email", data.email);
         localStorage.setItem("user_id", data.id);
         localStorage.setItem("user_uuid", data.user_id);
         localStorage.setItem("user_role", data.role || "user");
+        if (data.discord_id)
+          localStorage.setItem("user_discord_id", data.discord_id);
+        else localStorage.removeItem("user_discord_id");
         if (data.profile)
           localStorage.setItem("user_profile", JSON.stringify(data.profile));
       } else {

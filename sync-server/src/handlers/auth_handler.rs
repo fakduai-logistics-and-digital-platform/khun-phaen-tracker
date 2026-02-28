@@ -6,7 +6,7 @@ use axum_extra::extract::cookie::CookieJar;
 use jsonwebtoken::{decode, DecodingKey, Validation};
 use mongodb::bson::oid::ObjectId;
 
-use crate::models::auth::{AuthRequest, Claims, InviteRequest, SetupPasswordPayload, SetupPasswordRequest};
+use crate::models::auth::{AuthRequest, Claims, InviteRequest, SetupPasswordPayload, SetupPasswordRequest, UpdateProfileRequest};
 use crate::repositories::user_repo::UserRepository;
 use crate::repositories::profile_repo::ProfileRepository;
 use crate::services::auth_service::AuthService;
@@ -178,6 +178,7 @@ pub async fn me_handler(
                 "user_id": user.user_id,
                 "email": user.email,
                 "role": user.role,
+                "discord_id": user.discord_id,
                 "profile": profile
             })).into_response()
         },
@@ -284,6 +285,66 @@ pub async fn delete_user_handler(
     let profile_repo = ProfileRepository::new(&state.db);
 
     match AuthService::delete_user(&user_repo, &profile_repo, &id).await {
+        Ok(_) => axum::Json(serde_json::json!({ "success": true })).into_response(),
+        Err(e) => (
+            axum::http::StatusCode::BAD_REQUEST,
+            axum::Json(serde_json::json!({ "error": e })),
+        ).into_response()
+    }
+}
+
+pub async fn update_me_handler(
+    State(state): State<SharedState>,
+    jar: CookieJar,
+    headers: axum::http::HeaderMap,
+    Json(payload): Json<UpdateProfileRequest>,
+) -> axum::response::Response {
+    let user_id = match extract_user_id(&headers, &jar, &state.jwt_secret) {
+        Some(id) => id,
+        None => return (
+            axum::http::StatusCode::UNAUTHORIZED,
+            axum::Json(serde_json::json!({ "error": "Unauthorized" })),
+        ).into_response(),
+    };
+
+    let user_repo = UserRepository::new(&state.db);
+    let profile_repo = ProfileRepository::new(&state.db);
+
+    match AuthService::update_profile(&user_repo, &profile_repo, &user_id, payload).await {
+        Ok(_) => axum::Json(serde_json::json!({ "success": true })).into_response(),
+        Err(e) => (
+            axum::http::StatusCode::BAD_REQUEST,
+            axum::Json(serde_json::json!({ "error": e })),
+        ).into_response()
+    }
+}
+
+pub async fn update_user_handler(
+    State(state): State<SharedState>,
+    jar: CookieJar,
+    headers: axum::http::HeaderMap,
+    axum::extract::Path(id): axum::extract::Path<String>,
+    Json(payload): Json<crate::models::auth::UpdateUserRequest>,
+) -> axum::response::Response {
+    let claims = match extract_claims(&headers, &jar, &state.jwt_secret) {
+        Some(c) => c,
+        None => return (
+            axum::http::StatusCode::UNAUTHORIZED,
+            axum::Json(serde_json::json!({ "error": "Unauthorized" })),
+        ).into_response(),
+    };
+
+    if claims.role != "admin" {
+        return (
+            axum::http::StatusCode::FORBIDDEN,
+            axum::Json(serde_json::json!({ "error": "Admin access required" })),
+        ).into_response();
+    }
+
+    let user_repo = UserRepository::new(&state.db);
+    let profile_repo = ProfileRepository::new(&state.db);
+
+    match AuthService::update_user(&user_repo, &profile_repo, &id, payload).await {
         Ok(_) => axum::Json(serde_json::json!({ "success": true })).into_response(),
         Err(e) => (
             axum::http::StatusCode::BAD_REQUEST,

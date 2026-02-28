@@ -159,8 +159,9 @@
 
 	$: isAuthPage = $page.url.pathname.endsWith('/login') || $page.url.pathname.endsWith('/create-account') || $page.url.pathname.endsWith('/setup-password');
 	$: isDashboard = $page.url.pathname.endsWith('/dashboard');
+	$: isWorkspacePage = $page.url.pathname.includes('/workspace/');
 	$: isUsersPage = $page.url.pathname.endsWith('/settings/users');
-	$: containerWidth = isDashboard ? 'w-full max-w-full px-4 sm:px-8' : 'max-w-7xl px-4 sm:px-6 lg:px-8';
+	$: containerWidth = (isDashboard || isWorkspacePage) ? 'w-full max-w-full px-4 sm:px-8' : 'max-w-7xl px-4 sm:px-6 lg:px-8';
 	
 	$: if (!$authLoading && browser) {
 		if (!$user && !isAuthPage) {
@@ -171,7 +172,7 @@
 			const urlRoom = urlParams.get('room');
 			const savedRoom = localStorage.getItem('sync-room-code');
 			
-			if (!urlRoom && ($page.url.pathname === base || $page.url.pathname === base + '/')) {
+			if (!urlRoom && isWorkspacePage) {
 				goto(`${base}/dashboard`);
 			}
 		}

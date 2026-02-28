@@ -80,6 +80,8 @@ pub async fn get_room_info(
     Path(room_code): Path<String>,
     State(state): State<SharedState>,
 ) -> impl IntoResponse {
+    let _ = crate::services::room_service::ensure_room_exists(&state, &room_code).await;
+    
     match state.rooms.get(&room_code) {
         Some(room) => {
             let peers: Vec<PeerInfo> = room

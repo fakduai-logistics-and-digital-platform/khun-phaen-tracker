@@ -25,4 +25,9 @@ impl ProfileRepository {
         self.collection.delete_one(doc! { "user_id": user_id }, None).await?;
         Ok(())
     }
+
+    pub async fn update(&self, profile: &UserProfile) -> mongodb::error::Result<()> {
+        self.collection.replace_one(doc! { "_id": &profile.profile_id }, profile, None).await?;
+        Ok(())
+    }
 }

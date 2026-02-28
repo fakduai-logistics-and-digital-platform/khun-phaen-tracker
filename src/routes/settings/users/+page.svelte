@@ -46,7 +46,8 @@
         first_name: '',
         last_name: '',
         nickname: '',
-        position: ''
+        position: '',
+        discord_id: ''
     };
 
     async function fetchUsers() {
@@ -75,13 +76,19 @@
             const payload = { ...formData };
             if (registrationMode === 'invite') {
                 delete (payload as any).password;
-            } else if (!payload.password) {
+            } else if (!payload.password && !editingUser) {
                 addError = 'Password is required';
                 addLoading = false;
                 return;
             }
+            
+            if (editingUser && !payload.password) {
+                delete (payload as any).password;
+            }
 
-            const res = await api.auth.invite(payload);
+            const res = editingUser 
+                ? await api.auth.updateUser(editingUser.id, payload)
+                : await api.auth.invite(payload);
             const data = await res.json();
 
             if (res.ok) {
@@ -92,10 +99,10 @@
                 }
                 fetchUsers(); // Refresh list to show pending
             } else {
-                addError = data.error || 'User creation failed';
+                addError = data.error || 'User operation failed';
             }
         } catch (e) {
-            addError = 'User creation failed';
+            addError = 'User operation failed';
         } finally {
             addLoading = false;
         }
@@ -109,7 +116,8 @@
             first_name: '',
             last_name: '',
             nickname: '',
-            position: ''
+            position: '',
+            discord_id: ''
         };
         registrationMode = 'invite';
         addError = '';
@@ -192,7 +200,8 @@
             first_name: u.profile?.first_name || '',
             last_name: u.profile?.last_name || '',
             nickname: u.profile?.nickname || '',
-            position: u.profile?.position || ''
+            position: u.profile?.position || '',
+            discord_id: u.discord_id || ''
         };
         registrationMode = 'invite'; // Or handle edit mode
         showAddModal = true;
@@ -473,10 +482,15 @@
                 <div class="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
                     <div>
                         <h2 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                            <UserPlus class="text-indigo-500" size={24} />
-                            {$_('users__modal_title')}
+                            {#if editingUser}
+                                <Edit2 class="text-indigo-500" size={24} />
+                                Update User
+                            {:else}
+                                <UserPlus class="text-indigo-500" size={24} />
+                                {$_('users__modal_title')}
+                            {/if}
                         </h2>
-                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{$_('users__modal_subtitle')}</p>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{editingUser ? 'Edit user profile information' : $_('users__modal_subtitle')}</p>
                     </div>
                     <button on:click={resetForm} class="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-white rounded-lg transition-colors">
                         <X size={24} />
@@ -506,7 +520,8 @@
                             </button>
                         </div>
 
-                        <!-- Registration Mode -->
+                        <!-- Registration Mode (Only for New Users) -->
+                        {#if !editingUser}
                         <div class="flex p-1 bg-gray-100 dark:bg-gray-950 rounded-xl mb-4">
                             <button
                                 type="button"
@@ -527,6 +542,7 @@
                                 </span>
                             </button>
                         </div>
+                        {/if}
 
                         <!-- Email -->
                         <div>
@@ -540,16 +556,19 @@
                                     id="email"
                                     bind:value={formData.email}
                                     required
+                                    readonly={!!editingUser}
                                     placeholder="colleague@example.com"
-                                    class="w-full pl-11 pr-4 py-2.5 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+                                    class="w-full pl-11 pr-4 py-2.5 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all {editingUser ? 'opacity-60 cursor-not-allowed' : ''}"
                                 />
                             </div>
                         </div>
 
-                        <!-- Password (if set password mode) -->
-                        {#if registrationMode === 'password'}
+                        <!-- Password (if set password mode or editing existing) -->
+                        {#if registrationMode === 'password' || editingUser}
                             <div class="animate-fade-in">
-                                <label for="password" class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">{$_('users__form_password')}</label>
+                                <label for="password" class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
+                                    {editingUser ? 'Reset Password (optional)' : $_('users__form_password')}
+                                </label>
                                 <div class="relative">
                                     <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
                                         <KeyRound size={16} />
@@ -558,8 +577,8 @@
                                         type="password"
                                         id="password"
                                         bind:value={formData.password}
-                                        required
-                                        placeholder="••••••••"
+                                        required={!editingUser}
+                                        placeholder={editingUser ? "Leave blank to keep current" : "••••••••"}
                                         class="w-full pl-11 pr-4 py-2.5 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
                                     />
                                 </div>
@@ -624,6 +643,22 @@
                             </div>
                         </div>
 
+                        <!-- Discord ID -->
+                        <div>
+                            <label for="discord_id" class="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">Discord ID</label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
+                                    <div class="w-4 h-4 rounded-full bg-indigo-500/20 flex items-center justify-center text-[8px] font-bold text-indigo-500">D</div>
+                                </div>
+                                <input
+                                    id="discord_id"
+                                    bind:value={formData.discord_id}
+                                    placeholder="123456789012345678"
+                                    class="w-full pl-11 pr-4 py-2.5 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
+                                />
+                            </div>
+                        </div>
+
                         {#if addError}
                             <div class="bg-red-500/10 border border-red-500/20 text-red-500 text-sm py-3 px-4 rounded-xl flex items-center gap-2 animate-fade-in">
                                 <XCircle size={16} />
@@ -660,7 +695,11 @@
                                 {#if addLoading}
                                     <div class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                                 {:else}
-                                    {registrationMode === 'invite' ? $_('users__btn_create_invite') : $_('users__btn_create_user')}
+                                    {#if editingUser}
+                                        Update Profile
+                                    {:else}
+                                        {registrationMode === 'invite' ? $_('users__btn_create_invite') : $_('users__btn_create_user')}
+                                    {/if}
                                     <ArrowRight size={18} class="group-hover:translate-x-1 transition-transform" />
                                 {/if}
                             </button>

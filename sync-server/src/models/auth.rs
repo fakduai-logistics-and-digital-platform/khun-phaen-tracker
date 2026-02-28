@@ -22,6 +22,19 @@ pub struct InviteRequest {
     pub last_name: Option<String>,
     pub nickname: Option<String>,
     pub position: Option<String>,
+    pub discord_id: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub struct UpdateUserRequest {
+    pub email: Option<String>,
+    pub role: Option<String>,
+    pub is_active: Option<bool>,
+    pub first_name: Option<String>,
+    pub last_name: Option<String>,
+    pub nickname: Option<String>,
+    pub position: Option<String>,
+    pub discord_id: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -33,4 +46,14 @@ pub struct SetupPasswordRequest {
 pub struct SetupPasswordPayload {
     pub token: String,
     pub password: String,
+}
+
+#[derive(Deserialize)]
+pub struct UpdateProfileRequest {
+    pub password: Option<String>,
+    pub first_name: Option<String>,
+    pub last_name: Option<String>,
+    pub nickname: Option<String>,
+    pub position: Option<String>,
+    pub discord_id: Option<String>,
 }

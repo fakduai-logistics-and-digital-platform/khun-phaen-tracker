@@ -1,4 +1,4 @@
-use crate::models::{auth::AuthRequest, auth::Claims, auth::InviteRequest, user::User, profile::UserProfile};
+use crate::models::{auth::AuthRequest, auth::Claims, auth::InviteRequest, auth::UpdateUserRequest, auth::UpdateProfileRequest, user::User, profile::UserProfile};
 use mongodb::bson::oid::ObjectId;
 use crate::repositories::{user_repo::UserRepository, profile_repo::ProfileRepository};
 use bcrypt::{hash, verify, DEFAULT_COST};
@@ -50,7 +50,9 @@ impl AuthService {
             created_at: chrono::Utc::now(),
             setup_token: setup_token.clone(),
             is_active,
+            discord_id: payload.discord_id,
         };
+
 
         user_repo.create(new_user).await.map_err(|e| e.to_string())?;
 
@@ -148,6 +150,7 @@ impl AuthService {
                 "is_active": user.is_active,
                 "created_at": user.created_at,
                 "setup_token": user.setup_token,
+                "discord_id": user.discord_id,
                 "profile": profile
             }));
         }
@@ -166,6 +169,119 @@ impl AuthService {
         
         // Delete user
         user_repo.delete_by_id(&oid).await.map_err(|e| format!("Database error: {}", e))?;
+
+        Ok(())
+    }
+
+    pub async fn update_user(
+        user_repo: &UserRepository,
+        profile_repo: &ProfileRepository,
+        id_str: &str,
+        payload: UpdateUserRequest,
+    ) -> Result<(), String> {
+        let oid = ObjectId::parse_str(id_str).map_err(|_| "Invalid User ID format".to_string())?;
+        
+        let mut user = user_repo.find_by_id(&oid).await.map_err(|e| format!("Database error: {}", e))?
+            .ok_or_else(|| "User not found".to_string())?;
+
+        if let Some(email) = payload.email {
+            user.email = email;
+        }
+        if let Some(role) = payload.role {
+            user.role = role;
+        }
+        if let Some(active) = payload.is_active {
+            user.is_active = active;
+        }
+        if payload.discord_id.is_some() {
+            user.discord_id = payload.discord_id;
+        }
+
+        user_repo.update(&user).await.map_err(|e| format!("Database error: {}", e))?;
+
+        // Update profile too
+        let mut profile = profile_repo.find_by_user_id(&user.user_id).await
+            .map_err(|e| format!("Database error: {}", e))?
+            .unwrap_or_else(|| UserProfile {
+                profile_id: uuid::Uuid::now_v7().to_string(),
+                user_id: user.user_id.clone(),
+                first_name: None,
+                last_name: None,
+                nickname: None,
+                position: None,
+            });
+
+        if let Some(fn_val) = payload.first_name { profile.first_name = Some(fn_val); }
+        if let Some(ln_val) = payload.last_name { profile.last_name = Some(ln_val); }
+        if let Some(nn_val) = payload.nickname { profile.nickname = Some(nn_val); }
+        if let Some(pos_val) = payload.position { profile.position = Some(pos_val); }
+
+        let exists = profile_repo.find_by_user_id(&user.user_id).await.ok().flatten().is_some();
+        if exists {
+            profile_repo.update(&profile).await.map_err(|e| format!("Database error: {}", e))?;
+        } else {
+            profile_repo.create(profile).await.map_err(|e| format!("Database error: {}", e))?;
+        }
+
+        Ok(())
+    }
+
+    pub async fn update_profile(
+        user_repo: &UserRepository,
+        profile_repo: &ProfileRepository,
+        user_id_oid: &ObjectId,
+        payload: UpdateProfileRequest,
+    ) -> Result<(), String> {
+        let mut user = user_repo.find_by_id(user_id_oid).await
+            .map_err(|e| format!("Database error: {}", e))?
+            .ok_or_else(|| "User not found".to_string())?;
+
+        let mut user_updated = false;
+
+        if let Some(password) = payload.password {
+            if !password.is_empty() {
+                let password_hash = hash(password, DEFAULT_COST).map_err(|e| e.to_string())?;
+                user.password_hash = Some(password_hash);
+                user_updated = true;
+            }
+        }
+        
+        if payload.discord_id.is_some() {
+            user.discord_id = payload.discord_id;
+            user_updated = true;
+        }
+
+        if user_updated {
+            user_repo.update(&user).await.map_err(|e| format!("Database error: {}", e))?;
+        }
+
+        // Update profile
+        let mut profile = profile_repo.find_by_user_id(&user.user_id).await
+            .map_err(|e| format!("Database error: {}", e))?
+            .unwrap_or_else(|| UserProfile {
+                profile_id: uuid::Uuid::now_v7().to_string(),
+                user_id: user.user_id.clone(),
+                first_name: None,
+                last_name: None,
+                nickname: None,
+                position: None,
+            });
+
+        let mut profile_updated = false;
+
+        if let Some(fn_val) = payload.first_name { profile.first_name = Some(fn_val); profile_updated = true; }
+        if let Some(ln_val) = payload.last_name { profile.last_name = Some(ln_val); profile_updated = true; }
+        if let Some(nn_val) = payload.nickname { profile.nickname = Some(nn_val); profile_updated = true; }
+        if let Some(pos_val) = payload.position { profile.position = Some(pos_val); profile_updated = true; }
+
+        if profile_updated {
+            let exists = profile_repo.find_by_user_id(&user.user_id).await.ok().flatten().is_some();
+            if exists {
+                profile_repo.update(&profile).await.map_err(|e| format!("Database error: {}", e))?;
+            } else {
+                profile_repo.create(profile).await.map_err(|e| format!("Database error: {}", e))?;
+            }
+        }
 
         Ok(())
     }

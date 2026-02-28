@@ -78,6 +78,27 @@ export const api = {
         credentials: "include",
       });
     },
+    updateMe: async (payload: Record<string, any>): Promise<Response> => {
+      let token = "";
+      if (typeof document !== "undefined") {
+        const match = document.cookie.match(
+          new RegExp("(^| )_khun_ph_token=([^;]+)"),
+        );
+        if (match) token = match[2];
+      }
+
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      return fetch(`${API_BASE_URL}/auth/me`, {
+        method: "PUT",
+        headers,
+        credentials: "include",
+        body: JSON.stringify(payload),
+      });
+    },
     listUsers: async (): Promise<Response> => {
       let token = "";
       if (typeof document !== "undefined") {
@@ -111,6 +132,30 @@ export const api = {
         method: "DELETE",
         headers,
         credentials: "include",
+      });
+    },
+    updateUser: async (
+      id: string,
+      payload: Record<string, any>,
+    ): Promise<Response> => {
+      let token = "";
+      if (typeof document !== "undefined") {
+        const match = document.cookie.match(
+          new RegExp("(^| )_khun_ph_token=([^;]+)"),
+        );
+        if (match) token = match[2];
+      }
+
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      return fetch(`${API_BASE_URL}/auth/users/${id}`, {
+        method: "PUT",
+        headers,
+        credentials: "include",
+        body: JSON.stringify(payload),
       });
     },
   },

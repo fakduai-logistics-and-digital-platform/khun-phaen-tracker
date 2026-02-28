@@ -158,9 +158,7 @@
         localStorage.setItem('sync-room-code', workspace.room_code);
         localStorage.setItem('sync-server-url', 'http://127.0.0.1:3002');
         
-        let targetUrl = `${base}/`;
-        if (targetUrl === '/') targetUrl = '/?room=' + workspace.room_code;
-        else targetUrl += '?room=' + workspace.room_code;
+        const targetUrl = `${base}/workspace/${workspace.id}?room=${workspace.room_code}`;
         
         // Use window.location to force a full reload and guarantee ServerSyncPanel mounts cleanly
         window.location.href = targetUrl;

@@ -401,12 +401,26 @@ pub async fn create_assignee(
         Err(resp) => return resp,
     };
 
+    let mut discord_id = payload.discord_id;
+    
+    // If user_id is provided but discord_id is not, try to pull it from the user
+    if let (Some(u_id), None) = (&payload.user_id, &discord_id) {
+        let user_repo = crate::repositories::user_repo::UserRepository::new(&state.db);
+        // Find user by user_id (string UUID)
+        use futures::StreamExt;
+        let mut cursor = state.db.collection::<crate::models::user::User>("users")
+            .find(doc! { "user_id": u_id }, None).await.unwrap();
+        if let Some(Ok(user)) = cursor.next().await {
+            discord_id = user.discord_id;
+        }
+    }
+
     let assignee = AssigneeDocument {
         id: None,
         workspace_id: ws_oid,
         name: payload.name,
         color: payload.color,
-        discord_id: payload.discord_id,
+        discord_id,
         user_id: payload.user_id,
         created_at: None,
     };
@@ -452,7 +466,19 @@ pub async fn update_assignee(
     }
     if let Some(v) = payload.user_id {
         match v {
-            Some(u) => { updates.insert("user_id", u); },
+            Some(u) => { 
+                updates.insert("user_id", &u);
+                // If discord_id is not being updated, try to pull it from the user
+                if payload.discord_id.is_none() {
+                    let mut cursor = state.db.collection::<crate::models::user::User>("users")
+                        .find(doc! { "user_id": &u }, None).await.unwrap();
+                    if let Some(Ok(user)) = cursor.next().await {
+                        if let Some(d_id) = user.discord_id {
+                            updates.insert("discord_id", d_id);
+                        }
+                    }
+                }
+            },
             None => { updates.insert("user_id", mongodb::bson::Bson::Null); },
         }
     }

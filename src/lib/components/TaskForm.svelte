@@ -26,6 +26,7 @@
 	export let assignees: Assignee[] = [];
 	export let projects: Project[] = [];
 	export let sprints: Sprint[] = [];
+	export let isOwner = true;
 
 	let title = editingTask?.title || '';
 	let project = editingTask?.project || '';
@@ -332,6 +333,7 @@
 					{assignees}
 					bind:assignee_ids
 					bind:assignee_id_to_add
+					readonly={!isOwner}
 					on:addAssignee={handleAddAssignee}
 				/>
 

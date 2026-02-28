@@ -108,9 +108,9 @@ export async function addTask(
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Failed to create task");
-  const newId = extractId(data.task);
-  broadcastChange("task", "create", newId, data.task);
-  return newId;
+  const newTask = docToTask(data.task);
+  broadcastChange("task", "create", newTask.id as string, newTask);
+  return newTask.id as string;
 }
 
 export async function updateTask(
@@ -282,12 +282,8 @@ export async function addProject(
   if (!res.ok) {
     throw new Error(data.error || "Failed to create project");
   }
-  broadcastChange(
-    "project",
-    "create",
-    undefined,
-    data.project || { name: project.name, repo_url: project.repo_url || null },
-  );
+  const newProject = docToProject(data.project);
+  broadcastChange("project", "create", newProject.id as string, newProject);
 }
 
 export async function updateProject(
@@ -351,7 +347,8 @@ export async function addAssignee(
   if (!res.ok) {
     throw new Error(data.error || "Failed to create assignee");
   }
-  broadcastChange("assignee", "create", undefined, data.assignee || assignee);
+  const newAssignee = docToAssignee(data.assignee);
+  broadcastChange("assignee", "create", newAssignee.id as string, newAssignee);
 }
 
 export async function updateAssignee(
