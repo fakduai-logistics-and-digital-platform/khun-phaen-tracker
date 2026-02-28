@@ -154,6 +154,23 @@ export const api = {
         body: JSON.stringify({ name }),
       });
     },
+    checkAccess: async (roomCode: string): Promise<Response> => {
+      let token = "";
+      if (typeof document !== "undefined") {
+        const match = document.cookie.match(
+          new RegExp("(^| )_khun_ph_token=([^;]+)"),
+        );
+        if (match) token = match[2];
+      }
+
+      const headers: Record<string, string> = { Accept: "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      return fetch(`${API_BASE_URL}/workspaces/access/${roomCode}`, {
+        headers,
+        credentials: "include",
+      });
+    },
     update: async (id: string, name: string): Promise<Response> => {
       let token = "";
       if (typeof document !== "undefined") {

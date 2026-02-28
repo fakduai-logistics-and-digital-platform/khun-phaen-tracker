@@ -12,10 +12,21 @@ impl WorkspaceService {
     pub async fn get_user_workspaces(
         repo: &WorkspaceRepository,
         owner_id: &ObjectId,
+        assigned_ws_ids: Vec<ObjectId>,
     ) -> Result<Vec<Workspace>, String> {
-        repo.find_by_owner_id(owner_id)
+        let mut workspaces = repo.find_by_owner_id(owner_id)
             .await
-            .map_err(|e| format!("Database error: {}", e))
+            .map_err(|e| format!("Database error: {}", e))?;
+
+        for w_id in assigned_ws_ids {
+            if !workspaces.iter().any(|w| w.id == Some(w_id)) {
+                if let Ok(Some(w)) = repo.find_by_id(&w_id).await {
+                    workspaces.push(w);
+                }
+            }
+        }
+
+        Ok(workspaces)
     }
 
     pub async fn create_workspace(

@@ -172,6 +172,18 @@ impl DataRepository {
         Ok(assignees)
     }
 
+    pub async fn find_assigned_workspaces(&self, user_id_hex: &str) -> mongodb::error::Result<Vec<ObjectId>> {
+        let mut cursor = self.assignees.find(doc! { "user_id": user_id_hex }, None).await?;
+        let mut w_ids = Vec::new();
+        while let Some(result) = cursor.next().await {
+            match result {
+                Ok(doc) => w_ids.push(doc.workspace_id),
+                Err(e) => return Err(e),
+            }
+        }
+        Ok(w_ids)
+    }
+
     pub async fn create_assignee(&self, mut assignee: AssigneeDocument) -> mongodb::error::Result<AssigneeDocument> {
         assignee.created_at = Some(chrono::Utc::now().to_rfc3339());
         let res = self.assignees.insert_one(assignee.clone(), None).await?;

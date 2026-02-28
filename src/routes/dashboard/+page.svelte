@@ -240,7 +240,8 @@
                             </div>
                         </button>
                         
-                        <!-- Actions -->
+                        <!-- Actions (owner only) -->
+                        {#if $user && ws.owner_id === $user.id}
                         <div class="absolute top-4 right-4 flex gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
                             <button 
                                 on:click|stopPropagation={() => openEditModal(ws)}
@@ -257,6 +258,7 @@
                                 <Trash2 size={16} />
                             </button>
                         </div>
+                        {/if}
                     </div>
                 {/each}
             </div>

@@ -40,10 +40,26 @@ async fn verify_workspace_access(
     ).into_response())?;
 
     match ws {
-        Some(w) if w.owner_id == user_id => Ok(ws_oid),
-        _ => Err((
-            axum::http::StatusCode::FORBIDDEN,
-            axum::Json(serde_json::json!({ "error": "Access denied to this workspace" })),
+        Some(w) => {
+            if w.owner_id == user_id {
+                return Ok(ws_oid);
+            }
+            if let Some(id) = w.id {
+                let data_repo = DataRepository::new(&state.db);
+                if let Ok(assigned) = data_repo.find_assigned_workspaces(&user_id.to_hex()).await {
+                    if assigned.contains(&id) {
+                        return Ok(ws_oid);
+                    }
+                }
+            }
+            Err((
+                axum::http::StatusCode::FORBIDDEN,
+                axum::Json(serde_json::json!({ "error": "Access denied to this workspace" })),
+            ).into_response())
+        },
+        None => Err((
+            axum::http::StatusCode::NOT_FOUND,
+            axum::Json(serde_json::json!({ "error": "Workspace not found" })),
         ).into_response()),
     }
 }

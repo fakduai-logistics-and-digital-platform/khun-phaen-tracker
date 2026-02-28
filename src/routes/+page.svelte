@@ -722,6 +722,9 @@
 		}
 	}
 
+	let checkingAccess = true;
+	let hasAccess = false;
+	
 	onMount(() => {
 		// Enforce workspace selection
 		const urlParams = new URLSearchParams(window.location.search);
@@ -731,20 +734,36 @@
 			return;
 		}
 
-		// Connect to real-time collaboration (auto-refresh on remote changes)
-		connectRealtime(urlRoom, (payload) => {
-			if (!payload) return;
-			console.log('📡 Remote data change detected, updating UI optimistically:', payload);
-			handleRealtimeUpdate(payload);
-		});
-		
-		restoreFilters();
-		const savedView = loadSavedViewMode();
-		currentView = savedView;
-		
-		void loadData().then(() => {
-			initWasmSearch();
-		});
+		// Check access
+		api.workspaces.checkAccess(urlRoom)
+			.then(res => res.json())
+			.then(data => {
+				checkingAccess = false;
+				if (data.success && data.has_access) {
+					hasAccess = true;
+					// Connect to real-time collaboration (auto-refresh on remote changes)
+					connectRealtime(urlRoom, (payload) => {
+						if (!payload) return;
+						console.log('📡 Remote data change detected, updating UI optimistically:', payload);
+						handleRealtimeUpdate(payload);
+					});
+					
+					restoreFilters();
+					const savedView = loadSavedViewMode();
+					currentView = savedView;
+					
+					void loadData().then(() => {
+						initWasmSearch();
+					});
+				} else {
+					hasAccess = false;
+				}
+			})
+			.catch(err => {
+				console.error('Failed to check access:', err);
+				checkingAccess = false;
+				hasAccess = false;
+			});
 
 		// Add keyboard shortcuts listener
 		document.addEventListener('keydown', handleKeydown);
@@ -930,8 +949,9 @@
 			await loadData();
 			showMessage($_('page__add_worker_success'));
 			queueRealtimeSync('add-worker');
-		} catch (e) {
-			showMessage($_('page__add_worker_error'), 'error');
+		} catch (e: any) {
+			console.error(e);
+			showMessage(`${$_('page__add_worker_error')}: ${e.message}`, 'error');
 		}
 	}
 	
@@ -946,8 +966,9 @@
 			await loadData();
 			showMessage($_('page__update_worker_success'));
 			queueRealtimeSync('update-worker');
-		} catch (e) {
-			showMessage($_('page__update_worker_error'), 'error');
+		} catch (e: any) {
+			console.error(e);
+			showMessage(`${$_('page__update_worker_error')}: ${e.message}`, 'error');
 		}
 	}
 	
@@ -957,8 +978,9 @@
 			await loadData();
 			showMessage($_('page__delete_worker_success'));
 			queueRealtimeSync('delete-worker');
-		} catch (e) {
-			showMessage($_('page__delete_worker_error'), 'error');
+		} catch (e: any) {
+			console.error(e);
+			showMessage(`${$_('page__delete_worker_error')}: ${e.message}`, 'error');
 		}
 	}
 	
@@ -1009,10 +1031,8 @@
 	}
 
 	function queueRealtimeSync(reason: string) {
-		const queued = scheduleRealtimeSync(reason);
-		if (queued) {
-			console.log(`⚡ Queued realtime sync: ${reason}`);
-		}
+		console.log(`⚡ Action tracked for potential realtime sync: ${reason}`);
+		// Realtime sync broadcasting is currently handled mostly inside db.ts directly.
 	}
 
 	function formatElapsedTime(ms: number): string {
@@ -2618,7 +2638,31 @@
 {/if}
 
 <div class="space-y-6">
-	<!-- Stats Panel -->
+	{#if checkingAccess}
+		<div class="flex flex-col items-center justify-center py-32 space-y-4">
+			<div class="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+			<p class="text-slate-500 dark:text-slate-400 font-medium">กำลังตรวจสอบสิทธิ์การเข้าถึง...</p>
+		</div>
+	{:else if !hasAccess}
+		<div class="flex flex-col items-center justify-center py-20 px-4">
+			<div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 md:p-12 text-center max-w-md w-full shadow-sm">
+				<div class="w-20 h-20 bg-red-50 dark:bg-red-500/10 text-red-500 rounded-2xl mx-auto flex items-center justify-center mb-6">
+					<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+				</div>
+				<h2 class="text-2xl font-bold text-slate-900 dark:text-white mb-3">ไม่มีสิทธิ์เข้าถึง</h2>
+				<p class="text-slate-500 dark:text-slate-400 mb-8 leading-relaxed">
+					คุณไม่ได้รับสิทธิ์ในการเข้าถึง Workspace นี้ กรุณาติดต่อเจ้าของ Workspace เพื่อขอสิทธิ์การเข้าถึง
+				</p>
+				<button 
+					on:click={() => goto(`${base}/dashboard`)}
+					class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors shadow-sm focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:outline-none dark:focus:ring-offset-slate-900"
+				>
+					กลับหน้า Dashboard
+				</button>
+			</div>
+		</div>
+	{:else}
+		<!-- Stats Panel -->
 	<StatsPanel {stats} />
 	
 	<!-- Search Bar - Always Visible -->
@@ -3405,6 +3449,7 @@
 		</div>
 	{/if}
 </div>
+{/if}
 
 <style>
 	@keyframes fade-in {

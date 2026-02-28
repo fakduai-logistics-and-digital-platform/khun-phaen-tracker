@@ -2,7 +2,8 @@
     import { goto } from '$app/navigation';
     import { base } from '$app/paths';
     import { _ } from 'svelte-i18n';
-    import { Mail, Lock, ArrowRight, Zap, CheckCircle2 } from 'lucide-svelte';
+    import { Mail, Lock, ArrowRight, CheckCircle2 } from 'lucide-svelte';
+    import favicon from '$lib/assets/favicon.svg';
 
     import { user } from '$lib/stores/auth';
     import { api } from '$lib/apis';
@@ -46,19 +47,19 @@
                 });
                 goto(`${base}/dashboard`);
             } else {
-                error = data.error || 'Login failed';
+                error = data.error || $_('login__error_default');
             }
         } catch (e) {
-            error = 'Login failed';
+            error = $_('login__error_default');
         } finally {
             loading = false;
         }
     }
 
-    const valueProps = [
-        "Local-first task synchronization",
-        "Peer-to-peer real-time updates",
-        "Encrypted & secure by default"
+    $: valueProps = [
+        $_('login__value_prop_1'),
+        $_('login__value_prop_2'),
+        $_('login__value_prop_3')
     ];
 </script>
 
@@ -74,20 +75,20 @@
 
         <div class="relative z-10">
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 bg-gradient-to-tr from-indigo-500 to-purple-500 rounded-xl flex items-center justify-center transform -rotate-3 shadow-lg shadow-indigo-500/20">
-                    <Zap class="w-5 h-5 text-white fill-white/20" />
+                <div class="w-10 h-10 bg-gradient-to-tr from-indigo-500/20 to-purple-500/10 rounded-xl flex items-center justify-center ring-1 ring-indigo-500/20 shadow-lg shadow-indigo-500/20">
+                    <img src={favicon} alt="Khun Phaen Logo" class="w-6 h-6 object-contain" />
                 </div>
-                <span class="text-2xl font-bold text-white tracking-tight">Khun Phaen</span>
+                <span class="text-2xl font-bold text-white tracking-tight">{$_('login__brand_name')}</span>
             </div>
         </div>
 
         <div class="relative z-10 mb-10 pl-4">
             <h2 class="text-5xl font-extrabold text-white mb-6 leading-[1.15] tracking-tight">
-                Welcome back to <br/>
-                <span class="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-indigo-400">your workspace.</span>
+                {$_('login__hero_title_1')} <br/>
+                <span class="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-indigo-400">{$_('login__hero_title_2')}</span>
             </h2>
             <p class="text-lg text-slate-400/90 max-w-md leading-relaxed mb-10">
-                Sign in to continue managing your tasks securely with our blazing fast, offline-first application.
+                {$_('login__hero_desc')}
             </p>
 
             <div class="space-y-4">
@@ -101,8 +102,8 @@
         </div>
 
         <div class="relative z-10 flex gap-6 text-sm font-medium text-slate-500">
-            <a href="#!" class="hover:text-white transition-colors">Privacy</a>
-            <a href="#!" class="hover:text-white transition-colors">Terms</a>
+            <a href="#!" class="hover:text-white transition-colors">{$_('login__link_privacy')}</a>
+            <a href="#!" class="hover:text-white transition-colors">{$_('login__link_terms')}</a>
         </div>
     </div>
 
@@ -118,19 +119,19 @@
             
             <!-- Mobile Logo -->
             <div class="lg:hidden flex justify-center mb-8">
-                <div class="w-12 h-12 bg-gradient-to-tr from-indigo-500 to-purple-500 rounded-2xl flex items-center justify-center transform -rotate-3 shadow-lg shadow-indigo-500/20">
-                    <Zap class="w-6 h-6 text-white fill-white/20" />
+                <div class="w-12 h-12 bg-gradient-to-tr from-indigo-500/20 to-purple-500/10 rounded-2xl flex items-center justify-center ring-1 ring-indigo-500/20 shadow-lg shadow-indigo-500/20">
+                    <img src={favicon} alt="Khun Phaen Logo" class="w-7 h-7 object-contain" />
                 </div>
             </div>
 
             <div class="text-center lg:text-left mb-10">
-                <h1 class="text-3xl font-bold text-white mb-3 tracking-tight">Log in</h1>
-                <p class="text-slate-400 text-sm">Welcome back! Please enter your details.</p>
+                <h1 class="text-3xl font-bold text-white mb-3 tracking-tight">{$_('login__title')}</h1>
+                <p class="text-slate-400 text-sm">{$_('login__subtitle')}</p>
             </div>
 
             <form on:submit|preventDefault={handleLogin} class="space-y-5">
                 <div>
-                    <label for="email" class="block text-sm font-medium text-slate-300 mb-2">Email</label>
+                    <label for="email" class="block text-sm font-medium text-slate-300 mb-2">{$_('login__email_label')}</label>
                     <div class="relative group">
                         <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-500 group-focus-within:text-indigo-400 transition-colors">
                             <Mail size={18} />
@@ -140,7 +141,7 @@
                             id="email"
                             bind:value={email}
                             required
-                            placeholder="you@example.com"
+                            placeholder={$_('login__email_placeholder')}
                             class="w-full pl-11 pr-4 py-3 bg-slate-900/50 border border-slate-700/50 rounded-xl text-white placeholder-slate-500 focus:bg-slate-900 focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 outline-none transition-all duration-300"
                         />
                     </div>
@@ -148,8 +149,8 @@
 
                 <div>
                     <div class="flex justify-between items-center mb-2">
-                        <label for="password" class="block text-sm font-medium text-slate-300">Password</label>
-                        <a href="#!" class="text-xs font-medium text-indigo-400 hover:text-indigo-300 transition-colors">Forgot password?</a>
+                        <label for="password" class="block text-sm font-medium text-slate-300">{$_('login__password_label')}</label>
+                        <a href="#!" class="text-xs font-medium text-indigo-400 hover:text-indigo-300 transition-colors">{$_('login__forgot_password')}</a>
                     </div>
                     <div class="relative group">
                         <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-500 group-focus-within:text-indigo-400 transition-colors">
@@ -176,19 +177,19 @@
                 <button
                     type="submit"
                     disabled={loading}
-                    class="w-full py-3.5 px-4 mt-2 bg-white hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed text-slate-900 font-bold rounded-xl shadow-[0_0_20px_rgba(255,255,255,0.1)] transition-all duration-300 flex items-center justify-center gap-2 group border border-transparent hover:border-white/20"
+                    class="w-full py-3.5 px-4 mt-2 bg-primary hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-lg shadow-primary/20 transition-all duration-300 flex items-center justify-center gap-2 group border border-transparent"
                 >
                     {#if loading}
-                        <div class="w-5 h-5 border-2 border-slate-900/30 border-t-slate-900 rounded-full animate-spin"></div>
+                        <div class="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                     {:else}
-                        Log in
+                        {$_('login__btn_submit')}
                         <ArrowRight size={18} class="group-hover:translate-x-1 transition-transform" />
                     {/if}
                 </button>
             </form>
 
             <div class="mt-8 text-center text-sm">
-                <span class="text-slate-500">Accounts are by invitation only.</span>
+                <span class="text-slate-500">{$_('login__invitation_only')}</span>
             </div>
         </div>
     </div>

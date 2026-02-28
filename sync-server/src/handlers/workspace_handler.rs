@@ -8,6 +8,7 @@ use axum_extra::extract::cookie::CookieJar;
 use crate::models::workspace::{CreateWorkspaceRequest, UpdateWorkspaceRequest};
 use crate::repositories::workspace_repo::WorkspaceRepository;
 use crate::repositories::room_repo::RoomRepository;
+use crate::repositories::data_repo::DataRepository;
 use crate::services::workspace_service::WorkspaceService;
 use crate::state::SharedState;
 use crate::handlers::auth_handler::extract_user_id;
@@ -27,7 +28,12 @@ pub async fn get_workspaces_handler(
     };
 
     let workspace_repo = WorkspaceRepository::new(&state.db);
-    match WorkspaceService::get_user_workspaces(&workspace_repo, &user_id).await {
+    let data_repo = DataRepository::new(&state.db);
+    let assigned_ws_ids = data_repo.find_assigned_workspaces(&user_id.to_hex())
+        .await
+        .unwrap_or_default();
+
+    match WorkspaceService::get_user_workspaces(&workspace_repo, &user_id, assigned_ws_ids).await {
         Ok(workspaces) => {
             let workspaces_json: Vec<_> = workspaces.into_iter().map(|w| {
                 serde_json::json!({
@@ -104,11 +110,26 @@ pub async fn update_workspace_handler(
     };
 
     let workspace_repo = WorkspaceRepository::new(&state.db);
+
+    // Only the owner can update a workspace
+    match workspace_repo.find_by_id(&workspace_id).await {
+        Ok(Some(ws)) if ws.owner_id != user_id => {
+            return (axum::http::StatusCode::FORBIDDEN, axum::Json(serde_json::json!({ "error": "Only the workspace owner can update this workspace" }))).into_response();
+        },
+        Ok(None) => {
+            return (axum::http::StatusCode::NOT_FOUND, axum::Json(serde_json::json!({ "error": "Workspace not found" }))).into_response();
+        },
+        Err(_) => {
+            return (axum::http::StatusCode::INTERNAL_SERVER_ERROR, axum::Json(serde_json::json!({ "error": "Database error" }))).into_response();
+        },
+        _ => {}
+    }
+
     match WorkspaceService::update_workspace(&workspace_repo, &user_id, &workspace_id, payload).await {
         Ok(true) => axum::Json(serde_json::json!({ "success": true })).into_response(),
         Ok(false) => (
             axum::http::StatusCode::NOT_FOUND,
-            axum::Json(serde_json::json!({ "error": "Workspace not found or unauthorized to update" })),
+            axum::Json(serde_json::json!({ "error": "Workspace not found" })),
         ).into_response(),
         Err(e) => (
             axum::http::StatusCode::INTERNAL_SERVER_ERROR,
@@ -140,16 +161,73 @@ pub async fn delete_workspace_handler(
     };
 
     let workspace_repo = WorkspaceRepository::new(&state.db);
+
+    // Only the owner can delete a workspace
+    match workspace_repo.find_by_id(&workspace_id).await {
+        Ok(Some(ws)) if ws.owner_id != user_id => {
+            return (axum::http::StatusCode::FORBIDDEN, axum::Json(serde_json::json!({ "error": "Only the workspace owner can delete this workspace" }))).into_response();
+        },
+        Ok(None) => {
+            return (axum::http::StatusCode::NOT_FOUND, axum::Json(serde_json::json!({ "error": "Workspace not found" }))).into_response();
+        },
+        Err(_) => {
+            return (axum::http::StatusCode::INTERNAL_SERVER_ERROR, axum::Json(serde_json::json!({ "error": "Database error" }))).into_response();
+        },
+        _ => {}
+    }
+
     let room_repo = RoomRepository::new(&state.db);
     match WorkspaceService::delete_workspace(&workspace_repo, &room_repo, &state.rooms, &user_id, &workspace_id).await {
         Ok(true) => axum::Json(serde_json::json!({ "success": true })).into_response(),
         Ok(false) => (
             axum::http::StatusCode::NOT_FOUND,
-            axum::Json(serde_json::json!({ "error": "Workspace not found or unauthorized to delete" })),
+            axum::Json(serde_json::json!({ "error": "Workspace not found" })),
         ).into_response(),
         Err(e) => (
             axum::http::StatusCode::INTERNAL_SERVER_ERROR,
             axum::Json(serde_json::json!({ "error": e })),
         ).into_response(),
+    }
+}
+
+pub async fn check_workspace_access_handler(
+    State(state): State<SharedState>,
+    Path(room_code): Path<String>,
+    headers: HeaderMap,
+    jar: CookieJar,
+) -> axum::response::Response {
+    let user_id = match extract_user_id(&headers, &jar, &state.jwt_secret) {
+        Some(id) => id,
+        None => return (
+            axum::http::StatusCode::UNAUTHORIZED,
+            axum::Json(serde_json::json!({ "error": "Not logged in" })),
+        ).into_response(),
+    };
+
+    use futures::StreamExt;
+    let mut cursor = match state.db.collection::<crate::models::workspace::Workspace>("workspaces")
+        .find(mongodb::bson::doc! { "room_code": &room_code }, None).await {
+        Ok(c) => c,
+        Err(_) => return (axum::http::StatusCode::INTERNAL_SERVER_ERROR, axum::Json(serde_json::json!({ "error": "Db error" }))).into_response()
+    };
+    
+    let ws = cursor.next().await.and_then(|r| r.ok());
+
+    match ws {
+        Some(w) => {
+            if w.owner_id == user_id {
+                return axum::Json(serde_json::json!({ "success": true, "has_access": true })).into_response();
+            }
+            if let Some(id) = w.id {
+                let data_repo = crate::repositories::data_repo::DataRepository::new(&state.db);
+                if let Ok(assigned) = data_repo.find_assigned_workspaces(&user_id.to_hex()).await {
+                    if assigned.contains(&id) {
+                        return axum::Json(serde_json::json!({ "success": true, "has_access": true })).into_response();
+                    }
+                }
+            }
+            axum::Json(serde_json::json!({ "success": true, "has_access": false })).into_response()
+        },
+        None => axum::Json(serde_json::json!({ "success": false, "error": "Workspace not found" })).into_response()
     }
 }

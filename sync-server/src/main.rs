@@ -123,6 +123,7 @@ async fn main() {
         .route("/api/workspaces", post(handlers::workspace_handler::create_workspace_handler))
         .route("/api/workspaces/:id", put(handlers::workspace_handler::update_workspace_handler))
         .route("/api/workspaces/:id", delete(handlers::workspace_handler::delete_workspace_handler))
+        .route("/api/workspaces/access/:room_code", get(handlers::workspace_handler::check_workspace_access_handler))
         // Data routes (workspace-scoped)
         .route("/api/workspaces/:ws_id/tasks", get(handlers::data_handler::list_tasks))
         .route("/api/workspaces/:ws_id/tasks", post(handlers::data_handler::create_task))
