@@ -38,7 +38,7 @@
 
 	async function fetchGithubStars() {
 		try {
-			const res = await fetch('https://api.github.com/repos/watchakorn-18k/khun-phaen-tracker-offline');
+			const res = await fetch('https://api.github.com/repos/fakduai-logistics-and-digital-platform/khun-phaen-tracker');
 			const data = await res.json();
 			if (data.stargazers_count !== undefined) {
 				githubStars = data.stargazers_count.toLocaleString();
@@ -235,7 +235,7 @@
 
 						<!-- SaaS Style GitHub Badge -->
 						<a
-							href="https://github.com/watchakorn-18k/khun-phaen-tracker-offline"
+							href="https://github.com/fakduai-logistics-and-digital-platform/khun-phaen-tracker"
 							target="_blank"
 							rel="noopener noreferrer"
 							class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/50 dark:bg-white/5 hover:bg-white dark:hover:bg-white/10 text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-white transition-all text-xs font-bold border border-gray-200 dark:border-gray-700 group/github shadow-sm backdrop-blur-md"
@@ -252,7 +252,7 @@
 						
 						<!-- Mobile GitHub Icon Only -->
 						<a
-							href="https://github.com/watchakorn-18k/khun-phaen-tracker-offline"
+							href="https://github.com/fakduai-logistics-and-digital-platform/khun-phaen-tracker"
 							target="_blank"
 							rel="noopener noreferrer"
 							class="flex sm:hidden p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"

@@ -21,13 +21,25 @@ pub async fn invite_handler(
     let user_repo = UserRepository::new(&state.db);
     let profile_repo = ProfileRepository::new(&state.db);
 
-    // If no users exist yet, allow the first invite without auth (initial setup)
+    // If no users exist yet, allow the first invite only with a valid setup token
     let user_count = match user_repo.count().await {
         Ok(c) => c,
         Err(_) => 0,
     };
 
-    if user_count > 0 {
+    if user_count == 0 {
+        let setup_token = std::env::var("INITIAL_SETUP_TOKEN").ok();
+        let provided_token = headers.get("X-Setup-Token").and_then(|h| h.to_str().ok());
+
+        if setup_token.is_none() || provided_token != setup_token.as_deref() {
+            return (
+                axum::http::StatusCode::FORBIDDEN,
+                axum::Json(serde_json::json!({ 
+                    "error": "System initialization requires a valid setup token. Check INITIAL_SETUP_TOKEN in environment." 
+                })),
+            ).into_response();
+        }
+    } else {
         let claims = match extract_claims(&headers, &jar, &state.jwt_secret) {
             Some(c) => c,
             None => return (

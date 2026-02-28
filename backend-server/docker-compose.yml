@@ -1,0 +1,61 @@
+version: "3.8"
+
+services:
+  # Backend Server - Sync Server handling WebSockets and API
+  backend:
+    image: ghcr.io/fakduai-logistics-and-digital-platform/khun-phaen-tracker/backend:latest
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - RUST_LOG=info
+      - MONGODB_URI=mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongodb:27017/${DB_NAME}?authSource=admin
+      - DB_NAME=${DB_NAME}
+      - JWT_SECRET=${JWT_SECRET}
+      - INITIAL_SETUP_TOKEN=${INITIAL_SETUP_TOKEN:-super-secret-setup-token}
+    restart: unless-stopped
+    depends_on:
+      - mongodb
+    healthcheck:
+      test: ["CMD", "bash", "-c", "</dev/tcp/localhost/3001"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Setup - ปลอดภัยขึ้นด้วยการใช้ตัวแปร ENV และ Setup Token
+  setup:
+    image: curlimages/curl:latest
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      - INITIAL_ADMIN_EMAIL=${INITIAL_ADMIN_EMAIL:-admin@example.com}
+      - INITIAL_ADMIN_PASSWORD=${INITIAL_ADMIN_PASSWORD:-password123}
+      - INITIAL_ADMIN_NICKNAME=${INITIAL_ADMIN_NICKNAME:-Admin}
+      - INITIAL_SETUP_TOKEN=${INITIAL_SETUP_TOKEN:-super-secret-setup-token}
+    command:
+      - /bin/sh
+      - -c
+      - |
+        echo "Attempting setup..."
+        curl -s -X POST http://backend:3001/api/auth/invite \
+          -H "Content-Type: application/json" \
+          -H "X-Setup-Token: $INITIAL_SETUP_TOKEN" \
+          -d "{\"email\":\"$INITIAL_ADMIN_EMAIL\",\"password\":\"$INITIAL_ADMIN_PASSWORD\",\"role\":\"admin\",\"nickname\":\"$INITIAL_ADMIN_NICKNAME\"}"
+        echo "Done."
+
+  # MongoDB - Local database instance with authentication
+  mongodb:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=password123
+      - MONGO_INITDB_DATABASE=tracker-db
+    volumes:
+      - mongodb_data:/data/db
+    restart: unless-stopped
+
+volumes:
+  mongodb_data:

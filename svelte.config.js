@@ -6,7 +6,7 @@ const config = {
 	preprocess: vitePreprocess(),
 	kit: {
 		paths: {
-			base: '/khun-phaen-tracker-offline'
+			base: '/khun-phaen-tracker'
 		},
 		adapter: adapter({
 			pages: 'build',

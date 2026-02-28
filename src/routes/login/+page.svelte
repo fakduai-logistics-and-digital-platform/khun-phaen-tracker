@@ -1,9 +1,9 @@
 <script lang="ts">
     import { goto } from '$app/navigation';
     import { base } from '$app/paths';
-    import { _ } from 'svelte-i18n';
-    import { Mail, Lock, ArrowRight, CheckCircle2 } from 'lucide-svelte';
+    import { Mail, Lock, ArrowRight, CheckCircle2, Languages } from 'lucide-svelte';
     import favicon from '$lib/assets/favicon.svg';
+    import LanguagePicker from '$lib/components/LanguagePicker.svelte';
 
     import { user } from '$lib/stores/auth';
     import { api } from '$lib/apis';
@@ -113,6 +113,10 @@
         <!-- Mobile subtle background glow -->
         <div class="absolute top-0 right-0 w-full h-full overflow-hidden pointer-events-none lg:hidden">
             <div class="absolute top-1/4 left-1/2 -translate-x-1/2 w-full h-1/2 bg-primary/10 rounded-full blur-[100px] mix-blend-screen opacity-50"></div>
+        </div>
+
+        <div class="absolute top-6 right-6 z-50">
+            <LanguagePicker isDark={true} />
         </div>
 
         <div class="max-w-[420px] w-full relative z-10">

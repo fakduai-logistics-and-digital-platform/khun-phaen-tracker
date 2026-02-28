@@ -166,6 +166,80 @@ WS /ws
 }
 ```
 
+## Docker Deployment
+
+### 1. Using Docker Compose (Recommended)
+
+คุณสามารถรัน Backend พร้อม MongoDB และระบบสร้าง Admin เริ่มต้นให้อัตโนมัติได้ง่ายๆ ผ่าน Docker Compose:
+
+```bash
+cd backend-server
+docker compose up -d
+```
+
+### 2. Configuration (.env)
+
+สร้างไฟล์ `.env` ในโฟลเดอร์ `backend-server/` เพื่อตั้งค่าระบบ:
+
+```env
+# Database Settings
+MONGO_INITDB_ROOT_USERNAME=admin
+MONGO_INITDB_ROOT_PASSWORD=password123
+DB_NAME=tracker-db
+
+# App Secrets
+JWT_SECRET=your_super_secret_key_here
+
+# Initial Admin Setup (สร้างให้อัตโนมัติเมื่อรันครั้งแรก)
+INITIAL_ADMIN_EMAIL=admin@example.com
+INITIAL_ADMIN_PASSWORD=change_this_password
+INITIAL_ADMIN_NICKNAME=Admin
+
+# Security Token (สำคัญ: ต้องใช้สำหรับสร้าง User คนแรก)
+INITIAL_SETUP_TOKEN=random_secret_token_here
+```
+
+### 3. Security Mechanism (X-Setup-Token)
+
+เพื่อความปลอดภัยสูงสุด ระบบถูกออกแบบมาให้ป้องกันการยึดเครื่อง (Admin Takeover) จากบุคคลภายนอก:
+- **First User Only**: ระบบจะยอมให้สร้าง User โดยไม่ต้อง Login เฉพาะเมื่อไม่มี User ในฐานข้อมูลเลยเท่านั้น
+- **Setup Token Validation**: ในการสร้าง User คนแรก ระบบบังคับให้ต้องส่ง Header `X-Setup-Token` ที่ตรงกับ `INITIAL_SETUP_TOKEN` ใน Environment เท่านั้น
+- **Docker Integration**: Service `setup` ใน `docker-compose.yml` จะทำหน้าที่ส่ง Token นี้ให้โดยอัตโนมัติภายในเครือข่าย Docker ทำให้คนภายนอกที่รู้ URL ไม่สามารถสมัครเองได้
+
+### 4. GitHub Actions CI/CD
+
+Backend นี้ถูกตั้งค่าให้ Build อัตโนมัติผ่าน GitHub Actions:
+- **Registry**: `ghcr.io/fakduai-logistics-and-digital-platform/khun-phaen-tracker/backend:latest`
+- **Context**: เมื่อมีการ Push ไปที่ branch `main` ระบบจะทำการ Build และ Push image ใหม่ให้ทันที
+
+---
+
+## Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `3001` | พอร์ตที่ Server ให้บริการ |
+| `MONGODB_URI` | `mongodb://localhost:27017` | Connection string ของ MongoDB |
+| `DB_NAME` | `tracker-db` | ชื่อฐานข้อมูล |
+| `JWT_SECRET` | - | คีย์สำหรับถอดรหัส Token (ห้ามลืมตั้งค่า) |
+| `INITIAL_SETUP_TOKEN` | - | Token ลับสำหรับสร้าง Admin คนแรก |
+| `RUST_LOG` | `info` | ระดับการแสดง Log |
+| `ROOM_IDLE_TIMEOUT_SECONDS` | `3600` | เวลาที่ห้องจะค้างอยู่ใน Memory เมื่อไม่มีคนอยู่ (0 = ตลอดไป) |
+
+## Development
+
+หากต้องการรันเพื่อพัฒนา (Local Development):
+1. ตรวจสอบให้แน่ใจว่าได้ปิด Server ตัวอื่นๆ แล้ว
+2. รัน MongoDB local (หรือใช้ Docker)
+3. ใช้คำสั่ง:
+   ```bash
+   cargo run
+   ```
+
+## License
+
+MIT
+
 ## Deployment
 
 ### Using Pre-built Docker Image
@@ -174,14 +248,14 @@ WS /ws
 
 ```bash
 # Pull image
-podman pull ghcr.io/watchakorn-18k/khun-phaen-tracker-offline/sync-server:latest
+podman pull ghcr.io/fakduai-logistics-and-digital-platform/khun-phaen-tracker/sync-server:latest
 
 # Run container (limit memory 100MB, background mode)
 podman run -d \
   --name khu-phaen-sync \
   --memory=100m \
   -p 3002:3001 \
-  ghcr.io/watchakorn-18k/khun-phaen-tracker-offline/sync-server:latest
+  ghcr.io/fakduai-logistics-and-digital-platform/khun-phaen-tracker/sync-server:latest
 
 # View logs
 podman logs -f khu-phaen-sync
@@ -191,14 +265,14 @@ podman logs -f khu-phaen-sync
 
 ```bash
 # Pull image
-docker pull ghcr.io/watchakorn-18k/khun-phaen-tracker-offline/sync-server:latest
+docker pull ghcr.io/fakduai-logistics-and-digital-platform/khun-phaen-tracker/sync-server:latest
 
 # Run container (limit memory 100MB, background mode)
 docker run -d \
   --name khu-phaen-sync \
   --memory=100m \
   -p 3002:3001 \
-  ghcr.io/watchakorn-18k/khun-phaen-tracker-offline/sync-server:latest
+  ghcr.io/fakduai-logistics-and-digital-platform/khun-phaen-tracker/sync-server:latest
 
 # View logs
 docker logs -f khu-phaen-sync

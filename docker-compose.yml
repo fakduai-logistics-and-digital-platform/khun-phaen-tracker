@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   # Frontend - SvelteKit static site served by Nginx
@@ -10,40 +10,56 @@ services:
       - "8080:80"
     restart: unless-stopped
     depends_on:
-      sync-server:
+      backend:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/khun-phaen-tracker-offline/"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:80/khun-phaen-tracker/",
+        ]
       interval: 30s
       timeout: 3s
       retries: 3
 
-  # Sync Server - WebSocket server for real-time sync
-  sync-server:
+  # Backend Server - Sync Server handling WebSockets and API
+  backend:
     build:
-      context: ./sync-server
+      context: ./backend-server
       dockerfile: Dockerfile
     ports:
       - "3001:3001"
     environment:
       - PORT=3001
       - RUST_LOG=info
-      - MONGODB_URI=mongodb://mongodb:27017
-      - JWT_SECRET=your-super-secret-key-change-this-in-production
+      # Connection URI with admin credentials
+      - MONGODB_URI=mongodb://admin:password123@mongodb:27017/tracker-db?authSource=admin
+      - DB_NAME=tracker-db
+      - JWT_SECRET=khunphaen_super_secret_key_2026_!@#
+      - ROOM_IDLE_TIMEOUT_SECONDS=3600
     restart: unless-stopped
     depends_on:
       - mongodb
     healthcheck:
-      test: ["CMD", "nc", "-z", "localhost", "3001"]
+      # Use bash /dev/tcp since ping/nc might not be in slim image
+      test: ["CMD", "bash", "-c", "</dev/tcp/localhost/3001"]
       interval: 30s
       timeout: 3s
       retries: 3
 
-  # MongoDB - Persistence for Auth and Rooms
+  # MongoDB - Local database instance with authentication
   mongodb:
     image: mongo:latest
     ports:
       - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=password123
+      - MONGO_INITDB_DATABASE=tracker-db
     volumes:
       - mongodb_data:/data/db
     restart: unless-stopped

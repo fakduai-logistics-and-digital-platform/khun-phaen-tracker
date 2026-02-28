@@ -22,7 +22,7 @@ FROM nginx:alpine
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy built static files
-COPY --from=builder /app/build /usr/share/nginx/html/khun-phaen-tracker-offline
+COPY --from=builder /app/build /usr/share/nginx/html/khun-phaen-tracker
 
 EXPOSE 80
 

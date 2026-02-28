@@ -229,7 +229,7 @@
 
 						<div>
 							<label for="worker-discord-input" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-								Discord ID
+								{$_('users__form_discord_id')}
 							</label>
 							<input
 								id="worker-discord-input"

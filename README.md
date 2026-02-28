@@ -69,7 +69,7 @@ npm run dev
 npm run dev -- --open
 ```
 
-The frontend will run at `http://localhost:5173/khun-phaen-tracker-offline` (base path configured).
+The frontend will run at `http://localhost:5173/khun-phaen-tracker` (base path configured).
 
 ### 4. Run Sync Server (Optional - for Real-time Sync)
 
@@ -166,7 +166,7 @@ cargo build --release
 docker compose up --build
 ```
 
-Frontend will be available at `http://localhost:8080/khun-phaen-tracker-offline/`
+Frontend will be available at `http://localhost:8080/khun-phaen-tracker/`
 
 ### Sync Server ONLY
 
@@ -175,7 +175,7 @@ docker run -d \
   --name khu-phaen-sync \
   --memory=100m \
   -p 3002:3001 \
-  ghcr.io/watchakorn-18k/khun-phaen-tracker-offline/sync-server:latest
+  ghcr.io/fakduai-logistics-and-digital-platform/khun-phaen-tracker/sync-server:latest
 ```
 
 ## 📄 License

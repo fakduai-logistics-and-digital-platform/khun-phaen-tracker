@@ -67,7 +67,7 @@ npm run dev
 npm run dev -- --open
 ```
 
-หน้าเว็บจะอยู่ที่ `http://localhost:5173/khun-phaen-tracker-offline`
+หน้าเว็บจะอยู่ที่ `http://localhost:5173/khun-phaen-tracker`
 
 ### 4. รัน Sync Server (เสริม - สำหรับ Real-time Sync)
 
@@ -120,7 +120,7 @@ cargo build --release
 docker compose up --build
 ```
 
-เปิดเว็บที่ `http://localhost:8080/khun-phaen-tracker-offline/`
+เปิดเว็บที่ `http://localhost:8080/khun-phaen-tracker/`
 
 ### สำหรับ Sync Server เท่านั้น
 
@@ -128,7 +128,7 @@ docker compose up --build
 docker run -d \
   --name khu-phaen-sync \
   -p 3002:3001 \
-  ghcr.io/watchakorn-18k/khun-phaen-tracker-offline/sync-server:latest
+  ghcr.io/fakduai-logistics-and-digital-platform/khun-phaen-tracker/sync-server:latest
 ```
 
 ## 📄 License

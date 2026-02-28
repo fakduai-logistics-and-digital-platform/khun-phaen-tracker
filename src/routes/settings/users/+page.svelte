@@ -305,7 +305,7 @@
                 </thead>
                 <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
                     {#if loading}
-                        {#each Array(3) as _}
+                        {#each Array(3) as i}
                             <tr class="animate-pulse">
                                 <td class="px-6 py-4"><div class="h-10 w-48 bg-gray-200 dark:bg-gray-700 rounded"></div></td>
                                 <td class="px-6 py-4"><div class="h-6 w-16 bg-gray-200 dark:bg-gray-700 rounded"></div></td>

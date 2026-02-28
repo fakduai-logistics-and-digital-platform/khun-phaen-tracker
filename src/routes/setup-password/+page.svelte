@@ -3,10 +3,11 @@
     import { page } from '$app/stores';
     import { goto } from '$app/navigation';
     import { base } from '$app/paths';
-    import { Lock, ArrowRight, CheckCircle2, ShieldCheck } from 'lucide-svelte';
+    import { Lock, ArrowRight, CheckCircle2, ShieldCheck, Languages } from 'lucide-svelte';
     import { _ } from 'svelte-i18n';
     import { api } from '$lib/apis';
     import favicon from '$lib/assets/favicon.svg';
+    import LanguagePicker from '$lib/components/LanguagePicker.svelte';
 
     let token = '';
     let password = '';
@@ -123,6 +124,11 @@
     </div>
 
     <div class="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12 relative bg-[#030712]">
+        
+        <div class="absolute top-6 right-6 z-50">
+            <LanguagePicker isDark={true} />
+        </div>
+
         <div class="max-w-[420px] w-full relative z-10">
 
             <!-- Mobile Logo -->

@@ -41,7 +41,7 @@ jobs:
         with:
           path: './build'
 
-  build-sync-server:
+  build-backend:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -61,7 +61,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}/sync-server
+          images: ghcr.io/${{ github.repository }}/backend
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -73,7 +73,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
-          context: ./sync-server
+          context: ./backend-server
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
