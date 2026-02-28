@@ -1,0 +1,42 @@
+version: "3.8"
+
+services:
+  # Frontend - SvelteKit static site served by Nginx
+  frontend:
+    image: ghcr.io/${GITHUB_REPOSITORY:-watchakorn-18k/khun-phaen-tracker-offline}/frontend:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      - VITE_API_URL=http://localhost:3001/api
+      - VITE_WS_URL=ws://localhost:3001/ws
+      - VITE_SERVER_URL=http://localhost:3001
+
+  # Backend Server - Sync Server handling WebSockets and API
+  backend:
+    image: ghcr.io/${GITHUB_REPOSITORY:-watchakorn-18k/khun-phaen-tracker-offline}/backend:latest
+    build:
+      context: ./backend-server
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - RUST_LOG=info
+      # Connection URI for Mongo Atlas
+      - MONGODB_URI=${MONGODB_ATLAS_URI:-mongodb+srv://username:password@cluster0.mongodb.net/tracker-db?retryWrites=true&w=majority}
+      - DB_NAME=${DB_NAME:-tracker-db}
+      - JWT_SECRET=${JWT_SECRET:-khunphaen_super_secret_key_2026_!@#}
+      - ROOM_IDLE_TIMEOUT_SECONDS=3600
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "bash", "-c", "</dev/tcp/localhost/3001"]
+      interval: 30s
+      timeout: 3s
+      retries: 3

@@ -1,0 +1,45 @@
+version: "3.8"
+
+services:
+  # Backend Server - Sync Server handling WebSockets and API
+  backend:
+    image: ghcr.io/fakduai-logistics-and-digital-platform/khun-phaen-tracker/backend:latest
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - RUST_LOG=info
+      # Connection URI for Mongo Atlas
+      - MONGODB_URI=${MONGODB_ATLAS_URI:-mongodb+srv://username:password@cluster0.mongodb.net/tracker-db?retryWrites=true&w=majority}
+      - DB_NAME=${DB_NAME:-tracker-db}
+      - JWT_SECRET=${JWT_SECRET:-khunphaen_super_secret_key_2026_!@#}
+      - INITIAL_SETUP_TOKEN=${INITIAL_SETUP_TOKEN:-super-secret-setup-token}
+      - ROOM_IDLE_TIMEOUT_SECONDS=3600
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "bash", "-c", "</dev/tcp/localhost/3001"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Setup - Initialize first admin user
+  setup:
+    image: curlimages/curl:latest
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      - INITIAL_ADMIN_EMAIL=${INITIAL_ADMIN_EMAIL:-admin@example.com}
+      - INITIAL_ADMIN_PASSWORD=${INITIAL_ADMIN_PASSWORD:-password123}
+      - INITIAL_ADMIN_NICKNAME=${INITIAL_ADMIN_NICKNAME:-Admin}
+      - INITIAL_SETUP_TOKEN=${INITIAL_SETUP_TOKEN:-super-secret-setup-token}
+    command:
+      - /bin/sh
+      - -c
+      - |
+        echo "Attempting setup..."
+        curl -s -X POST http://backend:3001/api/auth/invite \
+          -H "Content-Type: application/json" \
+          -H "X-Setup-Token: $$INITIAL_SETUP_TOKEN" \
+          -d "{\"email\":\"$$INITIAL_ADMIN_EMAIL\",\"password\":\"$$INITIAL_ADMIN_PASSWORD\",\"role\":\"admin\",\"nickname\":\"$$INITIAL_ADMIN_NICKNAME\"}"
+        echo "Done."
