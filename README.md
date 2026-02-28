@@ -160,23 +160,68 @@ cargo build --release
 
 ## 🐳 Docker / Deployment
 
-### Run All Services (Frontend + Sync Server)
+We provide multiple ways to run the project using Docker depending on your database preference (Local MongoDB or Mongo Atlas) and whether you want to run the full stack or just the backend.
+
+### Prerequisites for Docker
+
+1. Ensure you have Docker and Docker Compose installed.
+2. Make sure no other services are using ports `8080`, `3001`, or `27017` (if using local MongoDB).
+3. If using MongoDB Atlas, make sure your cluster IP access list allows connections from your runner IP.
+
+### Option 1: Run Full Stack with Local MongoDB (Default)
+
+This runs the Frontend, Backend, and a local MongoDB instance.
 
 ```sh
-docker compose up --build
+# Run in the background
+docker compose up -d
+
+# To stop the services
+docker compose down
 ```
 
-Frontend will be available at `http://localhost:8080/khun-phaen-tracker/`
+Frontend will be available at: `http://localhost:8080/khun-phaen-tracker/`
+Backend will be available at: `http://localhost:3001`
 
-### Sync Server ONLY
+### Option 2: Run Full Stack with Mongo Atlas (Cloud Database)
 
+This runs the Frontend, Backend, and a one-time Setup script to create the initial admin user using your remote MongoDB Atlas database.
+
+**Step 1:** Create or edit your `.env` file in the root directory and add your Atlas URI and Setup details:
+```env
+MONGODB_ATLAS_URI=mongodb+srv://<username>:<password>@cluster0.abcde.mongodb.net/tracker-db?retryWrites=true&w=majority
+INITIAL_SETUP_TOKEN=your-very-secret-token
+INITIAL_ADMIN_EMAIL=admin@example.com
+INITIAL_ADMIN_PASSWORD=password123
+INITIAL_ADMIN_NICKNAME=SuperAdmin
+```
+
+**Step 2:** Start the stack using the Atlas compose file:
 ```sh
-docker run -d \
-  --name khu-phaen-sync \
-  --memory=100m \
-  -p 3002:3001 \
-  ghcr.io/fakduai-logistics-and-digital-platform/khun-phaen-tracker/sync-server:latest
+docker compose -f docker-compose.atlas.yml up -d
 ```
+
+### Option 3: Run Backend Server ONLY (with Mongo Atlas)
+
+If you have a separate frontend deployment (e.g., Vercel, Netlify, GitHub Pages) and only need to host the backend APIs and WebSocket server via Docker.
+
+**Step 1:** Navigate to the backend directory:
+```sh
+cd backend-server
+```
+
+**Step 2:** Create a `.env` file in the `backend-server` directory with your database credentials:
+```env
+MONGODB_ATLAS_URI=mongodb+srv://<username>:<password>@cluster0.abcde.mongodb.net/tracker-db?retryWrites=true&w=majority
+JWT_SECRET=your_jwt_secret_key_here
+INITIAL_SETUP_TOKEN=your-very-secret-token
+```
+
+**Step 3:** Start the backend and setup service:
+```sh
+docker compose -f docker-compose.atlas.yml up -d
+```
+The Backend API and WebSocket will run at `http://localhost:3001`.
 
 ## 📄 License
 
@@ -187,3 +232,4 @@ This project is licensed under [CC BY-NC 4.0](https://creativecommons.org/licens
 <p align="center">
   Built with ❤️ for Offline-First Task Management
 </p>
+
