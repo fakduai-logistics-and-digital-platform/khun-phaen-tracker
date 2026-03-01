@@ -223,6 +223,15 @@ impl DataRepository {
         Ok(assignees)
     }
 
+    pub async fn count_tasks_by_workspaces(&self, workspace_ids: &[ObjectId]) -> mongodb::error::Result<Vec<(ObjectId, u64)>> {
+        let mut results = Vec::new();
+        for ws_id in workspace_ids {
+            let count = self.tasks.count_documents(doc! { "workspace_id": ws_id }, None).await?;
+            results.push((*ws_id, count));
+        }
+        Ok(results)
+    }
+
     pub async fn find_assigned_workspaces(&self, user_id_hex: &str) -> mongodb::error::Result<Vec<ObjectId>> {
         let mut cursor = self.assignees.find(doc! { "user_id": user_id_hex }, None).await?;
         let mut w_ids = Vec::new();

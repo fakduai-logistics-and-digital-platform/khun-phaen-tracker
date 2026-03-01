@@ -53,6 +53,50 @@ pub async fn get_workspaces_handler(
     }
 }
 
+/// GET /api/workspaces/stats — returns task counts for all user workspaces
+pub async fn get_workspaces_stats_handler(
+    State(state): State<SharedState>,
+    headers: HeaderMap,
+    jar: CookieJar,
+) -> axum::response::Response {
+    let user_id = match extract_user_id(&headers, &jar, &state.jwt_secret) {
+        Some(id) => id,
+        None => return (
+            axum::http::StatusCode::UNAUTHORIZED,
+            axum::Json(serde_json::json!({ "error": "Not logged in" })),
+        ).into_response(),
+    };
+
+    let workspace_repo = WorkspaceRepository::new(&state.db);
+    let data_repo = DataRepository::new(&state.db);
+    let assigned_ws_ids = data_repo.find_assigned_workspaces(&user_id.to_hex())
+        .await
+        .unwrap_or_default();
+
+    let workspaces = match crate::services::workspace_service::WorkspaceService::get_user_workspaces(&workspace_repo, &user_id, assigned_ws_ids).await {
+        Ok(ws) => ws,
+        Err(e) => return (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            axum::Json(serde_json::json!({ "error": e })),
+        ).into_response(),
+    };
+
+    let ws_ids: Vec<ObjectId> = workspaces.iter().filter_map(|w| w.id).collect();
+
+    match data_repo.count_tasks_by_workspaces(&ws_ids).await {
+        Ok(counts) => {
+            let stats: serde_json::Map<String, serde_json::Value> = counts.into_iter()
+                .map(|(id, count)| (id.to_hex(), serde_json::Value::from(count)))
+                .collect();
+            axum::Json(serde_json::json!({ "success": true, "task_counts": stats })).into_response()
+        },
+        Err(e) => (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            axum::Json(serde_json::json!({ "error": format!("{}", e) })),
+        ).into_response(),
+    }
+}
+
 pub async fn create_workspace_handler(
     State(state): State<SharedState>,
     headers: HeaderMap,
