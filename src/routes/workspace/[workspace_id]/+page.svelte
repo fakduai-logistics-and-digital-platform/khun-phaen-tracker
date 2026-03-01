@@ -20,7 +20,7 @@
 	import WorkerManager from '$lib/components/WorkerManager.svelte';
 	import ProjectManager from '$lib/components/ProjectManager.svelte';
 import { List, CalendarDays, Columns3, Table, GanttChart, UsersRound, Filter, Search, Plus, Users, Folder, Sparkles, MessageSquareQuote, Settings2, Flag, FileText, FileSpreadsheet, Image as ImageIcon, Video, Presentation, CheckCircle, Moon, Sun, Bookmark, Play, ListTodo, ChevronLeft, ChevronRight } from 'lucide-svelte';
-	import { initWasmSearch, indexTasks, performSearch, clearSearch, searchQuery, wasmReady, wasmLoading } from '$lib/stores/search';
+	import { initWasmSearch, indexTasks, clearSearch, searchQuery, wasmReady, wasmLoading } from '$lib/stores/search';
 	import { connectRealtime, disconnectRealtime, realtimeStatus, realtimePeers } from '$lib/stores/realtime';
 	import { user } from '$lib/stores/auth';
 	import { currentWorkspaceOwnerId, setWorkspaceId } from '$lib/stores/workspace';
@@ -56,9 +56,7 @@ import { List, CalendarDays, Columns3, Table, GanttChart, UsersRound, Filter, Se
 
 	let tasks: Task[] = [];
 	let allTasksIncludingArchived: Task[] = [];
-	$: sprintManagerTasks = filters.sprint_id === 'all' 
-		? allTasksIncludingArchived 
-		: allTasksIncludingArchived.filter(t => String(t.sprint_id) === String(filters.sprint_id));
+	$: sprintManagerTasks = filteredTasks;
 	let monthlySummaryTasks: Task[] = [];
 	let filteredTasks: Task[] = [];
 	let categories: string[] = [];
@@ -102,33 +100,7 @@ import { List, CalendarDays, Columns3, Table, GanttChart, UsersRound, Filter, Se
 		void loadData();
 	}
 
-	$: {
-		// Reset page when any filter changes (ignoring page/limit)
-		const {
-			search,
-			dueDatePreset,
-			status,
-			category,
-			project,
-			assignee_id,
-			sprint_id
-		} = filters;
-		currentPage = 1;
-		void loadData();
-	}
-	
-	$: ganttTasks = allTasksIncludingArchived.filter(t => {
-		// Filter by global project, category, assignee if they aren't 'all'
-		if (filters.category !== 'all' && t.category !== filters.category) return false;
-		if (filters.project !== 'all' && t.project !== filters.project) return false;
-		if (filters.assignee_id !== 'all' && filters.assignee_id !== null && String(t.assignee_id) !== String(filters.assignee_id)) return false;
-		// If there's a search term, run it against these tasks too
-		if (searchInput.trim()) {
-			const res = performSearch(searchInput, [t]);
-			if (res.length === 0) return false;
-		}
-		return true;
-	});
+	$: ganttTasks = filteredTasks;
 
 	function loadSavedViewMode(): ViewMode {
 		if (typeof localStorage === 'undefined') return 'list';
@@ -369,13 +341,7 @@ import { List, CalendarDays, Columns3, Table, GanttChart, UsersRound, Filter, Se
 	function applyGlobalTaskSearch(queryText: string) {
 		searchInput = queryText;
 		searchQuery.set(queryText);
-
-		if ($wasmReady) {
-			filteredTasks = performSearch(queryText, tasks);
-		} else {
-			filters.search = queryText;
-			void loadData();
-		}
+		filters = { ...filters, search: queryText };
 	}
 
 	$: baseCommandPaletteItems = [
@@ -980,12 +946,7 @@ async function loadData() {
 				indexTasks(tasks);
 			}
 			
-			// Apply WASM search if there's a search query
-			if (searchInput.trim()) {
-				filteredTasks = performSearch(searchInput, viewTasks);
-			} else {
-				filteredTasks = viewTasks;
-			}
+			filteredTasks = viewTasks;
 		} catch (e) {
 			console.error('❌ loadData failed:', e);
 			showMessage(`เกิดข้อผิดพลาดในการโหลดข้อมูล: ${e instanceof Error ? e.message : 'Unknown error'}`, 'error');
@@ -1011,21 +972,14 @@ async function loadData() {
 		const target = event.target as HTMLInputElement;
 		searchInput = target.value;
 		searchQuery.set(searchInput);
-		
-		if ($wasmReady) {
-			filteredTasks = performSearch(searchInput, tasks);
-		} else {
-			// Fallback to client-side filter
-			filters.search = searchInput;
-			loadData();
-		}
+		filters = { ...filters, search: searchInput };
 	}
 	
 	// Clear search
 	function handleClearSearch() {
 		searchInput = '';
 		clearSearch([]);
-		filteredTasks = tasks;
+		filters = { ...filters, search: '' };
 	}
 	
 	let realtimeSyncDebounce: ReturnType<typeof setTimeout>;
@@ -1037,24 +991,7 @@ async function loadData() {
 
 		if (entity === 'task') {
 			statNeedsUpdate = true;
-			if (action === 'create' && data) {
-				tasks = [...tasks, data];
-			} else if (action === 'update' && id && data) {
-				tasks = tasks.map(t => String(t.id) === String(id) ? { ...t, ...data } : t);
-			} else if (action === 'delete' && id) {
-				tasks = tasks.filter(t => String(t.id) !== String(id));
-			}
-
-			if ($wasmReady) {
-				indexTasks(tasks);
-				if (searchInput.trim()) {
-					filteredTasks = performSearch(searchInput, tasks);
-				} else {
-					filteredTasks = tasks;
-				}
-			} else {
-				filteredTasks = tasks;
-			}
+			debouncedLoadData();
 		} else if (entity === 'assignee') {
 			if (action === 'create' && data) {
 				if (!assignees.find(a => a.id === data.id)) assignees = [...assignees, data];
@@ -1063,6 +1000,7 @@ async function loadData() {
 			} else if (action === 'delete' && id) {
 				assignees = assignees.filter(a => String(a.id) !== String(id));
 			}
+			debouncedLoadData();
 		} else if (entity === 'project') {
 			if (action === 'create' && data) {
 				if (!projectList.find(p => p.id === data.id)) projectList = [...projectList, data];
@@ -1072,8 +1010,7 @@ async function loadData() {
 				projectList = projectList.map(p => String(p.id) === String(id) ? { ...p, ...data } : p);
 				if (oldProject && data.name && oldProject.name !== data.name) {
 					projects = projects.map(name => name === oldProject.name ? data.name : name);
-					tasks = tasks.map(t => t.project === oldProject.name ? { ...t, project: data.name } : t);
-					filteredTasks = tasks;
+					debouncedLoadData();
 				}
 			} else if (action === 'delete' && id) {
 				const deletedProject = projectList.find(p => String(p.id) === String(id));
@@ -2775,14 +2712,15 @@ async function loadData() {
 		localStorage.removeItem(FILTER_STORAGE_KEY);
 	}
 	
-	// Auto-apply filters when they change
-	$: if (browser && filters) {
+	// Auto-apply filters when they change (API is the single source of truth)
+	$: if (browser && hasAccess && !checkingAccess && filters) {
 		const normalizedValue = normalizeSprintFilterValue(filters.sprint_id);
 		if (filters.sprint_id !== normalizedValue) {
 			// This will trigger the reactive block again with normalized value
 			filters = { ...filters, sprint_id: normalizedValue };
 		} else {
 			persistFilters();
+			currentPage = 1;
 			debouncedLoadData();
 		}
 	}
