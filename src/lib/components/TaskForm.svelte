@@ -97,10 +97,17 @@ import { Calendar, Check, CheckCircle, ChevronLeft, ChevronRight, Copy, Download
 
 	function initializeFormState() {
 		if (editingTask) {
+			const hasExplicitStartDate = !!editingTask.start_date;
+			const legacyDueDateOnly = !hasExplicitStartDate
+				&& !!editingTask.end_date
+				&& !!editingTask.date
+				&& editingTask.end_date === editingTask.date;
 			title = editingTask.title || '';
 			project = editingTask.project || '';
-			date = editingTask.date || new Date().toISOString().split('T')[0];
-			end_date = editingTask.end_date || '';
+			date = legacyDueDateOnly
+				? ''
+				: (editingTask.start_date || editingTask.date || new Date().toISOString().split('T')[0]);
+			end_date = editingTask.end_date || (legacyDueDateOnly ? editingTask.date : '');
 			status = editingTask.status || 'todo';
 			category = editingTask.category || 'งานหลัก';
 			notes = editingTask.notes || '';
@@ -748,6 +755,7 @@ import { Calendar, Check, CheckCircle, ChevronLeft, ChevronRight, Copy, Download
 
 	function handleSubmit() {
 		if (!title.trim()) return;
+		if (!date) return;
 		if (assignee_id_to_add !== null && !assignee_ids.includes(assignee_id_to_add)) {
 			assignee_ids = [...assignee_ids, assignee_id_to_add];
 		}
@@ -763,6 +771,7 @@ import { Calendar, Check, CheckCircle, ChevronLeft, ChevronRight, Copy, Download
 			title: title.trim(),
 			project: project.trim(),
 			duration_minutes: 0,
+			start_date: date,
 			date,
 			end_date: end_date || undefined,
 			status,
@@ -840,10 +849,10 @@ import { Calendar, Check, CheckCircle, ChevronLeft, ChevronRight, Copy, Download
 </script>
 
 {#if show}
-	<div class="fixed inset-0 bg-black/20 backdrop-blur-sm z-[20000] pointer-events-none !m-0"></div>
+	<div class="fixed inset-0 bg-black/35 backdrop-blur-sm z-[20000] pointer-events-none !m-0"></div>
 	<div class="fixed inset-0 z-[20000] overflow-y-auto !m-0" on:click|self={handleClose} on:keydown|self={(e) => e.key === 'Escape' && handleClose()} role="button" tabindex="-1">
 		<div class="flex min-h-full items-center justify-center p-4">
-			<div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl {editingTask?.id ? 'max-w-6xl' : 'max-w-2xl'} w-full animate-modal-in relative max-h-[90vh] flex flex-col">
+			<div class="bg-white dark:bg-[#1a263b] border border-white/10 dark:border-white/10 rounded-xl shadow-2xl {editingTask?.id ? 'max-w-6xl' : 'max-w-2xl'} w-full animate-modal-in relative max-h-[90vh] flex flex-col">
 				<div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
 					<h2 class="text-lg font-semibold text-gray-800 dark:text-white flex items-center gap-2">
 						<CheckCircle size={20} class="text-primary" />
@@ -900,12 +909,12 @@ import { Calendar, Check, CheckCircle, ChevronLeft, ChevronRight, Copy, Download
 
 						<div class="grid grid-cols-2 gap-4">
 							<div>
-								<label class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1"><Calendar size={14} />{$_('taskForm__date_label')}</label>
-								<CustomDatePicker bind:value={date} placeholder={$_('taskForm__date_placeholder')} on:select={(e) => date = e.detail} />
+								<label class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1"><Calendar size={14} />{$_('taskForm__start_date_label')}</label>
+								<CustomDatePicker bind:value={date} placeholder={$_('taskForm__start_date_placeholder')} on:select={(e) => date = e.detail} />
 							</div>
 							<div>
-								<label class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1"><Calendar size={14} />วันสิ้นสุด (Optional)</label>
-								<CustomDatePicker bind:value={end_date} placeholder="เลือกวันสิ้นสุด..." on:select={(e) => end_date = e.detail} />
+								<label class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1"><Calendar size={14} />{$_('taskForm__due_date_label')}</label>
+								<CustomDatePicker bind:value={end_date} placeholder={$_('taskForm__due_date_placeholder')} on:select={(e) => end_date = e.detail} />
 							</div>
 						</div>
 
@@ -920,7 +929,7 @@ import { Calendar, Check, CheckCircle, ChevronLeft, ChevronRight, Copy, Download
 							</div>
 
 							{#if editingTask?.id}
-								<div class="xl:col-span-2 rounded-xl bg-[#0f1b2d] p-4 space-y-3 h-full min-h-[560px] xl:max-h-[calc(90vh-11rem)] flex flex-col">
+								<div class="xl:col-span-2 rounded-xl dark:bg-[#0f1b2d] p-4 space-y-3 h-full min-h-[560px] xl:max-h-[calc(90vh-11rem)] flex flex-col">
 								<div class="flex items-center gap-2 text-sm font-semibold text-gray-800 dark:text-gray-100"><MessageCircle size={16} /><span>{$_('taskForm__comments_title')}</span></div>
 								<div bind:this={commentComposerEl} on:focusin={handleCommentComposerFocusIn} on:focusout={handleCommentComposerFocusOut} class="space-y-3">
 									<textarea

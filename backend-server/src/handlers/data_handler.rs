@@ -197,13 +197,30 @@ pub async fn create_task(
         Err(resp) => return resp,
     };
 
+    let resolved_start_date = match payload
+        .start_date
+        .clone()
+        .or(payload.date.clone())
+        .map(|v| v.trim().to_string())
+    {
+        Some(v) if !v.is_empty() => v,
+        _ => {
+            return (
+                axum::http::StatusCode::BAD_REQUEST,
+                axum::Json(serde_json::json!({ "error": "start_date (or date) is required" })),
+            )
+                .into_response()
+        }
+    };
+
     let task = TaskDocument {
         id: None,
         workspace_id: ws_oid,
         title: payload.title,
         project: payload.project,
         duration_minutes: payload.duration_minutes,
-        date: payload.date,
+        start_date: Some(resolved_start_date.clone()),
+        date: resolved_start_date,
         end_date: payload.end_date,
         status: payload.status,
         category: payload.category,
@@ -266,7 +283,12 @@ pub async fn update_task(
     if let Some(v) = payload.duration_minutes {
         updates.insert("duration_minutes", v);
     }
+    if let Some(v) = payload.start_date {
+        updates.insert("start_date", v.clone());
+        updates.insert("date", v);
+    }
     if let Some(v) = payload.date {
+        updates.insert("start_date", v.clone());
         updates.insert("date", v);
     }
     if let Some(v) = payload.end_date {

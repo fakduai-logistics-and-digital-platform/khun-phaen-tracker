@@ -120,6 +120,18 @@ impl DataRepository {
             query.insert("date", date_query);
         }
 
+        // Due date range
+        if filter.due_start_date.is_some() || filter.due_end_date.is_some() {
+            let mut due_query = Document::new();
+            if let Some(sd) = &filter.due_start_date {
+                due_query.insert("$gte", sd.as_str());
+            }
+            if let Some(ed) = &filter.due_end_date {
+                due_query.insert("$lte", ed.as_str());
+            }
+            query.insert("end_date", due_query);
+        }
+
         // Count total matching documents before pagination
         let total = self.tasks.count_documents(query.clone(), None).await?;
 

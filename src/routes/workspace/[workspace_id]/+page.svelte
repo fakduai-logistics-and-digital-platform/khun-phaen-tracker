@@ -31,7 +31,6 @@ import { List, CalendarDays, Columns3, Table, GanttChart, UsersRound, Filter, Se
 	import SprintManager from '$lib/components/SprintManager.svelte';
 	import SearchableSprintSelect from '$lib/components/SearchableSprintSelect.svelte';
 	import SearchableSelect from '$lib/components/SearchableSelect.svelte';
-	import CustomDatePicker from '$lib/components/CustomDatePicker.svelte';
 	import { showKeyboardShortcuts } from '$lib/stores/keyboardShortcuts';
 	import QRExportModal from '$lib/components/QRExportModal.svelte';
 	import MonthlySummaryCharts from '$lib/components/MonthlySummaryCharts.svelte';
@@ -46,8 +45,7 @@ import { List, CalendarDays, Columns3, Table, GanttChart, UsersRound, Filter, Se
 
 	const FILTER_STORAGE_KEY = 'task-filters';
 	const DEFAULT_FILTERS: FilterOptions = {
-		startDate: '',
-		endDate: '',
+		dueDatePreset: 'all',
 		status: 'all',
 		category: 'all',
 		project: 'all',
@@ -106,7 +104,15 @@ import { List, CalendarDays, Columns3, Table, GanttChart, UsersRound, Filter, Se
 
 	$: {
 		// Reset page when any filter changes (ignoring page/limit)
-		const { search, status, category, project, assignee_id, sprint_id, startDate, endDate } = filters;
+		const {
+			search,
+			dueDatePreset,
+			status,
+			category,
+			project,
+			assignee_id,
+			sprint_id
+		} = filters;
 		currentPage = 1;
 		void loadData();
 	}
@@ -164,6 +170,16 @@ import { List, CalendarDays, Columns3, Table, GanttChart, UsersRound, Filter, Se
 	let visibleTabs: { id: TabId; icon: string }[] = [];
 	let lastLoadedView: ViewMode | null = null;
 	let loadDataTimer: ReturnType<typeof setTimeout>;
+
+	function toYmd(value: Date): string {
+		return value.toISOString().split('T')[0];
+	}
+
+	function addDays(base: Date, days: number): Date {
+		const next = new Date(base);
+		next.setDate(next.getDate() + days);
+		return next;
+	}
 
 	function debouncedLoadData() {
 		clearTimeout(loadDataTimer);
@@ -886,8 +902,11 @@ import { List, CalendarDays, Columns3, Table, GanttChart, UsersRound, Filter, Se
 	});
 	
 	let loadingData = false;
-	async function loadData() {
-		if (loadingData) return;
+async function loadData() {
+		if (loadingData) {
+			pendingLoadData = true;
+			return;
+		}
 		loadingData = true;
 		
 		try {
@@ -896,6 +915,31 @@ import { List, CalendarDays, Columns3, Table, GanttChart, UsersRound, Filter, Se
 
 			// If a specific sprint is selected that is completed, include archived tasks
 			const taskFilters = { ...filters };
+			const today = new Date();
+			const todayYmd = toYmd(today);
+			const preset = filters.dueDatePreset || 'all';
+			if (preset === 'no_dates') {
+				taskFilters.dueStartDate = '';
+				taskFilters.dueEndDate = '';
+			} else if (preset === 'overdue') {
+				taskFilters.dueStartDate = '1900-01-01';
+				taskFilters.dueEndDate = todayYmd;
+				if (taskFilters.status === 'all') {
+					taskFilters.status = 'active';
+				}
+			} else if (preset === 'next_day') {
+				taskFilters.dueStartDate = todayYmd;
+				taskFilters.dueEndDate = toYmd(addDays(today, 1));
+			} else if (preset === 'next_week') {
+				taskFilters.dueStartDate = todayYmd;
+				taskFilters.dueEndDate = toYmd(addDays(today, 7));
+			} else if (preset === 'next_month') {
+				taskFilters.dueStartDate = todayYmd;
+				taskFilters.dueEndDate = toYmd(addDays(today, 30));
+			} else {
+				taskFilters.dueStartDate = '';
+				taskFilters.dueEndDate = '';
+			}
 			if (filters.sprint_id && filters.sprint_id !== 'all') {
 				const selectedSprint = sprintList.find(s => String(s.id) === String(filters.sprint_id));
 				if (selectedSprint?.status === 'completed') {
@@ -929,8 +973,15 @@ import { List, CalendarDays, Columns3, Table, GanttChart, UsersRound, Filter, Se
 				totalPages = Math.ceil(totalTasks / pageSize) || 1;
 			}
 			
-			// Update filteredTasks (main view)
-			filteredTasks = tasks;
+			// Build base set for view-level filtering
+			let viewTasks = tasks;
+			if ((filters.dueDatePreset || 'all') === 'no_dates') {
+				viewTasks = viewTasks.filter((task) => !task.end_date);
+			}
+			if ((filters.dueDatePreset || 'all') === 'overdue') {
+				const todayYmd = toYmd(new Date());
+				viewTasks = viewTasks.filter((task) => !!task.end_date && task.end_date < todayYmd);
+			}
 			
 			const allTasks = Array.isArray(all) ? all : all.tasks;
 			allTasksIncludingArchived = allTasks;
@@ -949,15 +1000,19 @@ import { List, CalendarDays, Columns3, Table, GanttChart, UsersRound, Filter, Se
 			
 			// Apply WASM search if there's a search query
 			if (searchInput.trim()) {
-				filteredTasks = performSearch(searchInput, tasks);
+				filteredTasks = performSearch(searchInput, viewTasks);
 			} else {
-				filteredTasks = tasks;
+				filteredTasks = viewTasks;
 			}
 		} catch (e) {
 			console.error('❌ loadData failed:', e);
 			showMessage(`เกิดข้อผิดพลาดในการโหลดข้อมูล: ${e instanceof Error ? e.message : 'Unknown error'}`, 'error');
 		} finally {
 			loadingData = false;
+			if (pendingLoadData) {
+				pendingLoadData = false;
+				void loadData();
+			}
 		}
 	}
 	
@@ -2702,8 +2757,7 @@ import { List, CalendarDays, Columns3, Table, GanttChart, UsersRound, Filter, Se
 		const assigneeValue = filters.assignee_id === undefined ? 'all' : filters.assignee_id;
 		const sprintValue = filters.sprint_id === undefined ? 'all' : filters.sprint_id;
 		const data = {
-			startDate: filters.startDate || '',
-			endDate: filters.endDate || '',
+			dueDatePreset: filters.dueDatePreset || 'all',
 			status: filters.status || 'all',
 			category: filters.category || 'all',
 			project: filters.project || 'all',
@@ -2722,8 +2776,7 @@ import { List, CalendarDays, Columns3, Table, GanttChart, UsersRound, Filter, Se
 			const saved = JSON.parse(raw) as Partial<FilterOptions>;
 			filters = {
 				...DEFAULT_FILTERS,
-				startDate: saved.startDate ?? '',
-				endDate: saved.endDate ?? '',
+				dueDatePreset: saved.dueDatePreset ?? 'all',
 				status: saved.status ?? 'all',
 				category: saved.category ?? 'all',
 				project: saved.project ?? 'all',
@@ -3002,22 +3055,20 @@ import { List, CalendarDays, Columns3, Table, GanttChart, UsersRound, Filter, Se
 	{#if showFilters}
 		<div class="bg-white dark:bg-gray-800 p-3 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 space-y-3 transition-colors">
 			<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-
 				<div>
-					<label for="startDate" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{$_('page__filter_start_date')}</label>
-					<CustomDatePicker
-						id="startDate"
-						bind:value={filters.startDate}
-						placeholder="เลือกวันเริ่มต้น..."
-					/>
-				</div>
-
-				<div>
-					<label for="endDate" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{$_('page__filter_end_date')}</label>
-					<CustomDatePicker
-						id="endDate"
-						bind:value={filters.endDate}
-						placeholder="เลือกวันสิ้นสุด..."
+					<label for="dueDatePreset" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{$_('page__filter_due_date')}</label>
+					<SearchableSelect
+						id="dueDatePreset"
+						bind:value={filters.dueDatePreset}
+						options={[
+							{ value: 'all', label: $_('page__filter_due_date_all') },
+							{ value: 'no_dates', label: $_('page__filter_due_date_no_dates') },
+							{ value: 'overdue', label: $_('page__filter_due_date_overdue') },
+							{ value: 'next_day', label: $_('page__filter_due_date_next_day') },
+							{ value: 'next_week', label: $_('page__filter_due_date_next_week') },
+							{ value: 'next_month', label: $_('page__filter_due_date_next_month') }
+						]}
+						showSearch={false}
 					/>
 				</div>
 

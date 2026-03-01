@@ -36,6 +36,7 @@ export interface Task {
   title: string;
   project?: string; // ชื่อโปรเจค
   duration_minutes: number;
+  start_date?: string; // YYYY-MM-DD
   date: string; // YYYY-MM-DD
   status: "todo" | "in-progress" | "in-test" | "done";
   category: string;
@@ -93,6 +94,19 @@ export type ViewMode =
 export interface FilterOptions {
   startDate?: string;
   endDate?: string;
+  dueStartDate?: string;
+  dueEndDate?: string;
+  startDateFilterMode?: "range" | "period";
+  dueDateFilterMode?: "range" | "period";
+  startDatePeriod?: "all" | "7d" | "1m" | "3m" | "1y";
+  dueDatePeriod?: "all" | "7d" | "1m" | "3m" | "1y";
+  dueDatePreset?:
+    | "all"
+    | "no_dates"
+    | "overdue"
+    | "next_day"
+    | "next_week"
+    | "next_month";
   status?: Task["status"] | "all" | "archived" | "active" | "today";
   category?: string | "all";
   project?: string | "all";

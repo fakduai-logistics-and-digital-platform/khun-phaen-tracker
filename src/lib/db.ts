@@ -65,13 +65,18 @@ function extractId(doc: any): string {
 }
 
 function docToTask(doc: any): Task {
+  const hasExplicitStartDate = typeof doc.start_date === "string" && doc.start_date.trim() !== "";
+  const resolvedStartDate = hasExplicitStartDate ? doc.start_date : "";
+  const canonicalDate = hasExplicitStartDate ? doc.start_date : doc.date || "";
+  const resolvedDueDate = doc.end_date || (!hasExplicitStartDate ? doc.date || undefined : undefined);
   return {
     id: extractId(doc),
     title: doc.title || "",
     project: doc.project || "",
     duration_minutes: doc.duration_minutes || 0,
-    date: doc.date || "",
-    end_date: doc.end_date || undefined,
+    start_date: resolvedStartDate || undefined,
+    date: canonicalDate,
+    end_date: resolvedDueDate,
     status: doc.status || "todo",
     category: doc.category || "อื่นๆ",
     notes: doc.notes || "",
@@ -167,6 +172,7 @@ export async function addTask(
     title: task.title,
     project: task.project || "",
     duration_minutes: task.duration_minutes,
+    start_date: task.start_date || task.date,
     date: task.date,
     end_date: task.end_date || null,
     status: task.status,
@@ -194,6 +200,10 @@ export async function updateTask(
   if (updates.project !== undefined) payload.project = updates.project;
   if (updates.duration_minutes !== undefined)
     payload.duration_minutes = updates.duration_minutes;
+  if (updates.start_date !== undefined) {
+    payload.start_date = updates.start_date;
+    payload.date = updates.start_date;
+  }
   if (updates.date !== undefined) payload.date = updates.date;
   if (updates.end_date !== undefined)
     payload.end_date = updates.end_date || null;
@@ -406,6 +416,8 @@ export async function getTasks(
   if (filter?.search) params.search = filter.search;
   if (filter?.startDate) params.start_date = filter.startDate;
   if (filter?.endDate) params.end_date = filter.endDate;
+  if (filter?.dueStartDate) params.due_start_date = filter.dueStartDate;
+  if (filter?.dueEndDate) params.due_end_date = filter.dueEndDate;
   if (filter?.includeArchived) params.include_archived = "true";
   if (filter?.page) params.page = String(filter.page);
   if (filter?.limit) params.limit = String(filter.limit);
