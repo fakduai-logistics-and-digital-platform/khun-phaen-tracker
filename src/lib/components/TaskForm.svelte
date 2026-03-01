@@ -85,7 +85,7 @@ import { Calendar, Check, CheckCircle, ChevronLeft, ChevronRight, Copy, Download
 	let dragStartOffsetY = 0;
 	let copyFeedback = '';
 	let reactionPickerForCommentId: string | null = null;
-	let reactionUpdating = false;
+	let reactionUpdatingByComment: Record<string, boolean> = {};
 	const commentReactionEmojis = ['👍', '❤️', '🔥', '🎉', '😂', '😮', '😢', '👀', '✅', '🚀'];
 
 	$: activeSprint = sprints.find((s) => s.status === 'active');
@@ -355,18 +355,46 @@ import { Calendar, Check, CheckCircle, ChevronLeft, ChevronRight, Copy, Download
 		reactionPickerForCommentId = reactionPickerForCommentId === id ? null : id;
 	}
 
+	function buildOptimisticReactions(comment: TaskComment, emoji: string, userId: string) {
+		const now = new Date().toISOString();
+		const current = [...(comment.reactions || [])];
+		const mineIdx = current.findIndex((reaction) => reaction.user_id === userId);
+		if (mineIdx >= 0) {
+			if (current[mineIdx].emoji === emoji) {
+				current.splice(mineIdx, 1);
+			} else {
+				current[mineIdx] = { ...current[mineIdx], emoji, reacted_at: now };
+			}
+		} else {
+			current.push({ emoji, user_id: userId, reacted_at: now });
+		}
+		return current;
+	}
+
 	async function handleCommentReaction(comment: TaskComment, emoji: string) {
-		if (!editingTask?.id || !comment.id || reactionUpdating) return;
-		reactionUpdating = true;
+		if (!editingTask?.id || !comment.id) return;
+		const commentId = String(comment.id);
+		const userId = currentUserId();
+		if (!userId || reactionUpdatingByComment[commentId]) return;
+		const previousReactions = [...(comment.reactions || [])];
+		const optimisticReactions = buildOptimisticReactions(comment, emoji, userId);
+		reactionUpdatingByComment = { ...reactionUpdatingByComment, [commentId]: true };
 		commentsError = '';
+		comments = comments.map((item) =>
+			String(item.id || '') === commentId ? { ...item, reactions: optimisticReactions } : item
+		);
+		reactionPickerForCommentId = null;
+
 		try {
-			const updated = await toggleTaskCommentReaction(editingTask.id, comment.id, emoji);
-			comments = comments.map((item) => (String(item.id || '') === String(comment.id || '') ? { ...item, reactions: updated.reactions } : item));
-			reactionPickerForCommentId = null;
+			await toggleTaskCommentReaction(editingTask.id, comment.id, emoji);
 		} catch (error) {
+			comments = comments.map((item) =>
+				String(item.id || '') === commentId ? { ...item, reactions: previousReactions } : item
+			);
 			commentsError = error instanceof Error ? error.message : $_('taskForm__comments_error_update');
 		} finally {
-			reactionUpdating = false;
+			const { [commentId]: _, ...rest } = reactionUpdatingByComment;
+			reactionUpdatingByComment = rest;
 		}
 	}
 
@@ -1010,7 +1038,7 @@ import { Calendar, Check, CheckCircle, ChevronLeft, ChevronRight, Copy, Download
 																	type="button"
 																	on:click={() => void handleCommentReaction(comment, reaction.emoji)}
 																	class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs border transition-colors {reaction.reactedByMe ? 'border-primary/50 bg-primary/10 text-primary' : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-primary/40'}"
-																	disabled={reactionUpdating}
+																	disabled={reactionUpdatingByComment[String(comment.id || '')]}
 																>
 																	<span>{reaction.emoji}</span>
 																	<span>{reaction.count}</span>
@@ -1037,7 +1065,7 @@ import { Calendar, Check, CheckCircle, ChevronLeft, ChevronRight, Copy, Download
 																				type="button"
 																				on:click={() => void handleCommentReaction(comment, emoji)}
 																				class="h-9 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-lg"
-																				disabled={reactionUpdating}
+																				disabled={reactionUpdatingByComment[String(comment.id || '')]}
 																			>
 																				{emoji}
 																			</button>
