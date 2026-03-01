@@ -29,9 +29,9 @@
 		)
 		: sortedSprints;
 
-	// Show only top 5 in dropdown if no search
-	$: displaySprints = searchQuery.trim() ? filteredSprints : filteredSprints.slice(0, 5);
-	$: hasMore = !searchQuery.trim() && filteredSprints.length > 5;
+	// Show all filtered sprints
+	$: displaySprints = filteredSprints;
+	$: hasMore = false;
 
 	// Get selected sprint name
 	$: selectedLabel = getSelectedLabel(value, sprints);

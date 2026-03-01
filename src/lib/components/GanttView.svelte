@@ -55,13 +55,6 @@
       // If end_date is present, use it. Otherwise, assume duration_minutes or default 1 day.
       let end = t.end_date ? normalizeDate(t.end_date) : new Date(start);
       
-      if (!t.end_date && t.duration_minutes) {
-          // If no specific end date, estimate from duration (assuming 8h workday? or just simple minutes)
-          // Let's keep it simple: if duration > 24h, add days.
-          // Or just default to start == end (1 day task)
-      }
-      
-      // Ensure end >= start
       if (end < start) end = new Date(start);
       
       return {
@@ -69,10 +62,10 @@
           _start: start,
           _end: end
       };
-  }).sort((a, b) => a._start.getTime() - b._start.getTime());
+  }).sort((a, b) => b._start.getTime() - a._start.getTime());
 
   $: minDate = parsedTasks.length > 0 
-      ? addDays(parsedTasks[0]._start, -PADDING_DAYS) 
+      ? addDays(parsedTasks.reduce((min, t) => t._start < min ? t._start : min, parsedTasks[0]._start), -PADDING_DAYS) 
       : addDays(new Date(), -PADDING_DAYS);
       
   $: maxDate = parsedTasks.length > 0 
@@ -110,18 +103,22 @@
       acc[key].push(task);
       return acc;
   }, {} as Record<string, typeof parsedTasks>)).sort((a, b) => {
-        const lastKeys = ['Unassigned', 'No Sprint', 'Unknown Sprint'];
-        const aIsLast = lastKeys.includes(a[0]);
-        const bIsLast = lastKeys.includes(b[0]);
+        const lastKeys = ['Unassigned', 'No Sprint', 'Unknown Sprint', 'No Project'];
+        const aIsLast = lastKeys.some(k => a[0].includes(k));
+        const bIsLast = lastKeys.some(k => b[0].includes(k));
 
         if (aIsLast && !bIsLast) return 1;
         if (!aIsLast && bIsLast) return -1;
-        return a[0].localeCompare(b[0]);
+        
+        // Sort by the latest start date in the group to put "newer" groups on top
+        const aMax = Math.max(...a[1].map(t => t._start.getTime()));
+        const bMax = Math.max(...b[1].map(t => t._start.getTime()));
+        return bMax - aMax;
   });
 
   function getX(date: Date) {
       const diffTime = date.getTime() - minDate.getTime();
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
       return diffDays * DAY_WIDTH;
   }
 

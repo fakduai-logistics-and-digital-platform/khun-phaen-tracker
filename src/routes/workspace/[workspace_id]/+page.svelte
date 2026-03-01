@@ -75,6 +75,19 @@
 	let workerStats: { id: number; taskCount: number }[] = [];
 	let stats = { total: 0, todo: 0, in_progress: 0, in_test: 0, done: 0, total_minutes: 0 };
 	const VIEW_MODE_STORAGE_KEY = 'khunphaen-view-mode';
+	
+	$: ganttTasks = allTasksIncludingArchived.filter(t => {
+		// Filter by global project, category, assignee if they aren't 'all'
+		if (filters.category !== 'all' && t.category !== filters.category) return false;
+		if (filters.project !== 'all' && t.project !== filters.project) return false;
+		if (filters.assignee_id !== 'all' && filters.assignee_id !== null && String(t.assignee_id) !== String(filters.assignee_id)) return false;
+		// If there's a search term, run it against these tasks too
+		if (searchInput.trim()) {
+			const res = performSearch(searchInput, [t]);
+			if (res.length === 0) return false;
+		}
+		return true;
+	});
 
 	function loadSavedViewMode(): ViewMode {
 		if (typeof localStorage === 'undefined') return 'list';
@@ -803,11 +816,22 @@
 		loadingData = true;
 		
 		try {
-			// Fetch all data in parallel (sprints must load alongside tasks)
-			const [filtered, all, , , , loadedAssignees] = await Promise.all([
-				getTasks(filters),
+			// 1. Fetch sprints first so we can properly decide on task filtering
+			const sprintList = await sprints.refresh();
+
+			// If a specific sprint is selected that is completed, include archived tasks
+			const taskFilters = { ...filters };
+			if (filters.sprint_id && filters.sprint_id !== 'all') {
+				const selectedSprint = sprintList.find(s => String(s.id) === String(filters.sprint_id));
+				if (selectedSprint?.status === 'completed') {
+					taskFilters.includeArchived = true;
+				}
+			}
+
+			// 2. Fetch everything else in parallel
+			const [filtered, all, , , loadedAssignees] = await Promise.all([
+				getTasks(taskFilters),
 				getTasks({ includeArchived: true }),
-				sprints.refresh(),
 				getCategories().then(c => { categories = c; }),
 				getProjects().then(p => { projects = p; }),
 				getAssignees(),
@@ -3038,7 +3062,7 @@
 			/>
 		{:else if currentView === 'gantt'}
 			<GanttView
-				tasks={filteredTasks}
+				tasks={ganttTasks}
 				sprints={$sprints}
 				on:edit={handleEditTask}
 			/>

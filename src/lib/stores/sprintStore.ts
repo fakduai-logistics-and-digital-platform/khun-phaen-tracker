@@ -15,9 +15,7 @@ function createSprintStore() {
   return {
     subscribe,
     set,
-    add: async (
-      sprint: Omit<Sprint, "id" | "created_at">,
-    ): Promise<Sprint> => {
+    add: async (sprint: Omit<Sprint, "id" | "created_at">): Promise<Sprint> => {
       const newSprint = await createSprint(sprint);
       update((list) => [...list, newSprint]);
       return newSprint;
@@ -51,12 +49,14 @@ function createSprintStore() {
       await removeSprint(id);
       update((list) => list.filter((s) => String(s.id) !== String(id)));
     },
-    refresh: async (): Promise<void> => {
+    refresh: async (): Promise<Sprint[]> => {
       try {
         const list = await fetchSprints();
         set(list);
+        return list;
       } catch (e) {
         console.error("Failed to refresh sprints:", e);
+        return [];
       }
     },
     getActiveSprint: (): Sprint | null => {

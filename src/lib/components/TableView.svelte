@@ -10,14 +10,14 @@
 
 	const dispatch = createEventDispatcher<{
 		edit: Task;
-		delete: number;
-		deleteSelected: number[];
-		statusChange: { id: number; status: Task['status'] };
-		checklistToggle: { taskId: number; checklistItemId: string };
-		changeSprint: number[];
-		changeStatus: number[];
-		changeProject: number[];
-		exportQR: number[];
+		delete: string | number;
+		deleteSelected: (string | number)[];
+		statusChange: { id: string | number; status: Task['status'] };
+		checklistToggle: { taskId: string | number; checklistItemId: string };
+		changeSprint: (string | number)[];
+		changeStatus: (string | number)[];
+		changeProject: (string | number)[];
+		exportQR: (string | number)[];
 	}>();
 
 	function getSprintName(sprintId: string | number | null | undefined): string | null {

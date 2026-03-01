@@ -210,7 +210,7 @@
 	<!-- svelte-ignore a11y-click-events-have-key-events -->
 	<!-- svelte-ignore a11y-no-static-element-interactions -->
 	<div
-		class="fixed inset-0 bg-black/40 flex items-center justify-center z-[1000] p-4"
+		class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[30000] p-4"
 		on:click|self={() => dispatch('close')}
 	>
 		<div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full">
