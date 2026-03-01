@@ -684,3 +684,28 @@ pub async fn delete_sprint(
         ).into_response(),
     }
 }
+pub async fn daily_report(
+    State(state): State<SharedState>,
+    Path(ws_id): Path<String>,
+    headers: HeaderMap,
+    jar: CookieJar,
+) -> axum::response::Response {
+    let ws_oid = match verify_workspace_access(&state, &headers, &jar, &ws_id).await {
+        Ok(id) => id,
+        Err(resp) => return resp,
+    };
+
+    let repo = DataRepository::new(&state.db);
+    match repo.find_daily_report_tasks(&ws_oid).await {
+        Ok(tasks) => {
+            axum::Json(serde_json::json!({
+                "success": true,
+                "tasks": tasks
+            })).into_response()
+        },
+        Err(e) => (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            axum::Json(serde_json::json!({ "error": format!("{}", e) })),
+        ).into_response(),
+    }
+}

@@ -97,16 +97,29 @@
 
 	async function loadTodayData() {
 		isLoading = true;
+		const wsId = $page.params.workspace_id;
 
 		try {
-			// Get all non-archived tasks
-			const allTasks = await getTasks({});
+			if (wsId && wsId !== 'offline') {
+				// Use Backend API for Daily Report logic
+				const res = await api.data.tasks.getDailyReport(wsId);
+				if (res.ok) {
+					const data = await res.json();
+					if (data.success && data.tasks) {
+						todayTasks = data.tasks;
+						pendingTasks = todayTasks.filter(t => t.status !== 'done');
+						doneTodayTasks = todayTasks.filter(t => t.status === 'done');
+						generate();
+						return;
+					}
+				}
+			}
 
-			// Today's date string for comparison (YYYY-MM-DD)
+			// Offline Fallback or Local DB fallback
+			const allTasks = await getTasks({});
 			const now = new Date();
 			const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
-			// Split into: pending (not done) and done today (updated_at = today)
 			pendingTasks = allTasks.filter(t => t.status !== 'done');
 			doneTodayTasks = allTasks.filter(t => {
 				if (t.status !== 'done') return false;

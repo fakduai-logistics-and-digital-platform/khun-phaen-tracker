@@ -80,66 +80,79 @@ async fn send_daily_summary_to_discord(
         None => return Ok(()),
     };
     
-    // Fetch non-archived tasks
-    let filter = TaskFilterQuery {
-        status: None, // Will default to active
-        category: Some("all".to_string()),
-        project: Some("all".to_string()),
-        assignee_id: Some("all".to_string()),
-        sprint_id: Some("all".to_string()),
-        start_date: None,
-        end_date: None,
-        search: None,
-        include_archived: Some(false),
-        page: None,
-        limit: Some(1000), // Get all active tasks for summary
-    };
-    
-    let (tasks, _) = data_repo.find_tasks(workspace_id, &filter).await?;
+    // Fetch specifically for daily report
+    let tasks = data_repo.find_daily_report_tasks(workspace_id).await?;
     
     if tasks.is_empty() {
         return Ok(()); // Nothing to report
     }
     
     let offset = FixedOffset::east_opt(7 * 3600).unwrap();
-    let today_str = Utc::now().with_timezone(&offset).format("%Y-%m-%d").to_string();
+    let now_th = Utc::now().with_timezone(&offset);
+    let today_str = now_th.format("%Y-%m-%d").to_string();
+    let time_str = now_th.format("%H:%M").to_string();
     
     let mut done_tasks = Vec::new();
     let mut pending_tasks = Vec::new();
+    let mut in_progress_count = 0;
+    let mut in_test_count = 0;
+    let mut todo_count = 0;
     
     for t in tasks {
         if t.status == "done" {
             done_tasks.push(t);
         } else {
+            match t.status.as_str() {
+                "in-progress" => in_progress_count += 1,
+                "in-test" => in_test_count += 1,
+                _ => todo_count += 1,
+            }
             pending_tasks.push(t);
         }
     }
     
-    let mut content = format!("📊 **Daily Summary: {}** - {}\n\n", workspace_name, today_str);
+    let total_pending = pending_tasks.len();
+    let total_done = done_tasks.len();
+    
+    // Build Discord Embed Description (Matching Aesthetic Logic)
+    let mut description = format!(
+        "📊 **Daily Progress Summary**\n📅 Date: `{}` | 🕒 Time: `{}`\n\n",
+        today_str, time_str
+    );
+    
+    description.push_str("```\n");
+    description.push_str("Status      | Count\n");
+    description.push_str("------------|------\n");
+    description.push_str(&format!("✅ Completed  | {:<4}\n", total_done));
+    description.push_str(&format!("🔄 In Progress| {:<4}\n", in_progress_count));
+    description.push_str(&format!("🧪 In Test    | {:<4}\n", in_test_count));
+    description.push_str(&format!("📝 To Do      | {:<4}\n", todo_count));
+    description.push_str("```\n\n");
     
     if !done_tasks.is_empty() {
-        content.push_str(&format!("🎯 **Completed Today ({})**\n", done_tasks.len()));
-        for t in done_tasks.iter().take(15) {
-            content.push_str(&format!("• ✅ {}\n", t.title));
+        description.push_str("🎯 **Recently Completed**\n");
+        for t in done_tasks.iter().take(10) {
+            description.push_str(&format!("• ✅ {}\n", t.title));
         }
-        if done_tasks.len() > 15 {
-            content.push_str(&format!("... and {} more\n", done_tasks.len() - 15));
+        if done_tasks.len() > 10 {
+            description.push_str(&format!("*... and {} more*\n", done_tasks.len() - 10));
         }
-        content.push_str("\n");
+        description.push_str("\n");
     }
     
     if !pending_tasks.is_empty() {
-        content.push_str(&format!("⏳ **Pending Tasks ({})**\n", pending_tasks.len()));
-        for t in pending_tasks.iter().take(15) {
+        description.push_str("⏳ **Pending Tasks**\n");
+        // Sort pending by status priority implicitly handled by repo order
+        for t in pending_tasks.iter().take(10) {
             let icon = match t.status.as_str() {
                 "in-progress" => "🔄",
                 "in-test" => "🧪",
                 _ => "📝",
             };
-            content.push_str(&format!("• {} {}\n", icon, t.title));
+            description.push_str(&format!("• {} {}\n", icon, t.title));
         }
-        if pending_tasks.len() > 15 {
-            content.push_str(&format!("... and {} more\n", pending_tasks.len() - 15));
+        if pending_tasks.len() > 10 {
+            description.push_str(&format!("*... and {} more*\n", pending_tasks.len() - 10));
         }
     }
     
@@ -148,11 +161,11 @@ async fn send_daily_summary_to_discord(
         "avatar_url": "https://raw.githubusercontent.com/watchakorn-18k/khu-phaen-tracker-offline/main/static/logo.png",
         "embeds": [
             {
-                "title": format!("Report for {}", workspace_name),
-                "description": content,
+                "title": format!("Report for Workspace: {}", workspace_name),
+                "description": description,
                 "color": 0x4F46E5,
                 "footer": {
-                    "text": "Khun Phaen Task Tracker ✨"
+                    "text": "Khun Phaen Task Tracker – Official Report"
                 },
                 "timestamp": Utc::now().to_rfc3339()
             }
@@ -166,7 +179,8 @@ async fn send_daily_summary_to_discord(
         .await?;
         
     if !res.status().is_success() {
-        return Err(format!("Discord API returned error: {}", res.status()).into());
+        let body = res.text().await.unwrap_or_default();
+        return Err(format!("Discord API returned error: {} - {}", body, body).into());
     }
     
     Ok(())

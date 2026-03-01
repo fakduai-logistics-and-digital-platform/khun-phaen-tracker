@@ -95,6 +95,41 @@ impl DataRepository {
         Ok((tasks, total))
     }
 
+    pub async fn find_daily_report_tasks(&self, workspace_id: &ObjectId) -> mongodb::error::Result<Vec<TaskDocument>> {
+        let now = chrono::Utc::now();
+        let twenty_four_hours_ago = now - chrono::Duration::hours(24);
+        let iso_cutoff = twenty_four_hours_ago.to_rfc3339();
+
+        // Logic:
+        // 1. status != "done" (Pending)
+        // 2. status == "done" AND updated_at >= 24 hours ago (Completed recently)
+        let query = doc! {
+            "workspace_id": workspace_id,
+            "is_archived": false,
+            "$or": [
+                { "status": { "$ne": "done" } },
+                {
+                    "status": "done",
+                    "updated_at": { "$gte": iso_cutoff }
+                }
+            ]
+        };
+
+        let find_options = mongodb::options::FindOptions::builder()
+            .sort(doc! { "status": 1, "updated_at": -1 })
+            .build();
+
+        let mut cursor = self.tasks.find(query, find_options).await?;
+        let mut tasks = Vec::new();
+        while let Some(result) = cursor.next().await {
+            match result {
+                Ok(doc) => tasks.push(doc),
+                Err(e) => return Err(e),
+            }
+        }
+        Ok(tasks)
+    }
+
     pub async fn find_task_by_id(&self, id: &ObjectId) -> mongodb::error::Result<Option<TaskDocument>> {
         self.tasks.find_one(doc! { "_id": id }, None).await
     }

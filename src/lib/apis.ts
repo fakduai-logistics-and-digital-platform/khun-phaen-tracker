@@ -361,6 +361,12 @@ export const api = {
           credentials: "include",
         });
       },
+      getDailyReport: (wsId: string): Promise<Response> => {
+        return fetch(`${API_BASE_URL}/workspaces/${wsId}/daily-report`, {
+          headers: api.data._headers(),
+          credentials: "include",
+        });
+      },
     },
 
     // Projects

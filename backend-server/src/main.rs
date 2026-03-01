@@ -143,6 +143,7 @@ async fn main() {
         .route("/api/workspaces/:ws_id/tasks", post(handlers::data_handler::create_task))
         .route("/api/workspaces/:ws_id/tasks/:task_id", put(handlers::data_handler::update_task))
         .route("/api/workspaces/:ws_id/tasks/:task_id", delete(handlers::data_handler::delete_task))
+        .route("/api/workspaces/:ws_id/daily-report", get(handlers::data_handler::daily_report))
         .route("/api/workspaces/:ws_id/projects", get(handlers::data_handler::list_projects))
         .route("/api/workspaces/:ws_id/projects", post(handlers::data_handler::create_project))
         .route("/api/workspaces/:ws_id/projects/:project_id", put(handlers::data_handler::update_project))
