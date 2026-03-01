@@ -76,7 +76,7 @@
 {#if show}
 	<!-- svelte-ignore a11y-click-events-have-key-events -->
 	<!-- svelte-ignore a11y-no-static-element-interactions -->
-	<div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" on:click|self={handleClose}>
+	<div class="fixed inset-0 bg-black/50 flex items-center justify-center z-[20000] p-4" on:click|self={handleClose}>
 		<div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-sm w-full overflow-hidden">
 			<!-- Header -->
 			<div class="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700">

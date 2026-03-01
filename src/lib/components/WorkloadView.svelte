@@ -8,7 +8,7 @@
 	export let tasks: Task[] = [];
 	export let assignees: Assignee[] = [];
 
-	const dispatch = createEventDispatcher<{ selectAssignee: { assigneeId: number | 'all' | null } }>();
+	const dispatch = createEventDispatcher<{ selectAssignee: { assigneeId: string | number | 'all' | null } }>();
 
 	type Period = '7d' | '1m' | '3m' | '1y' | 'all' | 'custom';
 	let selectedPeriod: Period = 'all';
@@ -17,7 +17,7 @@
 	let showCustomPicker = false;
 
 	type WorkloadItem = {
-		assigneeId: number | null;
+		assigneeId: string | number | null;
 		assigneeName: string;
 		color: string;
 		total: number;
@@ -81,10 +81,10 @@
 			}
 		}
 
-		const map = new Map<number | null, WorkloadItem>();
-		const assigneeById = new Map<number, Assignee>(
+		const map = new Map<string | number | null, WorkloadItem>();
+		const assigneeById = new Map<string | number, Assignee>(
 			_assignees
-				.filter((assignee): assignee is Assignee & { id: number } => assignee.id !== undefined)
+				.filter((assignee): assignee is Assignee & { id: string | number } => assignee.id !== undefined)
 				.map((assignee) => [assignee.id, assignee])
 		);
 
@@ -135,6 +135,17 @@
 			if (b.overdue !== a.overdue) return b.overdue - a.overdue;
 			return b.total - a.total;
 		});
+	}
+
+	function getTaskCount(workerId: string | number): number {
+		const stat = workloadRows.find(s => String(s.assigneeId) === String(workerId));
+		return stat?.total || 0;
+	}
+
+	function handleBackdropClick(e: MouseEvent) {
+		if (e.target === e.currentTarget) {
+			dispatch('selectAssignee', { assigneeId: 'all' });
+		}
 	}
 </script>
 

@@ -218,7 +218,7 @@
 
 {#if show}
 	<div 
-		class="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+		class="fixed inset-0 z-[20000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
 		transition:fade={{ duration: 200 }}
 		on:mousedown|self={() => (show = false)}
 		on:keydown={(e) => (e.key === 'Enter' || e.key === ' ') && (show = false)}

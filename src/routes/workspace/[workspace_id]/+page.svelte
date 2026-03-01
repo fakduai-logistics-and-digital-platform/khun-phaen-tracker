@@ -57,14 +57,19 @@
 	};
 
 	let tasks: Task[] = [];
-	let sprintManagerTasks: Task[] = [];
 	let allTasksIncludingArchived: Task[] = [];
+	$: sprintManagerTasks = filters.sprint_id === 'all' 
+		? allTasksIncludingArchived 
+		: allTasksIncludingArchived.filter(t => String(t.sprint_id) === String(filters.sprint_id));
 	let monthlySummaryTasks: Task[] = [];
 	let filteredTasks: Task[] = [];
 	let categories: string[] = [];
 	let projects: string[] = [];
 	let projectList: Project[] = [];
-	let projectStats: { id: number; taskCount: number }[] = [];
+	$: projectStats = projectList.map(p => ({
+		id: p.id as any,
+		taskCount: allTasksIncludingArchived.filter(t => t.project === p.name).length
+	}));
 	let assignees: Assignee[] = [];
 	$: myAssigneeId = assignees.find(a => a.user_id === $user?.id || a.user_id === $user?.user_id)?.id;
 	let workerStats: { id: number; taskCount: number }[] = [];
@@ -132,7 +137,7 @@
 	}
 
 	// Proactively load data when switching to workload view
-	$: if (browser && currentView === 'workload' && (sprintManagerTasks.length === 0 || assignees.length === 0)) {
+	$: if (browser && currentView === 'workload') {
 		debouncedLoadData();
 	}
 
@@ -811,9 +816,7 @@
 			// Process stats locally from existing data
 			stats = getStatsFromTasks(all);
 			
-			if (currentView === 'workload') {
-				sprintManagerTasks = all.filter(t => String(t.sprint_id) === String(filters.sprint_id));
-			}
+			// No manual sprintManagerTasks update - it's handled reactively now
 
 			// Index tasks for WASM search
 			if ($wasmReady) {
@@ -1045,7 +1048,6 @@
 		};
 	
 		tasks = tasks.map(updateTaskSprint);
-		sprintManagerTasks = sprintManagerTasks.map(updateTaskSprint);
 		filteredTasks = filteredTasks.map(updateTaskSprint);
 		allTasksIncludingArchived = allTasksIncludingArchived.map(updateTaskSprint);
 	}

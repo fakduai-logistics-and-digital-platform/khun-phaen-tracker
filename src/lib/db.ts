@@ -280,7 +280,7 @@ export async function archiveTasksBySprint(
   const tasks = await getTasksBySprint(sprintId);
   let count = 0;
   for (const task of tasks) {
-    if (!task.is_archived && task.id) {
+    if (!task.is_archived && task.id && task.status === "done") {
       await updateTask(task.id, { is_archived: true });
       count++;
     }

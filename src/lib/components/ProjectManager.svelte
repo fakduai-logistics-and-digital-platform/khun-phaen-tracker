@@ -7,18 +7,18 @@
 	const dispatch = createEventDispatcher<{
 		close: void;
 		add: { name: string; repo_url?: string };
-		update: { id: number; name: string; repo_url?: string };
-		delete: number;
+		update: { id: string | number; name: string; repo_url?: string };
+		delete: string | number;
 	}>();
 	
 	export let projects: Project[] = [];
-	export let projectStats: { id: number; taskCount: number }[] = [];
+	export let projectStats: { id: string | number; taskCount: number }[] = [];
 	
 	let showAddForm = false;
 	let editingProject: Project | null = null;
 	let newProjectName = '';
 	let newRepoUrl = '';
-	let deleteConfirmId: number | null = null;
+	let deleteConfirmId: string | number | null = null;
 	
 	function startAdd() {
 		showAddForm = true;
@@ -60,17 +60,17 @@
 		cancelEdit();
 	}
 	
-	function confirmDelete(id: number) {
+	function confirmDelete(id: string | number) {
 		deleteConfirmId = id;
 	}
 	
-	function handleDelete(id: number) {
+	function handleDelete(id: string | number) {
 		dispatch('delete', id);
 		deleteConfirmId = null;
 	}
 	
-	function getTaskCount(projectId: number): number {
-		const stat = projectStats.find(s => s.id === projectId);
+	function getTaskCount(projectId: string | number): number {
+		const stat = projectStats.find(s => String(s.id) === String(projectId));
 		return stat?.taskCount || 0;
 	}
 	
