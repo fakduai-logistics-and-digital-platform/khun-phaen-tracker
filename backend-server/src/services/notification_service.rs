@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use tokio::time::{sleep, Duration};
-use chrono::{Datelike, Timelike, Utc};
+use chrono::{Datelike, Timelike, Utc, FixedOffset, Offset};
 use crate::state::AppState;
 use crate::repositories::workspace_repo::WorkspaceRepository;
 use crate::repositories::data_repo::DataRepository;
@@ -9,7 +9,7 @@ use tracing::{info, error};
 
 pub fn spawn_notification_service_task(state: Arc<AppState>) {
     tokio::spawn(async move {
-        info!("🔔 Notification service started");
+        info!("🔔 Notification service started (Thailand Time: UTC+7)");
         loop {
             // Check every minute
             check_and_send_notifications(&state).await;
@@ -22,9 +22,13 @@ async fn check_and_send_notifications(state: &Arc<AppState>) {
     let workspace_repo = WorkspaceRepository::new(&state.db);
     let data_repo = DataRepository::new(&state.db);
     
-    let now = Utc::now();
-    let current_day = now.weekday().num_days_from_sunday() as u8; // 0=Sun
-    let current_time_str = format!("{:02}:{:02}", now.hour(), now.minute());
+    // Use Thailand Time (UTC+7)
+    let offset = FixedOffset::east_opt(7 * 3600).unwrap();
+    let now_utc = Utc::now();
+    let now_th = now_utc.with_timezone(&offset);
+    
+    let current_day = now_th.weekday().num_days_from_sunday() as u8; // 0=Sun
+    let current_time_str = format!("{:02}:{:02}", now_th.hour(), now_th.minute());
     
     let workspaces = match workspace_repo.find_all_notifications().await {
         Ok(ws) => ws,
@@ -57,8 +61,8 @@ async fn check_and_send_notifications(state: &Arc<AppState>) {
                 if let Err(e) = send_daily_summary_to_discord(&id, &ws.name, config.discord_webhook_url.as_deref(), &data_repo).await {
                     error!("❌ Failed to send notification for workspace {}: {}", ws.name, e);
                 } else {
-                    // Update last sent
-                    let _ = workspace_repo.update_last_sent(&id, now).await;
+                    // Update last sent (using UTC for storage)
+                    let _ = workspace_repo.update_last_sent(&id, now_utc).await;
                 }
             }
         }
@@ -95,7 +99,8 @@ async fn send_daily_summary_to_discord(
         return Ok(()); // Nothing to report
     }
     
-    let today_str = Utc::now().format("%Y-%m-%d").to_string();
+    let offset = FixedOffset::east_opt(7 * 3600).unwrap();
+    let today_str = Utc::now().with_timezone(&offset).format("%Y-%m-%d").to_string();
     
     let mut done_tasks = Vec::new();
     let mut pending_tasks = Vec::new();
