@@ -6,9 +6,11 @@
  */
 
 import type { Task, Project, Assignee, Sprint, FilterOptions } from "./types";
+import { get } from "svelte/store";
 import { api } from "./apis";
 import { getWorkspaceId, loadWorkspaceId } from "./stores/workspace";
 import { broadcastChange } from "./stores/realtime";
+import { user as userStore } from "./stores/auth";
 
 // ===== Initialisation =====
 
@@ -201,7 +203,25 @@ export async function getTasks(filter?: FilterOptions): Promise<Task[]> {
     filter.assignee_id !== "all" &&
     filter.assignee_id !== null
   ) {
-    params.assignee_id = String(filter.assignee_id);
+    if (filter.assignee_id === "me") {
+      const currentUser = get(userStore);
+      if (currentUser) {
+        const assignees = await getAssignees();
+        const myAssignee = assignees.find(
+          (a) =>
+            a.user_id === currentUser.id || a.user_id === currentUser.user_id,
+        );
+        if (myAssignee && myAssignee.id) {
+          params.assignee_id = String(myAssignee.id);
+        } else {
+          // If "me" is selected but no assignee record exists for current user,
+          // we filter by a dummy ID to return empty results instead of all tasks.
+          params.assignee_id = "non-existent-filtered-me";
+        }
+      }
+    } else {
+      params.assignee_id = String(filter.assignee_id);
+    }
   }
   if (
     filter?.sprint_id &&
@@ -589,8 +609,50 @@ export async function exportAllData(): Promise<string> {
   return JSON.stringify({ tasks, projects, assignees, sprints }, null, 2);
 }
 
+function parseCSV(content: string): Record<string, string[][]> {
+  const sections: Record<string, string[][]> = {};
+  let currentSection = "";
+  const lines = content.split(/\r?\n/);
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    if (trimmed.startsWith("# ")) {
+      currentSection = trimmed.substring(2).toUpperCase();
+      sections[currentSection] = [];
+      continue;
+    }
+
+    if (currentSection) {
+      const row: string[] = [];
+      let currentCell = "";
+      let inQuotes = false;
+      for (let i = 0; i < trimmed.length; i++) {
+        const char = trimmed[i];
+        if (char === '"') {
+          if (inQuotes && trimmed[i + 1] === '"') {
+            currentCell += '"';
+            i++;
+          } else {
+            inQuotes = !inQuotes;
+          }
+        } else if (char === "," && !inQuotes) {
+          row.push(currentCell);
+          currentCell = "";
+        } else {
+          currentCell += char;
+        }
+      }
+      row.push(currentCell);
+      sections[currentSection].push(row);
+    }
+  }
+  return sections;
+}
+
 export async function importAllData(
-  _csvContent: string,
+  csvContent: string,
   _options?: any,
 ): Promise<{
   tasks: number;
@@ -598,8 +660,147 @@ export async function importAllData(
   assignees: number;
   sprints: number;
 }> {
-  console.warn("importAllData: Not yet implemented in API mode");
-  return { tasks: 0, projects: 0, assignees: 0, sprints: 0 };
+  const sections = parseCSV(csvContent);
+  const workspaceId = wsId();
+
+  // Caches for duplicate checking and ID mapping
+  const existingProjects = await getProjectsList();
+  const existingAssignees = await getAssignees();
+  const existingSprints = await getSprints();
+
+  const projectMap = new Map<string, string>(); // oldId -> newId
+  const assigneeMap = new Map<string, string>(); // oldId -> newId
+  const sprintMap = new Map<string, string>(); // oldId -> newId
+
+  let projectsCount = 0;
+  let assigneesCount = 0;
+  let sprintsCount = 0;
+  let tasksCount = 0;
+
+  // 1. PROJECTS
+  if (sections["PROJECTS"] && sections["PROJECTS"].length > 1) {
+    const headers = sections["PROJECTS"][0];
+    const data = sections["PROJECTS"].slice(1);
+    for (const row of data) {
+      const p: any = {};
+      headers.forEach((h, i) => (p[h] = row[i]));
+
+      const existing = existingProjects.find((ep) => ep.name === p.name);
+      if (existing) {
+        projectMap.set(String(p.id), String(existing.id));
+      } else {
+        const resp = await api.data.projects.create(workspaceId, {
+          name: p.name,
+        });
+        if (resp.ok) {
+          const body = await resp.json();
+          const newId = extractId(body.project);
+          projectMap.set(String(p.id), newId);
+          projectsCount++;
+        }
+      }
+    }
+  }
+
+  // 2. ASSIGNEES
+  if (sections["ASSIGNEES"] && sections["ASSIGNEES"].length > 1) {
+    const headers = sections["ASSIGNEES"][0];
+    const data = sections["ASSIGNEES"].slice(1);
+    for (const row of data) {
+      const a: any = {};
+      headers.forEach((h, i) => (a[h] = row[i]));
+
+      const existing = existingAssignees.find((ea) => ea.name === a.name);
+      if (existing) {
+        assigneeMap.set(String(a.id), String(existing.id));
+      } else {
+        const resp = await api.data.assignees.create(workspaceId, {
+          name: a.name,
+          color: a.color,
+        });
+        if (resp.ok) {
+          const body = await resp.json();
+          const newId = extractId(body.assignee);
+          assigneeMap.set(String(a.id), newId);
+          assigneesCount++;
+        }
+      }
+    }
+  }
+
+  // 3. SPRINTS
+  if (sections["SPRINTS"] && sections["SPRINTS"].length > 1) {
+    const headers = sections["SPRINTS"][0];
+    const data = sections["SPRINTS"].slice(1);
+    for (const row of data) {
+      const s: any = {};
+      headers.forEach((h, i) => (s[h] = row[i]));
+
+      const existing = existingSprints.find((es) => es.name === s.name);
+      if (existing) {
+        sprintMap.set(String(s.id), String(existing.id));
+      } else {
+        const resp = await api.data.sprints.create(workspaceId, {
+          name: s.name,
+          start_date: s.start_date,
+          end_date: s.end_date,
+          status: s.status,
+        });
+        if (resp.ok) {
+          const body = await resp.json();
+          const newId = extractId(body.sprint);
+          sprintMap.set(String(s.id), newId);
+          sprintsCount++;
+        }
+      }
+    }
+  }
+
+  // 4. TASKS
+  if (sections["TASKS"] && sections["TASKS"].length > 1) {
+    const headers = sections["TASKS"][0];
+    const data = sections["TASKS"].slice(1);
+    for (const row of data) {
+      const t: any = {};
+      headers.forEach((h, i) => (t[h] = row[i]));
+
+      const payload: any = {
+        title: t.title,
+        project: t.project,
+        duration_minutes: parseInt(t.duration_minutes) || 0,
+        date: t.date,
+        status: t.status || "todo",
+        category: t.category || "อื่นๆ",
+        notes: t.notes || "",
+        is_archived: t.is_archived === "1" || t.is_archived === "true",
+      };
+
+      if (t.assignee_id && assigneeMap.has(String(t.assignee_id))) {
+        payload.assignee_ids = [assigneeMap.get(String(t.assignee_id))];
+      }
+
+      if (t.sprint_id && sprintMap.has(String(t.sprint_id))) {
+        payload.sprint_id = sprintMap.get(String(t.sprint_id));
+      }
+
+      const resp = await api.data.tasks.create(workspaceId, payload);
+      if (resp.ok) {
+        tasksCount++;
+      }
+    }
+  }
+
+  // Reset caches
+  _projectsCache = null;
+  _assigneesCache = null;
+  _sprintsCache = null;
+
+  return {
+    tasks: tasksCount,
+    projects: projectsCount,
+    assignees: assigneesCount,
+    sprints: sprintsCount,
+  };
 }
 
 export async function mergeAllData(_csvContent: string): Promise<any> {

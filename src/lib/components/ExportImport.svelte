@@ -194,7 +194,7 @@
 
 <div class="flex flex-wrap items-center gap-2">
 	<!-- Export Dropdown -->
-	<div class="relative" bind:this={dropdownRef}>
+	<div class="relative {showExportDropdown ? 'z-[9000]' : 'z-auto'}" bind:this={dropdownRef}>
 		<button
 			on:click={toggleExportDropdown}
 			class="flex items-center justify-center gap-2.5 h-12 px-5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl font-bold text-xs uppercase tracking-widest text-gray-700 dark:text-gray-400 transition-all hover:-translate-y-0.5 active:translate-y-0 shadow-sm hover:shadow-md hover:text-emerald-500 hover:border-emerald-500/30"
@@ -205,7 +205,7 @@
 		</button>
 
 		{#if showExportDropdown}
-			<div class="absolute top-[calc(100%+0.5rem)] left-0 mt-1 bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-700/50 py-2.5 min-w-60 z-999 animate-fade-in origin-top-left">
+			<div class="absolute top-[calc(100%+0.5rem)] right-0 mt-1 bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-700/50 py-2.5 min-w-60 z-[9000] animate-fade-in origin-top-right">
 				<div class="px-4 py-2 mb-1 border-b border-gray-100 dark:border-gray-800">
 					<p class="text-[10px] font-black uppercase tracking-widest text-gray-400">Choose Format</p>
 				</div>

@@ -66,7 +66,7 @@
 	let projectList: Project[] = [];
 	let projectStats: { id: number; taskCount: number }[] = [];
 	let assignees: Assignee[] = [];
-	$: myAssigneeId = assignees.find(a => a.user_id === $user?.user_id)?.id;
+	$: myAssigneeId = assignees.find(a => a.user_id === $user?.id || a.user_id === $user?.user_id)?.id;
 	let workerStats: { id: number; taskCount: number }[] = [];
 	let stats = { total: 0, todo: 0, in_progress: 0, in_test: 0, done: 0, total_minutes: 0 };
 	const VIEW_MODE_STORAGE_KEY = 'khunphaen-view-mode';
@@ -2693,7 +2693,7 @@
 	
 	<!-- Search & Quick Actions -->
 	<!-- Search & Quick Actions -->
-	<div class="relative z-[1000] flex flex-col md:flex-row items-center gap-3 bg-white/50 dark:bg-gray-900/30 p-2 rounded-2xl border border-gray-200/50 dark:border-gray-800/50 backdrop-blur-sm transition-all group shadow-sm">
+	<div class="relative z-[11000] flex flex-col md:flex-row items-center gap-3 bg-white/50 dark:bg-gray-900/30 p-2 rounded-2xl border border-gray-200/50 dark:border-gray-800/50 backdrop-blur-sm transition-all group shadow-sm">
 		<!-- Search Component -->
 		<div class="relative flex-1 group/search w-full">
 			<div class="absolute left-4 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-400 group-focus-within/search:text-primary group-focus-within/search:bg-primary/10 transition-all duration-300">
@@ -2718,7 +2718,7 @@
 		</div>
 		
 		<!-- Action Row -->
-		<div class="flex items-center gap-2 overflow-x-auto scrollbar-none pb-1 md:pb-0 w-full md:w-auto">
+		<div class="flex flex-wrap md:flex-nowrap items-center gap-2 pb-1 md:pb-0 w-full md:w-auto">
 			<!-- Filter Toggle -->
 			<button
 				on:click={() => showFilters = !showFilters}
@@ -2928,21 +2928,21 @@
 						id="assignee"
 						bind:value={filters.assignee_id}
 						options={[
-							{ value: 'all', label: $_('page__filter_assignee_all') },
 							{ 
 								value: 'me', 
-                                label: `✨ ${$_('page__filter_assignee_me')}`, 
+                                label: `${$_('page__filter_assignee_me')}`, 
 								badge: true, 
 								badgeColor: 'bg-primary' 
 							},
+							{ value: 'all', label: $_('page__filter_assignee_all') },
 							{ value: null, label: `⚪ ${$_('page__unassigned')}` },
 							...assignees
-								.filter(a => a.id !== undefined && a.id !== myAssigneeId)
+								.filter(a => a.id !== undefined && String(a.id) !== String(myAssigneeId))
 								.map(a => ({ 
 									value: a.id!, 
 									label: a.name,
 									badge: true,
-									badgeColor: a.color || 'bg-gray-400'
+									badgeColor: a.color || '#94A3B8'
 								}))
 						]}
 						placeholder="ค้นหาผู้รับผิดชอบ..."
