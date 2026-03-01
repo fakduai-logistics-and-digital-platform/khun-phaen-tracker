@@ -156,7 +156,7 @@
             setWorkspaceId(workspace.id, workspace.name, workspace.owner_id);
         }
         localStorage.setItem('sync-room-code', workspace.room_code);
-        localStorage.setItem('sync-server-url', import.meta.env.VITE_SERVER_URL || 'http://127.0.0.1:3002');
+        localStorage.setItem('backend-server-url', import.meta.env.VITE_SERVER_URL || 'http://127.0.0.1:3002');
         
         const targetUrl = `${base}/workspace/${workspace.id}?room=${workspace.room_code}`;
         

@@ -30,11 +30,11 @@ RUN groupadd -r appuser && useradd -r -g appuser appuser
 WORKDIR /app
 
 # Copy binary from builder
-COPY --from=builder /app/target/release/sync-server /usr/local/bin/sync-server
+COPY --from=builder /app/target/release/backend-server /usr/local/bin/backend-server
 
 # Set permissions
 RUN chown -R appuser:appuser /app && \
-    chown appuser:appuser /usr/local/bin/sync-server
+    chown appuser:appuser /usr/local/bin/backend-server
 
 # Switch to non-root user
 USER appuser
@@ -47,4 +47,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
     CMD bash -c "</dev/tcp/localhost/3001" || exit 1
 
 # Run the server
-CMD ["sync-server"]
+CMD ["backend-server"]

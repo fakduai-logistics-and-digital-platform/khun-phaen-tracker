@@ -14,7 +14,7 @@ Rust-based WebSocket sync server for Khun Phaen Task Tracker
 ### 1. Build & Run
 
 ```bash
-cd sync-server
+cd backend-server
 cargo run --release
 ```
 
@@ -24,8 +24,8 @@ Server จะรันที่ `http://0.0.0.0:3001`
 
 ```bash
 cargo build --release
-# Binary จะอยู่ที่ target/release/sync-server
-./target/release/sync-server
+# Binary จะอยู่ที่ target/release/backend-server
+./target/release/backend-server
 ```
 
 ### 3. ตั้งค่า Port
@@ -256,14 +256,14 @@ MIT
 
 ```bash
 # Pull image
-podman pull ghcr.io/fakduai-logistics-and-digital-platform/khun-phaen-tracker/sync-server:latest
+podman pull ghcr.io/fakduai-logistics-and-digital-platform/khun-phaen-tracker/backend-server:latest
 
 # Run container (limit memory 100MB, background mode)
 podman run -d \
   --name khu-phaen-sync \
   --memory=100m \
   -p 3002:3001 \
-  ghcr.io/fakduai-logistics-and-digital-platform/khun-phaen-tracker/sync-server:latest
+  ghcr.io/fakduai-logistics-and-digital-platform/khun-phaen-tracker/backend-server:latest
 
 # View logs
 podman logs -f khu-phaen-sync
@@ -273,14 +273,14 @@ podman logs -f khu-phaen-sync
 
 ```bash
 # Pull image
-docker pull ghcr.io/fakduai-logistics-and-digital-platform/khun-phaen-tracker/sync-server:latest
+docker pull ghcr.io/fakduai-logistics-and-digital-platform/khun-phaen-tracker/backend-server:latest
 
 # Run container (limit memory 100MB, background mode)
 docker run -d \
   --name khu-phaen-sync \
   --memory=100m \
   -p 3002:3001 \
-  ghcr.io/fakduai-logistics-and-digital-platform/khun-phaen-tracker/sync-server:latest
+  ghcr.io/fakduai-logistics-and-digital-platform/khun-phaen-tracker/backend-server:latest
 
 # View logs
 docker logs -f khu-phaen-sync
@@ -310,7 +310,7 @@ https://<your-service>.onrender.com
 ### Build Docker Image Manually
 
 ```bash
-cd sync-server
+cd backend-server
 podman build -t khu-phaen-sync .
 podman run -d -p 3002:3001 --name khu-phaen-sync khu-phaen-sync
 ```
@@ -328,7 +328,7 @@ After=network.target
 Type=simple
 User=www-data
 WorkingDirectory=/opt/khu-phaen-sync
-ExecStart=/opt/khu-phaen-sync/sync-server
+ExecStart=/opt/khu-phaen-sync/backend-server
 Restart=on-failure
 Environment="PORT=3001"
 

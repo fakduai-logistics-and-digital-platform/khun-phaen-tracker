@@ -1073,7 +1073,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "khu-phaen-sync-server"
+name = "khu-phaen-backend-server"
 version = "0.1.0"
 dependencies = [
  "axum",

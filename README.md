@@ -24,7 +24,7 @@ Offline Task Management System - Manage your tasks efficiently without needing a
 ```
 .
 ├── src/                    # SvelteKit Frontend
-├── sync-server/            # Rust WebSocket Sync Server
+├── backend-server/            # Rust WebSocket Sync Server
 ├── wasm-compress/          # WASM: LZ4 Compression
 ├── wasm-crdt/              # WASM: CRDT for collaborative editing
 ├── wasm-search/            # WASM: Full-text search
@@ -76,7 +76,7 @@ The frontend will run at `http://localhost:5173/khun-phaen-tracker` (base path c
 In another terminal:
 
 ```sh
-cd sync-server
+cd backend-server
 cargo run --release
 ```
 
@@ -154,7 +154,7 @@ Available at `http://localhost:6006`
 npm run build
 
 # Build Sync Server (Binary)
-cd sync-server
+cd backend-server
 cargo build --release
 ```
 

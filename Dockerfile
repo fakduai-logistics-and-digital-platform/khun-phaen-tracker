@@ -33,18 +33,42 @@ RUN npm run build
 # Runtime stage
 FROM nginx:stable-alpine
 
-# Copy custom nginx config if we had one, otherwise use default with SPA support
+# Set a custom directory to avoid conflicts with default nginx files
+WORKDIR /usr/app
+
+# Copy build files from builder stage
+COPY --from=builder /app/build ./
+
+# If the build didn't already create the subfolder, create it and move files there
+# This ensures GitHub Pages compatibility (internal links typically use the base path)
+RUN if [ ! -d "khun-phaen-tracker" ]; then \
+    mkdir khun-phaen-tracker && \
+    find . -maxdepth 1 ! -name "khun-phaen-tracker" ! -name "." -exec mv {} khun-phaen-tracker/ \; ; \
+    fi && \
+    # Ensure there is an index.html (SvelteKit with adapter-static + fallback 404.html often doesn't make index.html if prerender is off)
+    if [ ! -f "khun-phaen-tracker/index.html" ] && [ -f "khun-phaen-tracker/404.html" ]; then \
+    cp khun-phaen-tracker/404.html khun-phaen-tracker/index.html; \
+    fi
+
+# Configure Nginx to serve from the custom directory
 RUN echo 'server { \
     listen 80; \
+    root /usr/app; \
+    index index.html; \
+    \
+    # Normal location for the base path
+    location /khun-phaen-tracker/ { \
+        alias /usr/app/khun-phaen-tracker/; \
+        index index.html; \
+        try_files $uri $uri/ /khun-phaen-tracker/index.html; \
+    } \
+    \
+    # Support accessing at root by falling back to the subfolder app
     location / { \
-        root /usr/share/nginx/html; \
-        index index.html index.htm; \
+        root /usr/app/khun-phaen-tracker; \
         try_files $uri $uri/ /index.html; \
     } \
 }' > /etc/nginx/conf.d/default.conf
-
-# Copy build files from builder stage
-COPY --from=builder /app/build /usr/share/nginx/html
 
 EXPOSE 80
 

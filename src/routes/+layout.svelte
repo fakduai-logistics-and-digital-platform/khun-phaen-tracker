@@ -149,7 +149,7 @@
 			document.cookie = '_khun_ph_token=; path=/; max-age=0; samesite=Lax';
 			localStorage.removeItem('user_email');
 			localStorage.removeItem('sync-room-code');
-			localStorage.removeItem('sync-server-url');
+			localStorage.removeItem('backend-server-url');
 			clearWorkspaceId();
 			
 			user.set(null);

@@ -22,7 +22,7 @@
 ```
 .
 ├── src/                    # SvelteKit Frontend
-├── sync-server/            # Rust WebSocket Sync Server
+├── backend-server/            # Rust WebSocket Sync Server
 ├── wasm-compress/          # WASM: LZ4 Compression
 ├── wasm-crdt/              # WASM: CRDT สำหรับแก้ไขงานพร้อมกัน
 ├── wasm-search/            # WASM: ระบบค้นหาข้อความ
@@ -35,7 +35,7 @@
 ### สิ่งที่ต้องมี
 
 - [Node.js](https://nodejs.org/) 18+ 
-- [Rust](https://rustup.rs/) (สำหรับ build sync-server หรือ WASM)
+- [Rust](https://rustup.rs/) (สำหรับ build backend-server หรือ WASM)
 
 ### 1. ติดตั้ง Dependencies
 
@@ -74,7 +74,7 @@ npm run dev -- --open
 ใน terminal ใหม่:
 
 ```sh
-cd sync-server
+cd backend-server
 cargo run --release
 ```
 
@@ -108,7 +108,7 @@ npm run storybook
 npm run build
 
 # Build Sync Server (Binary)
-cd sync-server
+cd backend-server
 cargo build --release
 ```
 

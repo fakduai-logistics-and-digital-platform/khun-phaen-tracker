@@ -2,8 +2,9 @@ version: "3.8"
 
 services:
   # Frontend - SvelteKit static site served by Nginx
-  frontend:
-    image: ghcr.io/${GITHUB_REPOSITORY:-fakduai-logistics-and-digital-platform/khun-phaen-tracker}/frontend:latest
+  khun-phaen-tracker:
+    image: ghcr.io/fakduai-logistics-and-digital-platform/khun-phaen-tracker/frontend:latest
+    container_name: khun-phaen-tracker
     build:
       context: .
       dockerfile: Dockerfile
@@ -11,28 +12,31 @@ services:
       - "8080:80"
     restart: unless-stopped
     depends_on:
-      backend:
+      backend-server:
         condition: service_healthy
+    env_file:
+      - .env
     environment:
-      - VITE_API_URL=http://localhost:3001/api
-      - VITE_WS_URL=ws://localhost:3001/ws
-      - VITE_SERVER_URL=http://localhost:3001
-      # - VITE_TLDRAW_LICENSE_KEY= // TODO: Add your tldraw license key
+      - VITE_API_URL=${VITE_API_URL:-http://localhost:3001/api}
+      - VITE_WS_URL=${VITE_WS_URL:-ws://localhost:3001/ws}
+      - VITE_SERVER_URL=${VITE_SERVER_URL:-http://localhost:3001}
+      - VITE_TLDRAW_LICENSE_KEY=${VITE_TLDRAW_LICENSE_KEY}
 
   # Backend Server - Sync Server handling WebSockets and API
-  backend:
-    image: ghcr.io/${GITHUB_REPOSITORY:-fakduai-logistics-and-digital-platform/khun-phaen-tracker}/backend:latest
+  backend-server:
+    image: ghcr.io/fakduai-logistics-and-digital-platform/khun-phaen-tracker/backend:latest
+    container_name: backend-server
     build:
       context: ./backend-server
       dockerfile: Dockerfile
     ports:
-      - "3001:3001"
+      # Map the port dynamically from .env
+      - "${PORT:-3001}:${PORT:-3001}"
     env_file:
       - ./backend-server/.env
     environment:
       - PORT=${PORT:-3001}
       - RUST_LOG=${RUST_LOG:-info}
-      # Will use MONGODB_URI from .env if available, otherwise fallback to local mongodb container
       - MONGODB_URI=${MONGODB_URI:-mongodb://admin:password123@mongodb:27017/tracker-db?authSource=admin}
       - DB_NAME=${DB_NAME:-tracker-db}
       - JWT_SECRET=${JWT_SECRET:-khunphaen_super_secret_key_2026_!@#}
@@ -41,8 +45,8 @@ services:
     depends_on:
       - mongodb
     healthcheck:
-      # Use bash /dev/tcp since ping/nc might not be in slim image
-      test: ["CMD", "bash", "-c", "</dev/tcp/localhost/3001"]
+      # Use the dynamic port for healthcheck as well
+      test: ["CMD", "bash", "-c", "</dev/tcp/localhost/${PORT:-3001}"]
       interval: 30s
       timeout: 3s
       retries: 3
