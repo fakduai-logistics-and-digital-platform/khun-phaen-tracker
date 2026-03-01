@@ -42,6 +42,7 @@ impl WorkspaceService {
             owner_id: owner_id.clone(),
             room_code: room_code.clone(),
             created_at: chrono::Utc::now(),
+            notification_config: None,
         };
 
         let created_workspace = repo.create(workspace)

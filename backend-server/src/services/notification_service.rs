@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use tokio::time::{sleep, Duration};
-use chrono::{Datelike, Timelike, Utc, FixedOffset, Offset};
+use chrono::{Datelike, Timelike, Utc, FixedOffset};
 use crate::state::AppState;
 use crate::repositories::workspace_repo::WorkspaceRepository;
 use crate::repositories::data_repo::DataRepository;
@@ -50,7 +50,7 @@ async fn check_and_send_notifications(state: &Arc<AppState>) {
             
             // Check if already sent recently
             if let Some(last_sent) = config.last_sent_at {
-                if (now - last_sent).num_minutes() < 55 {
+                if (now_utc - last_sent).num_minutes() < 55 {
                     continue;
                 }
             }
@@ -74,7 +74,7 @@ async fn send_daily_summary_to_discord(
     workspace_name: &str,
     webhook_url: Option<&str>,
     data_repo: &DataRepository
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let url = match webhook_url {
         Some(u) => u,
         None => return Ok(()),
