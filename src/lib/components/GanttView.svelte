@@ -85,9 +85,9 @@
   $: timelineDates = getDates(minDate, maxDate);
   $: totalWidth = timelineDates.length * DAY_WIDTH;
 
-  function getSprintName(sprintId: number | null | undefined): string {
+  function getSprintName(sprintId: string | number | null | undefined): string {
       if (!sprintId) return 'No Sprint';
-      const sprint = sprints.find(s => s.id === sprintId);
+      const sprint = sprints.find(s => String(s.id) === String(sprintId));
       return sprint ? sprint.name : 'Unknown Sprint';
   }
 

@@ -37,7 +37,7 @@
 	let notes = editingTask?.notes || '';
 	let assignee_ids: number[] = editingTask?.assignee_ids || (editingTask?.assignee_id ? [editingTask.assignee_id] : []);
 	let assignee_id_to_add: number | null = null;
-	let sprint_id: number | null = editingTask?.sprint_id || null;
+	let sprint_id: string | number | null = editingTask?.sprint_id || null;
 	let checklist: ChecklistItem[] = [];
 	let showBranchDialog = false;
 	let formInitKey = 'closed';

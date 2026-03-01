@@ -7,16 +7,16 @@
 
 	const dispatch = createEventDispatcher<{
 		close: void;
-		complete: number; // sprint id
-		completeAndExport: { sprintId: number; format: 'markdown' | 'video' };
-		deleteSprint: number; // sprint id
+		complete: string | number; // sprint id
+		completeAndExport: { sprintId: string | number; format: 'markdown' | 'video' };
+		deleteSprint: string | number; // sprint id
 		createSprint: { name: string; start_date: string; end_date: string };
-		moveTasksToSprint: { sprintId: number; taskIds: number[] };
-		exportMarkdown: number; // sprint id
-		exportVideo: number; // sprint id
+		moveTasksToSprint: { sprintId: string | number; taskIds: (string | number)[] };
+		exportMarkdown: string | number; // sprint id
+		exportVideo: string | number; // sprint id
 	}>();
 
-	export let tasks: { id?: number; status: string; sprint_id?: number | null }[] = [];
+	export let tasks: { id?: string | number; status: string; sprint_id?: string | number | null }[] = [];
 
 	let showAddForm = false;
 	let editingSprint: Sprint | null = null;
@@ -35,7 +35,7 @@
 	
 	let newSprintStart = getTodayString();
 	let newSprintEnd = getDateAfterDays(getTodayString(), 14); // Default 2 weeks
-	let completeConfirmId: number | null = null;
+	let completeConfirmId: string | number | null = null;
 	let showMoveTasksConfirm = false;
 	let pendingSprintData: { name: string; start_date: string; end_date: string } | null = null;
 
@@ -80,19 +80,19 @@
 	}
 
 	// Get tasks that should be moved to new sprint
-	function getTasksToMoveToNewSprint(): number[] {
+	function getTasksToMoveToNewSprint(): (string | number)[] {
 		// Get all tasks that either:
 		// 1. Have no sprint (sprint_id is null)
 		// 2. Belong to a completed/expired sprint
 		const activeOrPlannedSprintIds = new Set(
 			$sprints
 				.filter(s => s.status === 'active' || s.status === 'planned')
-				.map(s => s.id)
+				.map(s => String(s.id))
 		);
-		
+
 		return tasks
-			.filter(t => t.id !== undefined && (!t.sprint_id || !activeOrPlannedSprintIds.has(t.sprint_id)))
-			.map(t => t.id as number);
+			.filter(t => t.id !== undefined && (!t.sprint_id || !activeOrPlannedSprintIds.has(String(t.sprint_id))))
+			.map(t => t.id!);
 	}
 
 	function startAdd() {
@@ -119,11 +119,11 @@
 		newSprintEnd = getDateAfterDays(newSprintStart, 14); // Default 2 weeks from today
 	}
 
-	function handleSave() {
+	async function handleSave() {
 		if (!newSprintName.trim() || !newSprintStart || !newSprintEnd) return;
 
 		if (editingSprint) {
-			sprints.update(editingSprint.id!, {
+			await sprints.update(editingSprint.id!, {
 				name: newSprintName.trim(),
 				start_date: newSprintStart,
 				end_date: newSprintEnd
@@ -152,28 +152,28 @@
 		}
 	}
 
-	function confirmCreateSprint(moveTasks = true) {
+	async function confirmCreateSprint(moveTasks = true) {
 		if (!pendingSprintData) return;
-		
+
 		// Create the sprint
-		const newSprint = sprints.add({
+		const newSprint = await sprints.add({
 			name: pendingSprintData.name,
 			start_date: pendingSprintData.start_date,
 			end_date: pendingSprintData.end_date,
 			status: 'planned'
 		});
-		
+
 		// Move tasks if requested
 		if (moveTasks && newSprint.id) {
 			const tasksToMove = getTasksToMoveToNewSprint();
 			if (tasksToMove.length > 0) {
-				dispatch('moveTasksToSprint', { 
-					sprintId: newSprint.id, 
-					taskIds: tasksToMove 
+				dispatch('moveTasksToSprint', {
+					sprintId: newSprint.id,
+					taskIds: tasksToMove
 				});
 			}
 		}
-		
+
 		showMoveTasksConfirm = false;
 		pendingSprintData = null;
 		cancelEdit();
@@ -184,30 +184,30 @@
 		pendingSprintData = null;
 	}
 
-	function startComplete(id: number) {
+	function startComplete(id: string | number) {
 		completeConfirmId = id;
 	}
 
-	function confirmComplete() {
+	async function confirmComplete() {
 		if (completeConfirmId) {
 			// Get incomplete tasks from this sprint
 			const incompleteTasks = tasks.filter(
-				t => t.sprint_id === completeConfirmId && t.status !== 'done'
+				t => String(t.sprint_id) === String(completeConfirmId) && t.status !== 'done'
 			);
-			
+
 			// Archive completed tasks
-			sprints.complete(completeConfirmId);
-			
+			await sprints.complete(completeConfirmId);
+
 			// Dispatch event to move incomplete tasks out of sprint
 			if (incompleteTasks.length > 0) {
 				dispatch('moveTasksToSprint', {
 					sprintId: -1, // -1 means remove from sprint
 					taskIds: incompleteTasks
 						.filter(t => t.id !== undefined)
-						.map(t => t.id as number)
+						.map(t => t.id!)
 				});
 			}
-			
+
 			dispatch('complete', completeConfirmId);
 			completeConfirmId = null;
 		}
@@ -217,47 +217,47 @@
 		completeConfirmId = null;
 	}
 
-	function confirmCompleteWithExport(format: 'markdown' | 'video') {
+	async function confirmCompleteWithExport(format: 'markdown' | 'video') {
 		if (!completeConfirmId) return;
 		const sprintId = completeConfirmId;
 		// Keep local UI behavior identical to normal complete flow,
 		// but skip dispatch('complete') because parent will handle it in completeAndExport.
 		const incompleteTasks = tasks.filter(
-			t => t.sprint_id === sprintId && t.status !== 'done'
+			t => String(t.sprint_id) === String(sprintId) && t.status !== 'done'
 		);
-		sprints.complete(sprintId);
+		await sprints.complete(sprintId);
 		if (incompleteTasks.length > 0) {
 			dispatch('moveTasksToSprint', {
 				sprintId: -1,
 				taskIds: incompleteTasks
 					.filter(t => t.id !== undefined)
-					.map(t => t.id as number)
+					.map(t => t.id!)
 			});
 		}
 		completeConfirmId = null;
 		dispatch('completeAndExport', { sprintId, format });
 	}
 
-	function handleDelete(id: number) {
+	async function handleDelete(id: string | number) {
 		if (confirm('คุณแน่ใจหรือไม่ที่จะลบ Sprint นี้?')) {
 			dispatch('deleteSprint', id);
-			sprints.delete(id);
+			await sprints.delete(id);
 		}
 	}
 
-	function handleStartSprint(id: number) {
+	async function handleStartSprint(id: string | number) {
 		// Set all other active sprints to planned first
-		$sprints.forEach(s => {
+		for (const s of $sprints) {
 			if (s.status === 'active') {
-				sprints.update(s.id!, { status: 'planned' });
+				await sprints.update(s.id!, { status: 'planned' });
 			}
-		});
+		}
 		// Set this sprint to active
-		sprints.update(id, { status: 'active' });
+		await sprints.update(id, { status: 'active' });
 	}
 
-	function getTaskCount(sprintId: number): { total: number; done: number } {
-		const sprintTasks = tasks.filter(t => t.sprint_id === sprintId);
+	function getTaskCount(sprintId: string | number): { total: number; done: number } {
+		const sprintTasks = tasks.filter(t => String(t.sprint_id) === String(sprintId));
 		return {
 			total: sprintTasks.length,
 			done: sprintTasks.filter(t => t.status === 'done').length

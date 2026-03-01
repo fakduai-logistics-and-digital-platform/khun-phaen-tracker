@@ -114,7 +114,7 @@ export function disconnectRealtime() {
 
 /** Broadcast a data change with payload to all peers */
 export function broadcastChange(
-  entity: "task" | "project" | "assignee",
+  entity: "task" | "project" | "assignee" | "sprint",
   action: "create" | "update" | "delete",
   id?: string,
   data?: any,

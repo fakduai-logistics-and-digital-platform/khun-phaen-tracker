@@ -204,9 +204,9 @@
 		}
 	}
 
-	function getSprintName(sprintId: number | null | undefined): string | null {
+	function getSprintName(sprintId: string | number | null | undefined): string | null {
 		if (!sprintId) return null;
-		return sprints.find((s) => s.id === sprintId)?.name || null;
+		return sprints.find((s) => String(s.id) === String(sprintId))?.name || null;
 	}
 
 	let openMenuId: number | null = null;

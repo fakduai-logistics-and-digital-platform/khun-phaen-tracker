@@ -2,7 +2,7 @@
 	import type { Sprint } from '$lib/stores/sprintStore';
 
 	export let sprints: Sprint[] = [];
-	export let value: number | 'all' | null = 'all';
+	export let value: string | number | 'all' | null = 'all';
 	export let id: string = 'sprint';
 	export let formMode: boolean = false; // When true, hides 'all' option and changes labels for form usage
 
@@ -13,7 +13,7 @@
 
 
 	// Sort sprints by date (newest first), then by status
-	$: sprintsWithId = sprints.filter((s): s is Sprint & { id: number } => s.id !== undefined);
+	$: sprintsWithId = sprints.filter((s): s is Sprint & { id: string | number } => s.id !== undefined);
 	$: sortedSprints = [...sprintsWithId].sort((a, b) => {
 		// Active sprint first
 		if (a.status === 'active' && b.status !== 'active') return -1;
@@ -36,17 +36,17 @@
 	// Get selected sprint name
 	$: selectedLabel = getSelectedLabel(value, sprints);
 
-	function getSelectedLabel(val: number | 'all' | null, sprintList: Sprint[]): string {
+	function getSelectedLabel(val: string | number | 'all' | null, sprintList: Sprint[]): string {
 		if (val === 'all') return formMode ? '-- ไม่ระบุ --' : 'ทั้งหมด';
 		if (val === null) return formMode ? '-- ไม่ระบุ --' : 'ไม่มี Sprint';
-		const sprint = sprintList.find(s => s.id === val);
+		const sprint = sprintList.find(s => String(s.id) === String(val));
 		if (!sprint) return formMode ? '-- ไม่ระบุ --' : 'ทั้งหมด';
 		const statusText = sprint.status === 'active' ? ' (กำลังทำ)' : 
 			sprint.status === 'completed' ? ' (เสร็จสิ้น)' : '';
 		return sprint.name + statusText;
 	}
 
-	function selectSprint(sprintId: number | 'all' | null) {
+	function selectSprint(sprintId: string | number | 'all' | null) {
 		value = sprintId;
 		isOpen = false;
 		searchQuery = '';
@@ -140,7 +140,7 @@
 					{#each displaySprints as sprint}
 						<button
 							type="button"
-							class="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 {value === sprint.id ? 'bg-primary/10 text-primary font-medium' : 'text-gray-900 dark:text-gray-100'}"
+							class="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 {String(value) === String(sprint.id) ? 'bg-primary/10 text-primary font-medium' : 'text-gray-900 dark:text-gray-100'}"
 							on:click={() => selectSprint(sprint.id)}
 						>
 							<span class="truncate flex-1">{sprint.name}</span>

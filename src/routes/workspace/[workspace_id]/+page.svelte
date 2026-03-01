@@ -375,7 +375,7 @@
 		const sprintNameById = new Map(
 			$sprints
 				.filter((sprint) => sprint.id !== undefined)
-				.map((sprint) => [sprint.id as number, sprint.name])
+				.map((sprint) => [String(sprint.id), sprint.name])
 		);
 
 		const taskItems: { score: number; item: CommandPaletteItem }[] = [];
@@ -812,7 +812,7 @@
 			stats = getStatsFromTasks(all);
 			
 			if (currentView === 'workload') {
-				sprintManagerTasks = all.filter(t => t.sprint_id === filters.sprint_id);
+				sprintManagerTasks = all.filter(t => String(t.sprint_id) === String(filters.sprint_id));
 			}
 
 			// Index tasks for WASM search
@@ -831,6 +831,7 @@
 			projects = await getProjects();
 			projectList = await getProjectsList();
 			assignees = await getAssignees();
+			await sprints.refresh();
 		} catch (e) {
 			console.error('❌ loadData failed:', e);
 			showMessage(`เกิดข้อผิดพลาดในการโหลดข้อมูล: ${e instanceof Error ? e.message : 'Unknown error'}`, 'error');
@@ -1033,12 +1034,12 @@
 		return `${minutes}:${seconds}`;
 	}
 
-	function applySprintUpdateToLocalState(taskIds: number[], sprintId: number | null) {
+	function applySprintUpdateToLocalState(taskIds: (string | number)[], sprintId: string | number | null) {
 		if (taskIds.length === 0) return;
-		const taskIdSet = new Set(taskIds);
+		const taskIdSet = new Set(taskIds.map(String));
 
 		const updateTaskSprint = (task: Task): Task => {
-			if (task.id === undefined || !taskIdSet.has(task.id)) return task;
+			if (task.id === undefined || !taskIdSet.has(String(task.id))) return task;
 			return { ...task, sprint_id: sprintId };
 		};
 	
@@ -1061,9 +1062,9 @@
 			}
 			
 			// Update sprint with archived count
-			sprints.update(sprintId, { 
+			await sprints.update(sprintId, {
 				status: 'completed',
-				archived_count: archivedCount 
+				archived_count: archivedCount
 			});
 
 			// Reset sprint filter if selected sprint has just been completed
@@ -1082,7 +1083,7 @@
 		}
 	}
 
-	async function handleMoveTasksToSprint(event: CustomEvent<{ sprintId: number; taskIds: number[] }>) {
+	async function handleMoveTasksToSprint(event: CustomEvent<{ sprintId: string | number; taskIds: (string | number)[] }>) {
 		const { sprintId, taskIds } = event.detail;
 		const newSprintId = sprintId === -1 ? null : sprintId;
 
@@ -1108,13 +1109,13 @@
 		}
 	}
 
-	async function handleDeleteSprint(event: CustomEvent<number>) {
+	async function handleDeleteSprint(event: CustomEvent<string | number>) {
 		const sprintId = event.detail;
 		try {
 			const sprintTasks = await getTasksBySprint(sprintId);
 			const taskIds = sprintTasks
 				.map((task) => task.id)
-				.filter((id): id is number => id !== undefined);
+				.filter((id): id is string | number => id !== undefined);
 
 			if (taskIds.length > 0) {
 				await handleMoveTasksToSprint(
@@ -1358,11 +1359,11 @@
 		}
 
 		const visibleProjectNames = new Set(taskSnapshot.map((task) => (task.project || '').trim()).filter((name) => name.length > 0));
-		const visibleSprintIds = new Set(taskSnapshot.map((task) => task.sprint_id).filter((id): id is number => id !== null && id !== undefined));
+		const visibleSprintIds = new Set(taskSnapshot.map((task) => task.sprint_id != null ? String(task.sprint_id) : null).filter((id): id is string => id !== null));
 
 		const relatedAssignees = assignees.filter((assignee) => assignee.id !== undefined && visibleAssigneeIds.has(assignee.id));
 		const relatedProjects = projectList.filter((project) => visibleProjectNames.has(project.name));
-		const relatedSprints = $sprints.filter((sprint) => sprint.id !== undefined && visibleSprintIds.has(sprint.id));
+		const relatedSprints = $sprints.filter((sprint) => sprint.id !== undefined && visibleSprintIds.has(String(sprint.id)));
 
 		return { taskSnapshot, relatedProjects, relatedAssignees, relatedSprints };
 	}
@@ -1426,14 +1427,14 @@
 		taskSnapshot: Task[];
 		scopeLabel: string;
 	}> {
-		const sprintId = typeof event?.detail === 'number' ? event.detail : undefined;
+		const sprintId = event?.detail != null ? event.detail : undefined;
 		if (!sprintId) {
 			return { taskSnapshot: [...tasks], scopeLabel: 'ข้อมูลปัจจุบันทั้งหมด' };
 		}
 
 		const sprintTasks = await getTasksBySprint(sprintId);
 		const archivedTasks = sprintTasks.filter((task) => task.is_archived);
-		const sprintName = $sprints.find((sprint) => sprint.id === sprintId)?.name || `Sprint ${sprintId}`;
+		const sprintName = $sprints.find((sprint) => String(sprint.id) === String(sprintId))?.name || `Sprint ${sprintId}`;
 		return {
 			taskSnapshot: archivedTasks,
 			scopeLabel: `${sprintName} (Archived)`
@@ -1843,7 +1844,7 @@
 		}
 	}
 
-	async function handleCompleteAndExport(event: CustomEvent<{ sprintId: number; format: 'markdown' | 'video' }>) {
+	async function handleCompleteAndExport(event: CustomEvent<{ sprintId: string | number; format: 'markdown' | 'video' }>) {
 		const { sprintId, format } = event.detail;
 		const completed = await handleCompleteSprint(new CustomEvent('complete', { detail: sprintId }));
 		if (!completed) return;
@@ -2548,8 +2549,8 @@
 			const afterStats = await getStats();
 			console.log('📊 After import:', afterStats);
 			
-			// Refresh sprints from localStorage
-			sprints.refresh();
+			// Refresh sprints from API
+			await sprints.refresh();
 			
 			const actualAdded = afterStats.total - beforeStats.total;
 			showMessage($_('page__import_success', { values: { tasks: result.tasks, added: actualAdded, projects: result.projects, assignees: result.assignees, sprints: result.sprints } }));
