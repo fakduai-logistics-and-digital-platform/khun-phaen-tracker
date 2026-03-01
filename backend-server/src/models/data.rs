@@ -26,6 +26,13 @@ pub struct CommentImage {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CommentReaction {
+    pub emoji: String,
+    pub user_id: String,
+    pub reacted_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CommentDocument {
     #[serde(rename = "_id", skip_serializing_if = "Option::is_none")]
     pub id: Option<ObjectId>,
@@ -35,6 +42,8 @@ pub struct CommentDocument {
     pub content: String,
     #[serde(default)]
     pub images: Vec<CommentImage>,
+    #[serde(default)]
+    pub reactions: Vec<CommentReaction>,
     pub created_by: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub created_at: Option<String>,
@@ -51,6 +60,11 @@ pub struct CreateCommentMultipart {
 #[derive(Debug, Deserialize)]
 pub struct UpdateCommentRequest {
     pub content: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ToggleCommentReactionRequest {
+    pub emoji: String,
 }
 
 // ===== Task Document =====
@@ -90,8 +104,12 @@ pub struct TaskDocument {
     pub updated_at: Option<String>,
 }
 
-fn default_status() -> String { "todo".to_string() }
-fn default_category() -> String { "อื่นๆ".to_string() }
+fn default_status() -> String {
+    "todo".to_string()
+}
+fn default_category() -> String {
+    "อื่นๆ".to_string()
+}
 
 #[derive(Debug, Deserialize)]
 pub struct CreateTaskRequest {
@@ -180,7 +198,9 @@ pub struct AssigneeDocument {
     pub created_at: Option<String>,
 }
 
-fn default_color() -> String { "#6366F1".to_string() }
+fn default_color() -> String {
+    "#6366F1".to_string()
+}
 
 #[derive(Debug, Deserialize)]
 pub struct CreateAssigneeRequest {
@@ -221,7 +241,9 @@ pub struct SprintDocument {
     pub created_at: Option<String>,
 }
 
-fn default_sprint_status() -> String { "planned".to_string() }
+fn default_sprint_status() -> String {
+    "planned".to_string()
+}
 
 #[derive(Debug, Deserialize)]
 pub struct CreateSprintRequest {

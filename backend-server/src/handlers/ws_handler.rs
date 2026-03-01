@@ -166,7 +166,10 @@ async fn forward_room_event(
 
     if let Some(msg) = server_msg {
         let json = serde_json::to_string(&msg).map_err(|e| e.to_string())?;
-        socket.send(Message::Text(json)).await.map_err(|e| e.to_string())?;
+        socket
+            .send(Message::Text(json))
+            .await
+            .map_err(|e| e.to_string())?;
     }
 
     Ok(())
@@ -187,7 +190,9 @@ async fn handle_client_message(
             is_host,
             metadata,
         } => {
-            if let Err(e) = crate::services::room_service::ensure_room_exists(state, room_code).await {
+            if let Err(e) =
+                crate::services::room_service::ensure_room_exists(state, room_code).await
+            {
                 return Err(e);
             }
 
@@ -223,9 +228,7 @@ async fn handle_client_message(
                     peers,
                 };
                 socket
-                    .send(Message::Text(
-                        serde_json::to_string(&response).unwrap(),
-                    ))
+                    .send(Message::Text(serde_json::to_string(&response).unwrap()))
                     .await
                     .map_err(|e| e.to_string())?;
 
@@ -234,9 +237,7 @@ async fn handle_client_message(
                     room_code: room_code.clone(),
                 };
                 socket
-                    .send(Message::Text(
-                        serde_json::to_string(&connected).unwrap(),
-                    ))
+                    .send(Message::Text(serde_json::to_string(&connected).unwrap()))
                     .await
                     .map_err(|e| e.to_string())?;
 
@@ -268,7 +269,8 @@ async fn handle_client_message(
 
         ClientMessage::Leave => {
             *room_rx = None;
-            if let (Some(room_code), Some(peer_id)) = (current_room.take(), current_peer_id.take()) {
+            if let (Some(room_code), Some(peer_id)) = (current_room.take(), current_peer_id.take())
+            {
                 leave_room(state, &room_code, &peer_id).await;
                 return Ok(true);
             }
@@ -276,7 +278,9 @@ async fn handle_client_message(
         }
 
         ClientMessage::Broadcast { data } => {
-            if let (Some(room_code), Some(peer_id)) = (current_room.as_ref(), current_peer_id.as_ref()) {
+            if let (Some(room_code), Some(peer_id)) =
+                (current_room.as_ref(), current_peer_id.as_ref())
+            {
                 if let Some(room) = state.rooms.get(room_code) {
                     let event = RoomEvent::DataSync {
                         from: peer_id.clone(),
@@ -289,7 +293,9 @@ async fn handle_client_message(
         }
 
         ClientMessage::SyncDocument { document } => {
-            if let (Some(room_code), Some(peer_id)) = (current_room.as_ref(), current_peer_id.as_ref()) {
+            if let (Some(room_code), Some(peer_id)) =
+                (current_room.as_ref(), current_peer_id.as_ref())
+            {
                 if let Some(mut room) = state.rooms.get_mut(room_code) {
                     room.document_state = Some(document.clone());
                     room.last_sync = chrono::Utc::now();
@@ -304,7 +310,9 @@ async fn handle_client_message(
                     let room_code_clone = room_code.clone();
                     let document_clone = document.clone();
                     tokio::spawn(async move {
-                        let _ = room_repo.upsert_document(&room_code_clone, &document_clone).await;
+                        let _ = room_repo
+                            .upsert_document(&room_code_clone, &document_clone)
+                            .await;
                     });
 
                     info!("📄 Document synced by {} in room {}", peer_id, room_code);
@@ -324,7 +332,10 @@ async fn handle_client_message(
                             .send(Message::Text(serde_json::to_string(&sync).unwrap()))
                             .await
                             .map_err(|e| e.to_string())?;
-                        info!("📄 Sent document to peer upon request in room {}", room_code);
+                        info!(
+                            "📄 Sent document to peer upon request in room {}",
+                            room_code
+                        );
                     } else {
                         let sync = ServerMessage::DocumentSync {
                             document: String::new(),

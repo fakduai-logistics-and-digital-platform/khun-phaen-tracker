@@ -1,14 +1,14 @@
 <script lang="ts">
-	import { createEventDispatcher, onDestroy, onMount } from 'svelte';
+import { createEventDispatcher, onDestroy, onMount } from 'svelte';
 	import { browser } from '$app/environment';
 	import { API_BASE_URL } from '$lib/apis';
-import { createTaskComment, deleteTaskComment, getCommentImages, getTaskComments, updateTaskCommentText } from '$lib/db';
+import { createTaskComment, deleteTaskComment, getCommentImages, getTaskComments, toggleTaskCommentReaction, updateTaskCommentText } from '$lib/db';
 	import { user } from '$lib/stores/auth';
 	import { taskDefaults } from '$lib/stores/taskDefaults';
 	import type { Assignee, ChecklistItem, CommentImage, Project, Sprint, Task, TaskComment } from '$lib/types';
 	import { CATEGORIES } from '$lib/types';
 	import { _, locale } from 'svelte-i18n';
-import { Calendar, Check, CheckCircle, ChevronLeft, ChevronRight, Copy, Download, Edit2, ExternalLink, FileText, Folder, GitBranch, GitPullRequest, Image as ImageIcon, Link, Maximize, MessageCircle, RotateCcw, RotateCw, Send, Tag, Trash2, X, ZoomIn, ZoomOut } from 'lucide-svelte';
+import { Calendar, Check, CheckCircle, ChevronLeft, ChevronRight, Copy, Download, Edit2, ExternalLink, FileText, Folder, GitBranch, GitPullRequest, Image as ImageIcon, Link, Maximize, MessageCircle, RotateCcw, RotateCw, Send, Smile, Tag, Trash2, X, ZoomIn, ZoomOut } from 'lucide-svelte';
 	import AssigneeSelector from './AssigneeSelector.svelte';
 	import BranchDialog from './BranchDialog.svelte';
 	import ChecklistManager from './ChecklistManager.svelte';
@@ -84,6 +84,9 @@ import { Calendar, Check, CheckCircle, ChevronLeft, ChevronRight, Copy, Download
 	let dragStartOffsetX = 0;
 	let dragStartOffsetY = 0;
 	let copyFeedback = '';
+	let reactionPickerForCommentId: string | null = null;
+	let reactionUpdating = false;
+	const commentReactionEmojis = ['👍', '❤️', '🔥', '🎉', '😂', '😮', '😢', '👀', '✅', '🚀'];
 
 	$: activeSprint = sprints.find((s) => s.status === 'active');
 	$: currentProjectRepoUrl = (() => {
@@ -325,6 +328,46 @@ import { Calendar, Check, CheckCircle, ChevronLeft, ChevronRight, Copy, Download
 			return profile?.nickname || fullName || $user?.email?.split('@')[0] || $_('taskForm__comments_unknown_author');
 		}
 		return comment.created_by || $_('taskForm__comments_unknown_author');
+	}
+
+	function currentUserId(): string {
+		return String($user?.id || $user?.user_id || '');
+	}
+
+	function getReactionGroups(comment: TaskComment): Array<{ emoji: string; count: number; reactedByMe: boolean }> {
+		const me = currentUserId();
+		const grouped = new Map<string, { count: number; reactedByMe: boolean }>();
+		for (const reaction of comment.reactions || []) {
+			const current = grouped.get(reaction.emoji) || { count: 0, reactedByMe: false };
+			current.count += 1;
+			if (me && reaction.user_id === me) current.reactedByMe = true;
+			grouped.set(reaction.emoji, current);
+		}
+		return Array.from(grouped.entries()).map(([emoji, value]) => ({
+			emoji,
+			count: value.count,
+			reactedByMe: value.reactedByMe
+		}));
+	}
+
+	function toggleReactionPicker(commentId: string | undefined) {
+		const id = String(commentId || '');
+		reactionPickerForCommentId = reactionPickerForCommentId === id ? null : id;
+	}
+
+	async function handleCommentReaction(comment: TaskComment, emoji: string) {
+		if (!editingTask?.id || !comment.id || reactionUpdating) return;
+		reactionUpdating = true;
+		commentsError = '';
+		try {
+			const updated = await toggleTaskCommentReaction(editingTask.id, comment.id, emoji);
+			comments = comments.map((item) => (String(item.id || '') === String(comment.id || '') ? { ...item, reactions: updated.reactions } : item));
+			reactionPickerForCommentId = null;
+		} catch (error) {
+			commentsError = error instanceof Error ? error.message : $_('taskForm__comments_error_update');
+		} finally {
+			reactionUpdating = false;
+		}
 	}
 
 	function escapeHtml(input: string): string {
@@ -745,8 +788,16 @@ import { Calendar, Check, CheckCircle, ChevronLeft, ChevronRight, Copy, Download
 		}
 	}
 
+	function handleGlobalPointerDown(event: MouseEvent) {
+		const target = event.target as HTMLElement | null;
+		if (!target) return;
+		if (target.closest('[data-comment-reaction-picker="true"]')) return;
+		reactionPickerForCommentId = null;
+	}
+
 	onMount(() => {
 		document.addEventListener('keydown', handleKeydown);
+		document.addEventListener('mousedown', handleGlobalPointerDown);
 	});
 
 	onDestroy(() => {
@@ -755,6 +806,7 @@ import { Calendar, Check, CheckCircle, ChevronLeft, ChevronRight, Copy, Download
 		}
 		if (browser) {
 			document.removeEventListener('keydown', handleKeydown);
+			document.removeEventListener('mousedown', handleGlobalPointerDown);
 		}
 	});
 </script>
@@ -939,7 +991,7 @@ import { Calendar, Check, CheckCircle, ChevronLeft, ChevronRight, Copy, Download
 														{:else}
 															<div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
 																{#each getImageState(comment.id)?.images || [] as image, imageIndex}
-																	<a href={getCommentImageUrl(image.file_key)} target="_blank" rel="noreferrer" on:click|preventDefault={() => openCommentImageLightbox(comment, imageIndex)} class="block rounded-md overflow-hidden border border-gray-200 dark:border-gray-700"><img src={getCommentImageUrl(image.file_key)} alt={image.filename} class="w-full h-24 object-cover" loading="lazy" /></a>
+																	<a href={getCommentImageUrl(image.file_key)} target="_blank" rel="noreferrer" on:click|preventDefault={() => openCommentImageLightbox(comment, imageIndex)} class="block rounded-md overflow-hidden border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 p-1"><img src={getCommentImageUrl(image.file_key)} alt={image.filename} class="mx-auto w-auto h-auto max-w-full max-h-72 object-contain" loading="lazy" /></a>
 																{/each}
 															</div>
 															{#if (getImageState(comment.id)?.total || 0) > (getImageState(comment.id)?.limit || 1)}
@@ -951,7 +1003,50 @@ import { Calendar, Check, CheckCircle, ChevronLeft, ChevronRight, Copy, Download
 															{/if}
 														{/if}
 													{/if}
+													{#if getReactionGroups(comment).length > 0}
+														<div class="flex flex-wrap items-center gap-1">
+															{#each getReactionGroups(comment) as reaction}
+																<button
+																	type="button"
+																	on:click={() => void handleCommentReaction(comment, reaction.emoji)}
+																	class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs border transition-colors {reaction.reactedByMe ? 'border-primary/50 bg-primary/10 text-primary' : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-primary/40'}"
+																	disabled={reactionUpdating}
+																>
+																	<span>{reaction.emoji}</span>
+																	<span>{reaction.count}</span>
+																</button>
+															{/each}
+														</div>
+													{/if}
 													<div class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+														<div class="relative" data-comment-reaction-picker="true">
+															<button
+																type="button"
+																on:click={() => toggleReactionPicker(comment.id)}
+																class="inline-flex items-center gap-1 hover:text-primary"
+																title="Add reaction"
+															>
+																<Smile size={12} />
+																<span>React</span>
+															</button>
+															{#if reactionPickerForCommentId === String(comment.id || '')}
+																<div class="absolute left-0 bottom-full mb-2 z-20 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-xl p-2 w-[228px]">
+																	<div class="grid grid-cols-5 gap-1.5">
+																		{#each commentReactionEmojis as emoji}
+																			<button
+																				type="button"
+																				on:click={() => void handleCommentReaction(comment, emoji)}
+																				class="h-9 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-lg"
+																				disabled={reactionUpdating}
+																			>
+																				{emoji}
+																			</button>
+																		{/each}
+																	</div>
+																</div>
+															{/if}
+														</div>
+														<span>•</span>
 														<button
 															type="button"
 															on:click={() => startEditComment(comment)}

@@ -3,7 +3,7 @@ use mongodb::Database;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 
-use crate::models::{room::Room, message::SystemEvent};
+use crate::models::{message::SystemEvent, room::Room};
 
 pub type SharedState = Arc<AppState>;
 

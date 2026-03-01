@@ -1,8 +1,8 @@
-use crate::models::workspace::{CreateWorkspaceRequest, UpdateWorkspaceRequest, Workspace};
-use crate::repositories::workspace_repo::WorkspaceRepository;
-use crate::repositories::room_repo::RoomRepository;
-use dashmap::DashMap;
 use crate::models::room::Room;
+use crate::models::workspace::{CreateWorkspaceRequest, UpdateWorkspaceRequest, Workspace};
+use crate::repositories::room_repo::RoomRepository;
+use crate::repositories::workspace_repo::WorkspaceRepository;
+use dashmap::DashMap;
 use mongodb::bson::oid::ObjectId;
 use uuid::Uuid;
 
@@ -14,7 +14,8 @@ impl WorkspaceService {
         owner_id: &ObjectId,
         assigned_ws_ids: Vec<ObjectId>,
     ) -> Result<Vec<Workspace>, String> {
-        let mut workspaces = repo.find_by_owner_id(owner_id)
+        let mut workspaces = repo
+            .find_by_owner_id(owner_id)
             .await
             .map_err(|e| format!("Database error: {}", e))?;
 
@@ -47,7 +48,8 @@ impl WorkspaceService {
             notification_config: None,
         };
 
-        let created_workspace = repo.create(workspace)
+        let created_workspace = repo
+            .create(workspace)
             .await
             .map_err(|e| format!("Database error: {}", e))?;
 
@@ -61,14 +63,14 @@ impl WorkspaceService {
         payload: UpdateWorkspaceRequest,
     ) -> Result<bool, String> {
         repo.update(
-            workspace_id, 
-            owner_id, 
-            &payload.name, 
-            payload.color.as_deref(), 
-            payload.icon.as_deref()
+            workspace_id,
+            owner_id,
+            &payload.name,
+            payload.color.as_deref(),
+            payload.icon.as_deref(),
         )
-            .await
-            .map_err(|e| format!("Database error: {}", e))
+        .await
+        .map_err(|e| format!("Database error: {}", e))
     }
 
     pub async fn update_notification_config(
@@ -90,7 +92,8 @@ impl WorkspaceService {
         workspace_id: &ObjectId,
     ) -> Result<bool, String> {
         // 1. Look up workspace to get the room_code
-        let workspace = workspace_repo.find_by_id(workspace_id)
+        let workspace = workspace_repo
+            .find_by_id(workspace_id)
             .await
             .map_err(|e| format!("Database error: {}", e))?;
 
@@ -101,7 +104,8 @@ impl WorkspaceService {
         };
 
         // 2. Delete workspace document
-        let deleted = workspace_repo.delete(workspace_id, owner_id)
+        let deleted = workspace_repo
+            .delete(workspace_id, owner_id)
             .await
             .map_err(|e| format!("Database error: {}", e))?;
 

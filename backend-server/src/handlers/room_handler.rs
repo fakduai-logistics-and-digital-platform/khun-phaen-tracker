@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Path, State, Json},
+    extract::{Json, Path, State},
     response::IntoResponse,
 };
 use dashmap::DashMap;
@@ -45,7 +45,10 @@ pub async fn create_room(
         }
     };
 
-    let document_state = existing_room_doc.and_then(|d| d.get("document").and_then(|v| v.as_str().map(|s| s.to_string())));
+    let document_state = existing_room_doc.and_then(|d| {
+        d.get("document")
+            .and_then(|v| v.as_str().map(|s| s.to_string()))
+    });
 
     let room_id = Uuid::new_v4().to_string();
     let host_id = requested_host_id.unwrap_or_else(|| format!("host_{}", generate_random_id()));
@@ -81,7 +84,7 @@ pub async fn get_room_info(
     State(state): State<SharedState>,
 ) -> impl IntoResponse {
     let _ = crate::services::room_service::ensure_room_exists(&state, &room_code).await;
-    
+
     match state.rooms.get(&room_code) {
         Some(room) => {
             let peers: Vec<PeerInfo> = room

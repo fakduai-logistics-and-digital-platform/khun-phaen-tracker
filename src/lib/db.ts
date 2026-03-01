@@ -112,6 +112,13 @@ function docToTaskComment(doc: any): TaskComment {
         : doc.task_id || "",
     content: doc.content || "",
     images: Array.isArray(doc.images) ? doc.images.map(docToCommentImage) : [],
+    reactions: Array.isArray(doc.reactions)
+      ? doc.reactions.map((reaction: any) => ({
+          emoji: reaction.emoji || "",
+          user_id: reaction.user_id || "",
+          reacted_at: reaction.reacted_at || "",
+        }))
+      : [],
     created_by: doc.created_by || "",
     created_at: doc.created_at || "",
     updated_at: doc.updated_at || "",
@@ -315,6 +322,26 @@ export async function updateTaskCommentText(
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Failed to update comment");
   broadcastChange("comment", "update", String(commentId), { content });
+}
+
+export async function toggleTaskCommentReaction(
+  taskId: string | number,
+  commentId: string | number,
+  emoji: string,
+): Promise<TaskComment> {
+  const res = await api.data.comments.toggleReaction(
+    wsId(),
+    String(taskId),
+    String(commentId),
+    { emoji },
+  );
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Failed to update reaction");
+  const comment = docToTaskComment(data.comment || {});
+  broadcastChange("comment", "update", String(commentId), {
+    reactions: comment.reactions,
+  });
+  return comment;
 }
 
 export async function getTasks(

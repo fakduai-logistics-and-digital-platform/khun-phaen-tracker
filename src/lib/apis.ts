@@ -456,6 +456,22 @@ export const api = {
           },
         );
       },
+      toggleReaction: (
+        wsId: string,
+        taskId: string,
+        commentId: string,
+        payload: Record<string, any>,
+      ): Promise<Response> => {
+        return fetch(
+          `${API_BASE_URL}/workspaces/${wsId}/tasks/${taskId}/comments/${commentId}/reactions`,
+          {
+            method: "POST",
+            headers: api.data._headers(true),
+            credentials: "include",
+            body: JSON.stringify(payload),
+          },
+        );
+      },
       images: (
         wsId: string,
         taskId: string,

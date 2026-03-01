@@ -1,5 +1,8 @@
-use mongodb::{bson::{doc, oid::ObjectId}, Collection, Database};
 use crate::models::user::User;
+use mongodb::{
+    bson::{doc, oid::ObjectId},
+    Collection, Database,
+};
 
 #[derive(Clone)]
 pub struct UserRepository {
@@ -14,7 +17,9 @@ impl UserRepository {
     }
 
     pub async fn find_by_email(&self, email: &str) -> mongodb::error::Result<Option<User>> {
-        self.collection.find_one(doc! { "email": email }, None).await
+        self.collection
+            .find_one(doc! { "email": email }, None)
+            .await
     }
 
     pub async fn find_by_id(&self, id: &ObjectId) -> mongodb::error::Result<Option<User>> {
@@ -27,12 +32,16 @@ impl UserRepository {
     }
 
     pub async fn find_by_setup_token(&self, token: &str) -> mongodb::error::Result<Option<User>> {
-        self.collection.find_one(doc! { "setup_token": token }, None).await
+        self.collection
+            .find_one(doc! { "setup_token": token }, None)
+            .await
     }
 
     pub async fn update(&self, user: &User) -> mongodb::error::Result<()> {
         let id = user.id.unwrap();
-        self.collection.replace_one(doc! { "_id": id }, user, None).await?;
+        self.collection
+            .replace_one(doc! { "_id": id }, user, None)
+            .await?;
         Ok(())
     }
 

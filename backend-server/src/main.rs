@@ -4,25 +4,25 @@ mod repositories;
 mod services;
 mod state;
 
+use crate::models::message::SystemEvent;
+use crate::models::profile::UserProfile;
+use crate::models::user::User;
+use crate::repositories::profile_repo::ProfileRepository;
+use crate::repositories::user_repo::UserRepository;
+use crate::services::room_service::spawn_room_cleanup_task;
+use crate::state::AppState;
 use axum::{
     extract::State,
     response::IntoResponse,
-    routing::{get, post, put, delete},
+    routing::{delete, get, post, put},
     Router,
 };
+use bcrypt::hash;
 use dashmap::DashMap;
 use dotenv::dotenv;
 use mongodb::Client;
 use std::sync::Arc;
 use tokio::sync::broadcast;
-use crate::models::message::SystemEvent;
-use crate::models::user::User;
-use crate::models::profile::UserProfile;
-use crate::repositories::user_repo::UserRepository;
-use crate::repositories::profile_repo::ProfileRepository;
-use crate::services::room_service::spawn_room_cleanup_task;
-use crate::state::AppState;
-use bcrypt::hash;
 use tower_governor::{errors::GovernorError, key_extractor::KeyExtractor};
 use tracing::info;
 
@@ -84,10 +84,13 @@ async fn main() {
     info!("✅ Connected to database: {}", db_name);
 
     let (system_tx, _) = broadcast::channel(100);
-    let storage_bucket = std::env::var("STORAGE_BUCKET").unwrap_or_else(|_| "khunphaen-assets".to_string());
+    let storage_bucket =
+        std::env::var("STORAGE_BUCKET").unwrap_or_else(|_| "khunphaen-assets".to_string());
     let storage_client = if std::env::var("STORAGE_URL").is_ok() {
         let client = crate::services::storage_service::create_s3_client().await;
-        if let Err(e) = crate::services::storage_service::ensure_bucket_exists(&client, &storage_bucket).await {
+        if let Err(e) =
+            crate::services::storage_service::ensure_bucket_exists(&client, &storage_bucket).await
+        {
             tracing::warn!("Failed to verify storage bucket: {}", e);
         }
         Some(client)
@@ -109,7 +112,7 @@ async fn main() {
     if room_idle_timeout_seconds > 0 {
         spawn_room_cleanup_task(state.clone());
     }
-    
+
     // Start automated notifications service
     crate::services::notification_service::spawn_notification_service_task(state.clone());
 
@@ -128,65 +131,206 @@ async fn main() {
     let app = Router::new()
         .route("/", get(root_handler))
         .route("/health", get(health_check))
-        .route("/api/auth/invite", post(handlers::auth_handler::invite_handler))
-        .route("/api/auth/setup-info", get(handlers::auth_handler::get_setup_info_handler))
-        .route("/api/auth/setup-password", post(handlers::auth_handler::setup_password_handler))
-        .route("/api/auth/login", post(handlers::auth_handler::login_handler))
-        .route("/api/auth/logout", post(handlers::auth_handler::logout_handler))
+        .route(
+            "/api/auth/invite",
+            post(handlers::auth_handler::invite_handler),
+        )
+        .route(
+            "/api/auth/setup-info",
+            get(handlers::auth_handler::get_setup_info_handler),
+        )
+        .route(
+            "/api/auth/setup-password",
+            post(handlers::auth_handler::setup_password_handler),
+        )
+        .route(
+            "/api/auth/login",
+            post(handlers::auth_handler::login_handler),
+        )
+        .route(
+            "/api/auth/logout",
+            post(handlers::auth_handler::logout_handler),
+        )
         .route("/api/auth/me", get(handlers::auth_handler::me_handler))
-        .route("/api/auth/me", put(handlers::auth_handler::update_me_handler))
-        .route("/api/auth/users", get(handlers::auth_handler::list_users_handler))
-        .route("/api/auth/users/:id", put(handlers::auth_handler::update_user_handler))
-        .route("/api/auth/users/:id", delete(handlers::auth_handler::delete_user_handler))
+        .route(
+            "/api/auth/me",
+            put(handlers::auth_handler::update_me_handler),
+        )
+        .route(
+            "/api/auth/users",
+            get(handlers::auth_handler::list_users_handler),
+        )
+        .route(
+            "/api/auth/users/:id",
+            put(handlers::auth_handler::update_user_handler),
+        )
+        .route(
+            "/api/auth/users/:id",
+            delete(handlers::auth_handler::delete_user_handler),
+        )
         .route(
             "/api/rooms",
             post(handlers::room_handler::create_room).layer(tower_governor::GovernorLayer {
                 config: governor_conf,
             }),
         )
-        .route("/api/rooms/:room_code", get(handlers::room_handler::get_room_info))
-        .route("/api/workspaces", get(handlers::workspace_handler::get_workspaces_handler))
-        .route("/api/workspaces/stats", get(handlers::workspace_handler::get_workspaces_stats_handler))
-        .route("/api/workspaces", post(handlers::workspace_handler::create_workspace_handler))
-        .route("/api/workspaces/:id", put(handlers::workspace_handler::update_workspace_handler))
-        .route("/api/workspaces/:id/notifications", get(handlers::workspace_handler::get_notification_config_handler))
-        .route("/api/workspaces/:id/notifications", put(handlers::workspace_handler::update_notification_config_handler))
-        .route("/api/workspaces/:id", delete(handlers::workspace_handler::delete_workspace_handler))
-        .route("/api/workspaces/access/:room_code", get(handlers::workspace_handler::check_workspace_access_handler))
+        .route(
+            "/api/rooms/:room_code",
+            get(handlers::room_handler::get_room_info),
+        )
+        .route(
+            "/api/workspaces",
+            get(handlers::workspace_handler::get_workspaces_handler),
+        )
+        .route(
+            "/api/workspaces/stats",
+            get(handlers::workspace_handler::get_workspaces_stats_handler),
+        )
+        .route(
+            "/api/workspaces",
+            post(handlers::workspace_handler::create_workspace_handler),
+        )
+        .route(
+            "/api/workspaces/:id",
+            put(handlers::workspace_handler::update_workspace_handler),
+        )
+        .route(
+            "/api/workspaces/:id/notifications",
+            get(handlers::workspace_handler::get_notification_config_handler),
+        )
+        .route(
+            "/api/workspaces/:id/notifications",
+            put(handlers::workspace_handler::update_notification_config_handler),
+        )
+        .route(
+            "/api/workspaces/:id",
+            delete(handlers::workspace_handler::delete_workspace_handler),
+        )
+        .route(
+            "/api/workspaces/access/:room_code",
+            get(handlers::workspace_handler::check_workspace_access_handler),
+        )
         // Data routes (workspace-scoped)
-        .route("/api/workspaces/:ws_id/tasks", get(handlers::data_handler::list_tasks))
-        .route("/api/workspaces/:ws_id/tasks", post(handlers::data_handler::create_task))
-        .route("/api/workspaces/:ws_id/tasks/:task_id", put(handlers::data_handler::update_task))
-        .route("/api/workspaces/:ws_id/tasks/:task_id", delete(handlers::data_handler::delete_task))
-        .route("/api/workspaces/:ws_id/tasks/:task_id/comments", get(handlers::data_handler::list_task_comments))
-        .route("/api/workspaces/:ws_id/tasks/:task_id/comments", post(handlers::data_handler::create_task_comment))
-        .route("/api/workspaces/:ws_id/tasks/:task_id/comments/:comment_id", put(handlers::data_handler::update_task_comment))
-        .route("/api/workspaces/:ws_id/tasks/:task_id/comments/:comment_id", delete(handlers::data_handler::delete_task_comment))
-        .route("/api/workspaces/:ws_id/tasks/:task_id/comments/:comment_id/images", get(handlers::data_handler::list_comment_images))
-        .route("/api/workspaces/:ws_id/tasks/:task_id/attachments", post(handlers::attachment_handler::upload_attachment))
-        .route("/api/workspaces/:ws_id/tasks/:task_id/attachments/:attachment_id", delete(handlers::attachment_handler::delete_attachment))
-        .route("/api/files/*file_key", get(handlers::attachment_handler::download_attachment))
-        .route("/api/workspaces/:ws_id/daily-report", get(handlers::data_handler::daily_report))
-        .route("/api/workspaces/:ws_id/projects", get(handlers::data_handler::list_projects))
-        .route("/api/workspaces/:ws_id/projects", post(handlers::data_handler::create_project))
-        .route("/api/workspaces/:ws_id/projects/:project_id", put(handlers::data_handler::update_project))
-        .route("/api/workspaces/:ws_id/projects/:project_id", delete(handlers::data_handler::delete_project))
-        .route("/api/workspaces/:ws_id/assignees", get(handlers::data_handler::list_assignees))
-        .route("/api/workspaces/:ws_id/assignees", post(handlers::data_handler::create_assignee))
-        .route("/api/workspaces/:ws_id/assignees/:assignee_id", put(handlers::data_handler::update_assignee))
-        .route("/api/workspaces/:ws_id/assignees/:assignee_id", delete(handlers::data_handler::delete_assignee))
-        .route("/api/workspaces/:ws_id/sprints", get(handlers::data_handler::list_sprints))
-        .route("/api/workspaces/:ws_id/sprints", post(handlers::data_handler::create_sprint))
-        .route("/api/workspaces/:ws_id/sprints/:sprint_id", put(handlers::data_handler::update_sprint))
-        .route("/api/workspaces/:ws_id/sprints/:sprint_id", delete(handlers::data_handler::delete_sprint))
+        .route(
+            "/api/workspaces/:ws_id/tasks",
+            get(handlers::data_handler::list_tasks),
+        )
+        .route(
+            "/api/workspaces/:ws_id/tasks",
+            post(handlers::data_handler::create_task),
+        )
+        .route(
+            "/api/workspaces/:ws_id/tasks/:task_id",
+            put(handlers::data_handler::update_task),
+        )
+        .route(
+            "/api/workspaces/:ws_id/tasks/:task_id",
+            delete(handlers::data_handler::delete_task),
+        )
+        .route(
+            "/api/workspaces/:ws_id/tasks/:task_id/comments",
+            get(handlers::data_handler::list_task_comments),
+        )
+        .route(
+            "/api/workspaces/:ws_id/tasks/:task_id/comments",
+            post(handlers::data_handler::create_task_comment),
+        )
+        .route(
+            "/api/workspaces/:ws_id/tasks/:task_id/comments/:comment_id",
+            put(handlers::data_handler::update_task_comment),
+        )
+        .route(
+            "/api/workspaces/:ws_id/tasks/:task_id/comments/:comment_id",
+            delete(handlers::data_handler::delete_task_comment),
+        )
+        .route(
+            "/api/workspaces/:ws_id/tasks/:task_id/comments/:comment_id/reactions",
+            post(handlers::data_handler::toggle_task_comment_reaction),
+        )
+        .route(
+            "/api/workspaces/:ws_id/tasks/:task_id/comments/:comment_id/images",
+            get(handlers::data_handler::list_comment_images),
+        )
+        .route(
+            "/api/workspaces/:ws_id/tasks/:task_id/attachments",
+            post(handlers::attachment_handler::upload_attachment),
+        )
+        .route(
+            "/api/workspaces/:ws_id/tasks/:task_id/attachments/:attachment_id",
+            delete(handlers::attachment_handler::delete_attachment),
+        )
+        .route(
+            "/api/files/*file_key",
+            get(handlers::attachment_handler::download_attachment),
+        )
+        .route(
+            "/api/workspaces/:ws_id/daily-report",
+            get(handlers::data_handler::daily_report),
+        )
+        .route(
+            "/api/workspaces/:ws_id/projects",
+            get(handlers::data_handler::list_projects),
+        )
+        .route(
+            "/api/workspaces/:ws_id/projects",
+            post(handlers::data_handler::create_project),
+        )
+        .route(
+            "/api/workspaces/:ws_id/projects/:project_id",
+            put(handlers::data_handler::update_project),
+        )
+        .route(
+            "/api/workspaces/:ws_id/projects/:project_id",
+            delete(handlers::data_handler::delete_project),
+        )
+        .route(
+            "/api/workspaces/:ws_id/assignees",
+            get(handlers::data_handler::list_assignees),
+        )
+        .route(
+            "/api/workspaces/:ws_id/assignees",
+            post(handlers::data_handler::create_assignee),
+        )
+        .route(
+            "/api/workspaces/:ws_id/assignees/:assignee_id",
+            put(handlers::data_handler::update_assignee),
+        )
+        .route(
+            "/api/workspaces/:ws_id/assignees/:assignee_id",
+            delete(handlers::data_handler::delete_assignee),
+        )
+        .route(
+            "/api/workspaces/:ws_id/sprints",
+            get(handlers::data_handler::list_sprints),
+        )
+        .route(
+            "/api/workspaces/:ws_id/sprints",
+            post(handlers::data_handler::create_sprint),
+        )
+        .route(
+            "/api/workspaces/:ws_id/sprints/:sprint_id",
+            put(handlers::data_handler::update_sprint),
+        )
+        .route(
+            "/api/workspaces/:ws_id/sprints/:sprint_id",
+            delete(handlers::data_handler::delete_sprint),
+        )
         .route("/ws", get(handlers::ws_handler::ws_handler))
         .layer(
             tower_http::cors::CorsLayer::new()
                 .allow_origin([
-                    "http://localhost:5173".parse::<axum::http::HeaderValue>().unwrap(),
-                    "http://localhost:4173".parse::<axum::http::HeaderValue>().unwrap(),
-                    "http://localhost:8080".parse::<axum::http::HeaderValue>().unwrap(),
-                    "https://fakduai-logistics-and-digital-platform.github.io".parse::<axum::http::HeaderValue>().unwrap(),
+                    "http://localhost:5173"
+                        .parse::<axum::http::HeaderValue>()
+                        .unwrap(),
+                    "http://localhost:4173"
+                        .parse::<axum::http::HeaderValue>()
+                        .unwrap(),
+                    "http://localhost:8080"
+                        .parse::<axum::http::HeaderValue>()
+                        .unwrap(),
+                    "https://fakduai-logistics-and-digital-platform.github.io"
+                        .parse::<axum::http::HeaderValue>()
+                        .unwrap(),
                 ])
                 .allow_methods([
                     axum::http::Method::GET,
@@ -274,13 +418,13 @@ async fn check_and_create_initial_admin(db: &mongodb::Database) {
     match user_repo.count().await {
         Ok(0) => {
             info!("🆕 No users found in database. Initializing system...");
-            
+
             let email = std::env::var("INITIAL_ADMIN_EMAIL")
                 .unwrap_or_else(|_| "admin@example.com".to_string());
-            let password = std::env::var("INITIAL_ADMIN_PASSWORD")
-                .unwrap_or_else(|_| "admin1234".to_string());
-            let nickname = std::env::var("INITIAL_ADMIN_NICKNAME")
-                .unwrap_or_else(|_| "Admin".to_string());
+            let password =
+                std::env::var("INITIAL_ADMIN_PASSWORD").unwrap_or_else(|_| "admin1234".to_string());
+            let nickname =
+                std::env::var("INITIAL_ADMIN_NICKNAME").unwrap_or_else(|_| "Admin".to_string());
 
             let password_hash = hash(password, 10).expect("Failed to hash password");
             let user_id = uuid::Uuid::now_v7().to_string();
@@ -320,7 +464,10 @@ async fn check_and_create_initial_admin(db: &mongodb::Database) {
             info!("📧 Admin Email: {}", email);
             info!("🔒 Password: [HIDDEN] (Check INITIAL_ADMIN_PASSWORD in .env)");
         }
-        Ok(n) => info!("ℹ️ System already has {} users. Skipping initialization.", n),
+        Ok(n) => info!(
+            "ℹ️ System already has {} users. Skipping initialization.",
+            n
+        ),
         Err(e) => tracing::error!("❌ Failed to check user count: {}", e),
     }
 }

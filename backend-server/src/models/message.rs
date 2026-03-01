@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use crate::models::room::PeerInfo;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "action", rename_all = "snake_case")]
@@ -11,8 +11,12 @@ pub enum ClientMessage {
         metadata: Option<serde_json::Value>,
     },
     Leave,
-    Broadcast { data: String },
-    SyncDocument { document: String },
+    Broadcast {
+        data: String,
+    },
+    SyncDocument {
+        document: String,
+    },
     RequestSync,
     Ping,
 }
@@ -20,12 +24,26 @@ pub enum ClientMessage {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ServerMessage {
-    Connected { peer_id: String, room_code: String },
-    PeerJoined { peer: PeerInfo },
-    PeerLeft { peer_id: String },
-    Data { from: String, data: String },
-    DocumentSync { document: String },
-    Error { message: String },
+    Connected {
+        peer_id: String,
+        room_code: String,
+    },
+    PeerJoined {
+        peer: PeerInfo,
+    },
+    PeerLeft {
+        peer_id: String,
+    },
+    Data {
+        from: String,
+        data: String,
+    },
+    DocumentSync {
+        document: String,
+    },
+    Error {
+        message: String,
+    },
     RoomInfo {
         room_code: String,
         host_id: String,

@@ -1,19 +1,25 @@
-use crate::models::{auth::AuthRequest, auth::Claims, auth::InviteRequest, auth::UpdateUserRequest, auth::UpdateProfileRequest, user::User, profile::UserProfile};
-use mongodb::bson::oid::ObjectId;
-use crate::repositories::{user_repo::UserRepository, profile_repo::ProfileRepository};
+use crate::models::{
+    auth::AuthRequest, auth::Claims, auth::InviteRequest, auth::UpdateProfileRequest,
+    auth::UpdateUserRequest, profile::UserProfile, user::User,
+};
+use crate::repositories::{profile_repo::ProfileRepository, user_repo::UserRepository};
 use bcrypt::{hash, verify, DEFAULT_COST};
 use jsonwebtoken::{encode, EncodingKey, Header};
+use mongodb::bson::oid::ObjectId;
 
 pub struct AuthService;
 
 impl AuthService {
     pub async fn invite(
-        user_repo: &UserRepository, 
-        profile_repo: &ProfileRepository, 
-        payload: InviteRequest
+        user_repo: &UserRepository,
+        profile_repo: &ProfileRepository,
+        payload: InviteRequest,
     ) -> Result<String, String> {
         let email = payload.email.clone();
-        let existing = user_repo.find_by_email(&email).await.map_err(|e| format!("Database error: {}", e))?;
+        let existing = user_repo
+            .find_by_email(&email)
+            .await
+            .map_err(|e| format!("Database error: {}", e))?;
         if existing.is_some() {
             return Err("User already exists".to_string());
         }
@@ -30,16 +36,18 @@ impl AuthService {
         }
 
         if !is_active {
-            setup_token = Some(rand::Rng::sample_iter(&mut rand::thread_rng(), &rand::distributions::Alphanumeric)
-                .take(32)
-                .map(char::from)
-                .collect::<String>());
+            setup_token = Some(
+                rand::Rng::sample_iter(&mut rand::thread_rng(), &rand::distributions::Alphanumeric)
+                    .take(32)
+                    .map(char::from)
+                    .collect::<String>(),
+            );
         }
 
         let role = payload.role.unwrap_or_else(|| "user".to_string());
-        
+
         let user_id = uuid::Uuid::now_v7().to_string();
-        
+
         // Create User
         let new_user = User {
             id: None,
@@ -53,8 +61,10 @@ impl AuthService {
             discord_id: payload.discord_id,
         };
 
-
-        user_repo.create(new_user).await.map_err(|e| e.to_string())?;
+        user_repo
+            .create(new_user)
+            .await
+            .map_err(|e| e.to_string())?;
 
         // Create Profile
         let profile_id = uuid::Uuid::now_v7().to_string();
@@ -67,49 +77,71 @@ impl AuthService {
             position: payload.position,
         };
 
-        profile_repo.create(new_profile).await.map_err(|e| e.to_string())?;
+        profile_repo
+            .create(new_profile)
+            .await
+            .map_err(|e| e.to_string())?;
 
         Ok(setup_token.unwrap_or_else(|| "ACTV".to_string())) // Return "ACTV" if already active
     }
 
     pub async fn get_setup_info(user_repo: &UserRepository, token: &str) -> Result<String, String> {
-        let user = user_repo.find_by_setup_token(token).await
+        let user = user_repo
+            .find_by_setup_token(token)
+            .await
             .map_err(|e| format!("Database error: {}", e))?
             .ok_or_else(|| "Invalid or expired token".to_string())?;
 
         Ok(user.email)
     }
 
-    pub async fn setup_password(user_repo: &UserRepository, token: &str, password: &str) -> Result<String, String> {
-        let mut user = user_repo.find_by_setup_token(token).await
+    pub async fn setup_password(
+        user_repo: &UserRepository,
+        token: &str,
+        password: &str,
+    ) -> Result<String, String> {
+        let mut user = user_repo
+            .find_by_setup_token(token)
+            .await
             .map_err(|e| format!("Database error: {}", e))?
             .ok_or_else(|| "Invalid or expired token".to_string())?;
 
         let password_hash = hash(password, DEFAULT_COST).map_err(|e| e.to_string())?;
-        
+
         user.password_hash = Some(password_hash);
         user.setup_token = None;
         user.is_active = true;
 
-        user_repo.update(&user).await.map_err(|e| format!("Database error: {}", e))?;
-        
+        user_repo
+            .update(&user)
+            .await
+            .map_err(|e| format!("Database error: {}", e))?;
+
         Ok(user.email)
     }
 
     pub async fn login(
-        user_repo: &UserRepository, 
+        user_repo: &UserRepository,
         profile_repo: &ProfileRepository,
-        payload: AuthRequest, 
-        jwt_secret: &str
+        payload: AuthRequest,
+        jwt_secret: &str,
     ) -> Result<(String, String, String, String, String, Option<UserProfile>), String> {
-        let user = user_repo.find_by_email(&payload.email).await.map_err(|e| format!("Database error: {}", e))?
+        let user = user_repo
+            .find_by_email(&payload.email)
+            .await
+            .map_err(|e| format!("Database error: {}", e))?
             .ok_or_else(|| "Invalid email or password".to_string())?;
 
         if !user.is_active {
-            return Err("Account not activated. Please use the link sent to your email.".to_string());
+            return Err(
+                "Account not activated. Please use the link sent to your email.".to_string(),
+            );
         }
 
-        let password_hash = user.password_hash.as_ref().ok_or("User has no password set".to_string())?;
+        let password_hash = user
+            .password_hash
+            .as_ref()
+            .ok_or("User has no password set".to_string())?;
         if !verify(payload.password, password_hash).map_err(|e| e.to_string())? {
             return Err("Invalid email or password".to_string());
         }
@@ -129,19 +161,41 @@ impl AuthService {
             &Header::default(),
             &claims,
             &EncodingKey::from_secret(jwt_secret.as_ref()),
-        ).map_err(|e| e.to_string())?;
+        )
+        .map_err(|e| e.to_string())?;
 
-        let profile = profile_repo.find_by_user_id(&user.user_id).await.ok().flatten();
+        let profile = profile_repo
+            .find_by_user_id(&user.user_id)
+            .await
+            .ok()
+            .flatten();
 
-        Ok((user.id.unwrap().to_hex(), user.user_id, user.email, user.role, token, profile))
+        Ok((
+            user.id.unwrap().to_hex(),
+            user.user_id,
+            user.email,
+            user.role,
+            token,
+            profile,
+        ))
     }
 
-    pub async fn list_all_users(user_repo: &UserRepository, profile_repo: &ProfileRepository) -> Result<Vec<serde_json::Value>, String> {
-        let users = user_repo.find_all().await.map_err(|e| format!("Database error: {}", e))?;
+    pub async fn list_all_users(
+        user_repo: &UserRepository,
+        profile_repo: &ProfileRepository,
+    ) -> Result<Vec<serde_json::Value>, String> {
+        let users = user_repo
+            .find_all()
+            .await
+            .map_err(|e| format!("Database error: {}", e))?;
         let mut user_list = Vec::new();
 
         for user in users {
-            let profile = profile_repo.find_by_user_id(&user.user_id).await.ok().flatten();
+            let profile = profile_repo
+                .find_by_user_id(&user.user_id)
+                .await
+                .ok()
+                .flatten();
             user_list.push(serde_json::json!({
                 "id": user.id.unwrap().to_hex(),
                 "user_id": user.user_id,
@@ -158,17 +212,30 @@ impl AuthService {
         Ok(user_list)
     }
 
-    pub async fn delete_user(user_repo: &UserRepository, profile_repo: &ProfileRepository, id_str: &str) -> Result<(), String> {
+    pub async fn delete_user(
+        user_repo: &UserRepository,
+        profile_repo: &ProfileRepository,
+        id_str: &str,
+    ) -> Result<(), String> {
         let oid = ObjectId::parse_str(id_str).map_err(|_| "Invalid User ID format".to_string())?;
-        
-        let user = user_repo.find_by_id(&oid).await.map_err(|e| format!("Database error: {}", e))?
+
+        let user = user_repo
+            .find_by_id(&oid)
+            .await
+            .map_err(|e| format!("Database error: {}", e))?
             .ok_or_else(|| "User not found".to_string())?;
 
         // Delete profile first
-        profile_repo.delete_by_user_id(&user.user_id).await.map_err(|e| format!("Database error: {}", e))?;
-        
+        profile_repo
+            .delete_by_user_id(&user.user_id)
+            .await
+            .map_err(|e| format!("Database error: {}", e))?;
+
         // Delete user
-        user_repo.delete_by_id(&oid).await.map_err(|e| format!("Database error: {}", e))?;
+        user_repo
+            .delete_by_id(&oid)
+            .await
+            .map_err(|e| format!("Database error: {}", e))?;
 
         Ok(())
     }
@@ -180,8 +247,11 @@ impl AuthService {
         payload: UpdateUserRequest,
     ) -> Result<(), String> {
         let oid = ObjectId::parse_str(id_str).map_err(|_| "Invalid User ID format".to_string())?;
-        
-        let mut user = user_repo.find_by_id(&oid).await.map_err(|e| format!("Database error: {}", e))?
+
+        let mut user = user_repo
+            .find_by_id(&oid)
+            .await
+            .map_err(|e| format!("Database error: {}", e))?
             .ok_or_else(|| "User not found".to_string())?;
 
         if let Some(email) = payload.email {
@@ -197,10 +267,15 @@ impl AuthService {
             user.discord_id = payload.discord_id;
         }
 
-        user_repo.update(&user).await.map_err(|e| format!("Database error: {}", e))?;
+        user_repo
+            .update(&user)
+            .await
+            .map_err(|e| format!("Database error: {}", e))?;
 
         // Update profile too
-        let mut profile = profile_repo.find_by_user_id(&user.user_id).await
+        let mut profile = profile_repo
+            .find_by_user_id(&user.user_id)
+            .await
             .map_err(|e| format!("Database error: {}", e))?
             .unwrap_or_else(|| UserProfile {
                 profile_id: uuid::Uuid::now_v7().to_string(),
@@ -211,16 +286,35 @@ impl AuthService {
                 position: None,
             });
 
-        if let Some(fn_val) = payload.first_name { profile.first_name = Some(fn_val); }
-        if let Some(ln_val) = payload.last_name { profile.last_name = Some(ln_val); }
-        if let Some(nn_val) = payload.nickname { profile.nickname = Some(nn_val); }
-        if let Some(pos_val) = payload.position { profile.position = Some(pos_val); }
+        if let Some(fn_val) = payload.first_name {
+            profile.first_name = Some(fn_val);
+        }
+        if let Some(ln_val) = payload.last_name {
+            profile.last_name = Some(ln_val);
+        }
+        if let Some(nn_val) = payload.nickname {
+            profile.nickname = Some(nn_val);
+        }
+        if let Some(pos_val) = payload.position {
+            profile.position = Some(pos_val);
+        }
 
-        let exists = profile_repo.find_by_user_id(&user.user_id).await.ok().flatten().is_some();
+        let exists = profile_repo
+            .find_by_user_id(&user.user_id)
+            .await
+            .ok()
+            .flatten()
+            .is_some();
         if exists {
-            profile_repo.update(&profile).await.map_err(|e| format!("Database error: {}", e))?;
+            profile_repo
+                .update(&profile)
+                .await
+                .map_err(|e| format!("Database error: {}", e))?;
         } else {
-            profile_repo.create(profile).await.map_err(|e| format!("Database error: {}", e))?;
+            profile_repo
+                .create(profile)
+                .await
+                .map_err(|e| format!("Database error: {}", e))?;
         }
 
         Ok(())
@@ -232,7 +326,9 @@ impl AuthService {
         user_id_oid: &ObjectId,
         payload: UpdateProfileRequest,
     ) -> Result<(), String> {
-        let mut user = user_repo.find_by_id(user_id_oid).await
+        let mut user = user_repo
+            .find_by_id(user_id_oid)
+            .await
             .map_err(|e| format!("Database error: {}", e))?
             .ok_or_else(|| "User not found".to_string())?;
 
@@ -245,18 +341,23 @@ impl AuthService {
                 user_updated = true;
             }
         }
-        
+
         if payload.discord_id.is_some() {
             user.discord_id = payload.discord_id;
             user_updated = true;
         }
 
         if user_updated {
-            user_repo.update(&user).await.map_err(|e| format!("Database error: {}", e))?;
+            user_repo
+                .update(&user)
+                .await
+                .map_err(|e| format!("Database error: {}", e))?;
         }
 
         // Update profile
-        let mut profile = profile_repo.find_by_user_id(&user.user_id).await
+        let mut profile = profile_repo
+            .find_by_user_id(&user.user_id)
+            .await
             .map_err(|e| format!("Database error: {}", e))?
             .unwrap_or_else(|| UserProfile {
                 profile_id: uuid::Uuid::now_v7().to_string(),
@@ -269,17 +370,40 @@ impl AuthService {
 
         let mut profile_updated = false;
 
-        if let Some(fn_val) = payload.first_name { profile.first_name = Some(fn_val); profile_updated = true; }
-        if let Some(ln_val) = payload.last_name { profile.last_name = Some(ln_val); profile_updated = true; }
-        if let Some(nn_val) = payload.nickname { profile.nickname = Some(nn_val); profile_updated = true; }
-        if let Some(pos_val) = payload.position { profile.position = Some(pos_val); profile_updated = true; }
+        if let Some(fn_val) = payload.first_name {
+            profile.first_name = Some(fn_val);
+            profile_updated = true;
+        }
+        if let Some(ln_val) = payload.last_name {
+            profile.last_name = Some(ln_val);
+            profile_updated = true;
+        }
+        if let Some(nn_val) = payload.nickname {
+            profile.nickname = Some(nn_val);
+            profile_updated = true;
+        }
+        if let Some(pos_val) = payload.position {
+            profile.position = Some(pos_val);
+            profile_updated = true;
+        }
 
         if profile_updated {
-            let exists = profile_repo.find_by_user_id(&user.user_id).await.ok().flatten().is_some();
+            let exists = profile_repo
+                .find_by_user_id(&user.user_id)
+                .await
+                .ok()
+                .flatten()
+                .is_some();
             if exists {
-                profile_repo.update(&profile).await.map_err(|e| format!("Database error: {}", e))?;
+                profile_repo
+                    .update(&profile)
+                    .await
+                    .map_err(|e| format!("Database error: {}", e))?;
             } else {
-                profile_repo.create(profile).await.map_err(|e| format!("Database error: {}", e))?;
+                profile_repo
+                    .create(profile)
+                    .await
+                    .map_err(|e| format!("Database error: {}", e))?;
             }
         }
 

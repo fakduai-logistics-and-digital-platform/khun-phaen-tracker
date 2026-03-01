@@ -64,12 +64,19 @@ export interface CommentImage {
   uploader_id: string;
 }
 
+export interface CommentReaction {
+  emoji: string;
+  user_id: string;
+  reacted_at: string;
+}
+
 export interface TaskComment {
   id?: string;
   workspace_id?: string;
   task_id?: string;
   content: string;
   images: CommentImage[];
+  reactions: CommentReaction[];
   created_by: string;
   created_at?: string;
   updated_at?: string;
