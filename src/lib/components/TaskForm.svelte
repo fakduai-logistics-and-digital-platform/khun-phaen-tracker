@@ -107,7 +107,7 @@ import { Calendar, Check, CheckCircle, ChevronLeft, ChevronRight, Copy, Download
 			date = legacyDueDateOnly
 				? ''
 				: (editingTask.start_date || editingTask.date || new Date().toISOString().split('T')[0]);
-			end_date = editingTask.end_date || (legacyDueDateOnly ? editingTask.date : '');
+			end_date = editingTask.due_date || editingTask.end_date || (legacyDueDateOnly ? editingTask.date : '');
 			status = editingTask.status || 'todo';
 			category = editingTask.category || 'งานหลัก';
 			notes = editingTask.notes || '';
@@ -773,6 +773,7 @@ import { Calendar, Check, CheckCircle, ChevronLeft, ChevronRight, Copy, Download
 			duration_minutes: 0,
 			start_date: date,
 			date,
+			due_date: end_date || undefined,
 			end_date: end_date || undefined,
 			status,
 			category,

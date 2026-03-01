@@ -4,7 +4,7 @@ use crate::models::data::{
 };
 use futures::stream::StreamExt;
 use mongodb::{
-    bson::{doc, oid::ObjectId, Document},
+    bson::{doc, oid::ObjectId, Bson, Document},
     options::IndexOptions,
     Collection, Database, IndexModel,
 };
@@ -68,6 +68,24 @@ impl DataRepository {
                 "active" => {
                     query.insert("is_archived", false);
                 }
+                "today" => {
+                    let today_start = chrono::Utc::now()
+                        .date_naive()
+                        .and_hms_opt(0, 0, 0)
+                        .unwrap()
+                        .and_utc()
+                        .to_rfc3339();
+                    query.insert("is_archived", false);
+                    query.insert(
+                        "$or",
+                        Bson::Array(vec![
+                            Bson::Document(doc! { "status": { "$ne": "done" } }),
+                            Bson::Document(
+                                doc! { "status": "done", "updated_at": { "$gte": today_start } }
+                            ),
+                        ]),
+                    );
+                }
                 "archived" => {
                     query.insert("is_archived", true);
                 }
@@ -129,7 +147,41 @@ impl DataRepository {
             if let Some(ed) = &filter.due_end_date {
                 due_query.insert("$lte", ed.as_str());
             }
-            query.insert("end_date", due_query);
+            query.insert("due_date", due_query);
+        }
+
+        // Due date preset filter (server-side)
+        if let Some(preset) = &filter.due_preset {
+            let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
+            match preset.as_str() {
+                "no_dates" => {
+                    query.insert(
+                        "$or",
+                        Bson::Array(vec![
+                            Bson::Document(doc! { "due_date": { "$exists": false } }),
+                            Bson::Document(doc! { "due_date": Bson::Null }),
+                            Bson::Document(doc! { "due_date": "" }),
+                        ]),
+                    );
+                }
+                "overdue" => {
+                    query.insert("due_date", doc! { "$lt": today });
+                    query.insert("status", doc! { "$ne": "done" });
+                    query.insert("is_archived", false);
+                }
+                "next_day" | "next_week" | "next_month" => {
+                    let days = match preset.as_str() {
+                        "next_day" => 1,
+                        "next_week" => 7,
+                        _ => 30,
+                    };
+                    let end = (chrono::Utc::now() + chrono::Duration::days(days))
+                        .format("%Y-%m-%d")
+                        .to_string();
+                    query.insert("due_date", doc! { "$gte": today, "$lte": end });
+                }
+                _ => {}
+            }
         }
 
         // Count total matching documents before pagination

@@ -61,6 +61,10 @@
 				aVal = a.assignees && a.assignees.length > 0 ? a.assignees[0].name : '';
 				bVal = b.assignees && b.assignees.length > 0 ? b.assignees[0].name : '';
 				break;
+			case 'date':
+				aVal = dueDateOf(a);
+				bVal = dueDateOf(b);
+				break;
 			default:
 				aVal = a[sortColumn] || '';
 				bVal = b[sortColumn] || '';
@@ -261,6 +265,10 @@
 		const today = new Date();
 		today.setHours(0, 0, 0, 0);
 		return date < today;
+	}
+
+	function dueDateOf(task: Task): string {
+		return task.due_date || task.end_date || task.date || '';
 	}
 </script>
 
@@ -504,9 +512,9 @@
 							</button>
 						</td>
 						<td class="px-3 py-2">
-							<span class="text-xs text-gray-700 dark:text-gray-300 whitespace-nowrap {isOverdue(task.date, task.status, task.is_archived) ? 'text-red-600 dark:text-red-400 font-medium' : ''}">
-								{formatDate(task.date)}
-								{#if isOverdue(task.date, task.status, task.is_archived)}
+							<span class="text-xs text-gray-700 dark:text-gray-300 whitespace-nowrap {isOverdue(dueDateOf(task), task.status, task.is_archived) ? 'text-red-600 dark:text-red-400 font-medium' : ''}">
+								{formatDate(dueDateOf(task))}
+								{#if isOverdue(dueDateOf(task), task.status, task.is_archived)}
 									<span class="ml-1 text-red-500">!</span>
 								{/if}
 							</span>
@@ -633,10 +641,10 @@
 										{getStatusLabel(task.status, task.is_archived)}
 									</button>
 
-									<span class="inline-flex items-center gap-1 text-xs text-gray-600 dark:text-gray-400 {isOverdue(task.date, task.status, task.is_archived) ? 'text-red-600 dark:text-red-400 font-medium' : ''}">
+									<span class="inline-flex items-center gap-1 text-xs text-gray-600 dark:text-gray-400 {isOverdue(dueDateOf(task), task.status, task.is_archived) ? 'text-red-600 dark:text-red-400 font-medium' : ''}">
 										<Calendar size={12} />
-										{formatDate(task.date)}
-										{#if isOverdue(task.date, task.status, task.is_archived)}
+										{formatDate(dueDateOf(task))}
+										{#if isOverdue(dueDateOf(task), task.status, task.is_archived)}
 											<span class="text-red-500">{$_('tableView__overdue_label')}</span>
 										{/if}
 									</span>
@@ -704,7 +712,7 @@
 
 										<div class="flex items-center gap-2">
 											<Calendar size={14} class="text-gray-400 shrink-0" />
-											<span class="text-xs text-gray-700 dark:text-gray-300">{formatDateFull(task.date)}</span>
+											<span class="text-xs text-gray-700 dark:text-gray-300">{formatDateFull(dueDateOf(task))}</span>
 										</div>
 
 

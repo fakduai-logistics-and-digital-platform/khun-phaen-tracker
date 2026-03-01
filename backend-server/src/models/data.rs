@@ -81,9 +81,12 @@ pub struct TaskDocument {
     pub duration_minutes: i64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub start_date: Option<String>,
+    #[serde(default)]
     pub date: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub end_date: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub due_date: Option<String>,
     #[serde(default = "default_status")]
     pub status: String,
     #[serde(default = "default_category")]
@@ -126,6 +129,8 @@ pub struct CreateTaskRequest {
     pub date: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub end_date: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub due_date: Option<String>,
     #[serde(default = "default_status")]
     pub status: String,
     #[serde(default = "default_category")]
@@ -150,6 +155,7 @@ pub struct UpdateTaskRequest {
     pub start_date: Option<String>,
     pub date: Option<String>,
     pub end_date: Option<Option<String>>,
+    pub due_date: Option<Option<String>>,
     pub status: Option<String>,
     pub category: Option<String>,
     pub notes: Option<String>,
@@ -284,6 +290,7 @@ pub struct TaskFilterQuery {
     pub end_date: Option<String>,
     pub due_start_date: Option<String>,
     pub due_end_date: Option<String>,
+    pub due_preset: Option<String>,
     pub include_archived: Option<bool>,
     pub page: Option<u64>,
     pub limit: Option<u64>,

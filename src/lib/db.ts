@@ -68,7 +68,10 @@ function docToTask(doc: any): Task {
   const hasExplicitStartDate = typeof doc.start_date === "string" && doc.start_date.trim() !== "";
   const resolvedStartDate = hasExplicitStartDate ? doc.start_date : "";
   const canonicalDate = hasExplicitStartDate ? doc.start_date : doc.date || "";
-  const resolvedDueDate = doc.end_date || (!hasExplicitStartDate ? doc.date || undefined : undefined);
+  const resolvedDueDate =
+    doc.due_date ||
+    doc.end_date ||
+    (!hasExplicitStartDate ? doc.date || undefined : undefined);
   return {
     id: extractId(doc),
     title: doc.title || "",
@@ -76,6 +79,7 @@ function docToTask(doc: any): Task {
     duration_minutes: doc.duration_minutes || 0,
     start_date: resolvedStartDate || undefined,
     date: canonicalDate,
+    due_date: resolvedDueDate,
     end_date: resolvedDueDate,
     status: doc.status || "todo",
     category: doc.category || "อื่นๆ",
@@ -174,6 +178,7 @@ export async function addTask(
     duration_minutes: task.duration_minutes,
     start_date: task.start_date || task.date,
     date: task.date,
+    due_date: task.due_date || task.end_date || null,
     end_date: task.end_date || null,
     status: task.status,
     category: task.category || "อื่นๆ",
@@ -205,6 +210,10 @@ export async function updateTask(
     payload.date = updates.start_date;
   }
   if (updates.date !== undefined) payload.date = updates.date;
+  if (updates.due_date !== undefined) {
+    payload.due_date = updates.due_date || null;
+    payload.end_date = updates.due_date || null;
+  }
   if (updates.end_date !== undefined)
     payload.end_date = updates.end_date || null;
   if (updates.status !== undefined) payload.status = updates.status;
@@ -364,12 +373,7 @@ export async function getTasks(
   const params: Record<string, string> = {};
 
   if (filter?.status && filter.status !== "all") {
-    if (filter.status === "today") {
-      const today = new Date().toISOString().split("T")[0];
-      params.start_date = today;
-      params.end_date = today;
-      params.status = "active";
-    } else if (filter.status === "active") {
+    if (filter.status === "active") {
       params.status = "active";
     } else if (filter.status === "archived") {
       params.status = "archived";
@@ -418,6 +422,9 @@ export async function getTasks(
   if (filter?.endDate) params.end_date = filter.endDate;
   if (filter?.dueStartDate) params.due_start_date = filter.dueStartDate;
   if (filter?.dueEndDate) params.due_end_date = filter.dueEndDate;
+  if (filter?.dueDatePreset && filter.dueDatePreset !== "all") {
+    params.due_preset = filter.dueDatePreset;
+  }
   if (filter?.includeArchived) params.include_archived = "true";
   if (filter?.page) params.page = String(filter.page);
   if (filter?.limit) params.limit = String(filter.limit);

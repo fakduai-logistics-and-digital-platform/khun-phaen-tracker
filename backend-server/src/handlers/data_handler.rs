@@ -213,6 +213,8 @@ pub async fn create_task(
         }
     };
 
+    let resolved_due_date = payload.due_date.clone().or(payload.end_date.clone());
+
     let task = TaskDocument {
         id: None,
         workspace_id: ws_oid,
@@ -221,7 +223,8 @@ pub async fn create_task(
         duration_minutes: payload.duration_minutes,
         start_date: Some(resolved_start_date.clone()),
         date: resolved_start_date,
-        end_date: payload.end_date,
+        end_date: resolved_due_date.clone(),
+        due_date: resolved_due_date,
         status: payload.status,
         category: payload.category,
         notes: payload.notes,
@@ -292,6 +295,11 @@ pub async fn update_task(
         updates.insert("date", v);
     }
     if let Some(v) = payload.end_date {
+        updates.insert("end_date", v.clone());
+        updates.insert("due_date", v);
+    }
+    if let Some(v) = payload.due_date {
+        updates.insert("due_date", v.clone());
         updates.insert("end_date", v);
     }
     if let Some(v) = payload.status {

@@ -50,6 +50,7 @@ export interface Task {
   is_archived?: boolean;
   created_at?: string;
   updated_at?: string;
+  due_date?: string; // YYYY-MM-DD
   end_date?: string; // YYYY-MM-DD
   dependencies?: (string | number)[];
   checklist?: ChecklistItem[];

@@ -171,10 +171,6 @@ import { List, CalendarDays, Columns3, Table, GanttChart, UsersRound, Filter, Se
 	let lastLoadedView: ViewMode | null = null;
 	let loadDataTimer: ReturnType<typeof setTimeout>;
 
-	function toYmd(value: Date): string {
-		return value.toISOString().split('T')[0];
-	}
-
 	function addDays(base: Date, days: number): Date {
 		const next = new Date(base);
 		next.setDate(next.getDate() + days);
@@ -915,30 +911,23 @@ async function loadData() {
 
 			// If a specific sprint is selected that is completed, include archived tasks
 			const taskFilters = { ...filters };
-			const today = new Date();
-			const todayYmd = toYmd(today);
 			const preset = filters.dueDatePreset || 'all';
-			if (preset === 'no_dates') {
-				taskFilters.dueStartDate = '';
-				taskFilters.dueEndDate = '';
-			} else if (preset === 'overdue') {
-				taskFilters.dueStartDate = '1900-01-01';
-				taskFilters.dueEndDate = todayYmd;
-				if (taskFilters.status === 'all') {
-					taskFilters.status = 'active';
-				}
-			} else if (preset === 'next_day') {
+			const today = new Date();
+			const todayYmd = today.toISOString().split('T')[0];
+			taskFilters.dueStartDate = '';
+			taskFilters.dueEndDate = '';
+			taskFilters.dueDatePreset = preset;
+			if (preset === 'next_day') {
 				taskFilters.dueStartDate = todayYmd;
-				taskFilters.dueEndDate = toYmd(addDays(today, 1));
-			} else if (preset === 'next_week') {
+				taskFilters.dueEndDate = addDays(today, 1).toISOString().split('T')[0];
+			}
+			if (preset === 'next_week') {
 				taskFilters.dueStartDate = todayYmd;
-				taskFilters.dueEndDate = toYmd(addDays(today, 7));
-			} else if (preset === 'next_month') {
+				taskFilters.dueEndDate = addDays(today, 7).toISOString().split('T')[0];
+			}
+			if (preset === 'next_month') {
 				taskFilters.dueStartDate = todayYmd;
-				taskFilters.dueEndDate = toYmd(addDays(today, 30));
-			} else {
-				taskFilters.dueStartDate = '';
-				taskFilters.dueEndDate = '';
+				taskFilters.dueEndDate = addDays(today, 30).toISOString().split('T')[0];
 			}
 			if (filters.sprint_id && filters.sprint_id !== 'all') {
 				const selectedSprint = sprintList.find(s => String(s.id) === String(filters.sprint_id));
@@ -975,13 +964,6 @@ async function loadData() {
 			
 			// Build base set for view-level filtering
 			let viewTasks = tasks;
-			if ((filters.dueDatePreset || 'all') === 'no_dates') {
-				viewTasks = viewTasks.filter((task) => !task.end_date);
-			}
-			if ((filters.dueDatePreset || 'all') === 'overdue') {
-				const todayYmd = toYmd(new Date());
-				viewTasks = viewTasks.filter((task) => !!task.end_date && task.end_date < todayYmd);
-			}
 			
 			const allTasks = Array.isArray(all) ? all : all.tasks;
 			allTasksIncludingArchived = allTasks;
