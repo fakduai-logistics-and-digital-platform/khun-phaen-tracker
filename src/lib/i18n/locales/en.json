@@ -571,6 +571,8 @@
 	"dashboard__modal_title": "Create New Workspace",
 	"dashboard__modal_name_label": "Workspace Name",
 	"dashboard__modal_name_placeholder": "e.g. Website Redesign Q3",
+	"dashboard__modal_color_label": "Workspace Color",
+	"dashboard__modal_icon_label": "Workspace Icon",
 	"dashboard__modal_btn_cancel": "Cancel",
 	"dashboard__modal_btn_create": "Create",
 	"dashboard__btn_open": "Open",

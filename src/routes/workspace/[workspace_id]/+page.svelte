@@ -831,7 +831,9 @@ import { List, CalendarDays, Columns3, Table, GanttChart, UsersRound, Filter, Se
 		// Restore workspace context from route
 		const savedWsName = localStorage.getItem('current-workspace-name') || '';
 		const savedOwnerId = localStorage.getItem('current-workspace-owner-id') || '';
-		setWorkspaceId(workspaceId, savedWsName, savedOwnerId);
+		const savedColor = localStorage.getItem('current-workspace-color') || undefined;
+		const savedIcon = localStorage.getItem('current-workspace-icon') || undefined;
+		setWorkspaceId(workspaceId, savedWsName, savedOwnerId, savedColor, savedIcon);
 
 		// Check access
 		api.workspaces.checkAccess(urlRoom)
@@ -839,6 +841,15 @@ import { List, CalendarDays, Columns3, Table, GanttChart, UsersRound, Filter, Se
 			.then(data => {
 				checkingAccess = false;
 				if (data.success && data.has_access) {
+					if (data.workspace?.id === workspaceId) {
+						setWorkspaceId(
+							workspaceId,
+							data.workspace.name || savedWsName,
+							data.workspace.owner_id || savedOwnerId,
+							data.workspace.color || savedColor,
+							data.workspace.icon || savedIcon
+						);
+					}
 					hasAccess = true;
 					// Connect to real-time collaboration (auto-refresh on remote changes)
 					connectRealtime(urlRoom, (payload) => {

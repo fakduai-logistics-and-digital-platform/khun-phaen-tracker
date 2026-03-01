@@ -10,7 +10,8 @@
     import {
         Plus, LayoutTemplate, ArrowRight, Loader2, FolderOpen,
         Pencil, Trash2, Search, ArrowUpDown, LayoutGrid, List,
-        Star, Clock, Layers, Copy, Check
+        Star, Clock, Layers, Copy, Check, Briefcase, Code2, Rocket, 
+        Zap, Heart, Target, Globe, Book, Camera, Coffee, Music, Smile
     } from 'lucide-svelte';
 
     interface Workspace {
@@ -19,6 +20,8 @@
         room_code: string;
         created_at: string;
         owner_id: string;
+        color?: string;
+        icon?: string;
     }
 
     interface RecentEntry {
@@ -55,6 +58,63 @@
     let workspaceTaskCounts: Record<string, number | null> = {};
     let showSortDropdown = false;
     let copiedId: string | null = null;
+
+    // Color/Icon options
+    const COLORS = [
+        { name: 'Slate', value: '#64748b' },
+        { name: 'Red', value: '#ef4444' },
+        { name: 'Orange', value: '#f97316' },
+        { name: 'Amber', value: '#f59e0b' },
+        { name: 'Emerald', value: '#10b981' },
+        { name: 'Teal', value: '#14b8a6' },
+        { name: 'Blue', value: '#3b82f6' },
+        { name: 'Indigo', value: '#6366f1' },
+        { name: 'Violet', value: '#8b5cf6' },
+        { name: 'Pink', value: '#ec4899' },
+        { name: 'Rose', value: '#f43f5e' },
+    ];
+
+    const ICON_OPTIONS_LIST = [
+        { name: 'Default', component: LayoutTemplate, key: 'LayoutTemplate' },
+        { name: 'Work', component: Briefcase, key: 'Briefcase' },
+        { name: 'Dev', component: Code2, key: 'Code2' },
+        { name: 'Project', component: Rocket, key: 'Rocket' },
+        { name: 'Fast', component: Zap, key: 'Zap' },
+        { name: 'Heart', component: Heart, key: 'Heart' },
+        { name: 'Goal', component: Target, key: 'Target' },
+        { name: 'Global', component: Globe, key: 'Globe' },
+        { name: 'Study', component: Book, key: 'Book' },
+        { name: 'Photo', component: Camera, key: 'Camera' },
+        { name: 'Relax', component: Coffee, key: 'Coffee' },
+        { name: 'Art', component: Music, key: 'Music' },
+        { name: 'Personal', component: Smile, key: 'Smile' },
+    ];
+
+    const ICON_MAP: Record<string, any> = {
+        'LayoutTemplate': LayoutTemplate,
+        'Briefcase': Briefcase,
+        'Code2': Code2,
+        'Rocket': Rocket,
+        'Zap': Zap,
+        'Heart': Heart,
+        'Target': Target,
+        'Globe': Globe,
+        'Book': Book,
+        'Camera': Camera,
+        'Coffee': Coffee,
+        'Music': Music,
+        'Smile': Smile,
+    };
+
+    function getIcon(key?: string) {
+        return ICON_MAP[key || 'LayoutTemplate'] || LayoutTemplate;
+    }
+
+    let newWorkspaceColor = '#6366f1'; // Indigo
+    let newWorkspaceIcon = 'LayoutTemplate';
+
+    let editWorkspaceColor = '#6366f1';
+    let editWorkspaceIcon = 'LayoutTemplate';
 
     async function copyWorkspaceLink(wsId: string, roomCode: string) {
         try {
@@ -164,12 +224,14 @@
         creating = true;
         error = '';
         try {
-            const res = await api.workspaces.create(newWorkspaceName);
+            const res = await api.workspaces.create(newWorkspaceName, newWorkspaceColor, newWorkspaceIcon);
             const data = await res.json();
             if (res.ok && data.workspace) {
                 workspaces = [...workspaces, data.workspace];
                 showCreateModal = false;
                 newWorkspaceName = '';
+                newWorkspaceColor = '#6366f1';
+                newWorkspaceIcon = 'LayoutTemplate';
             } else {
                 error = data.error || 'Failed to create workspace';
             }
@@ -183,6 +245,8 @@
     function openEditModal(ws: Workspace) {
         editingWorkspace = ws;
         editWorkspaceName = ws.name;
+        editWorkspaceColor = ws.color || '#6366f1';
+        editWorkspaceIcon = ws.icon || 'LayoutTemplate';
         showEditModal = true;
     }
 
@@ -191,10 +255,10 @@
         updating = true;
         error = '';
         try {
-            const res = await api.workspaces.update(editingWorkspace.id, editWorkspaceName);
+            const res = await api.workspaces.update(editingWorkspace.id, editWorkspaceName, editWorkspaceColor, editWorkspaceIcon);
             if (res.ok) {
                 workspaces = workspaces.map(ws =>
-                    ws.id === editingWorkspace!.id ? { ...ws, name: editWorkspaceName } : ws
+                    ws.id === editingWorkspace!.id ? { ...ws, name: editWorkspaceName, color: editWorkspaceColor, icon: editWorkspaceIcon } : ws
                 );
                 showEditModal = false;
                 editingWorkspace = null;
@@ -244,7 +308,7 @@
     function enterWorkspace(workspace: Workspace) {
         trackRecent(workspace);
         if (workspace.id) {
-            setWorkspaceId(workspace.id, workspace.name, workspace.owner_id);
+            setWorkspaceId(workspace.id, workspace.name, workspace.owner_id, workspace.color, workspace.icon);
         }
         localStorage.setItem('sync-room-code', workspace.room_code);
         localStorage.setItem('backend-server-url', import.meta.env.VITE_SERVER_URL || 'http://127.0.0.1:3002');
@@ -468,8 +532,11 @@
                                 class="shrink-0 w-56 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 hover:shadow-md transition-shadow text-left group"
                             >
                                 <div class="flex items-center gap-2.5 mb-2">
-                                    <div class="w-7 h-7 rounded-md bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                                        <LayoutTemplate size={14} />
+                                    <div 
+                                        class="w-7 h-7 rounded-md flex items-center justify-center shrink-0"
+                                        style="background-color: {ws.color ? ws.color + '1a' : '#10b9811a'}; color: {ws.color || '#10b981'}"
+                                    >
+                                        <svelte:component this={getIcon(ws.icon)} size={14} />
                                     </div>
                                     <span class="text-sm font-semibold text-slate-900 dark:text-white truncate">{ws.name}</span>
                                 </div>
@@ -513,8 +580,11 @@
                                             class="w-full text-left bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-500/30 p-5 rounded-xl shadow-sm hover:shadow-md transition-shadow flex flex-col h-full ring-2 ring-transparent focus:outline-none focus:ring-indigo-500"
                                         >
                                             <div class="mb-3">
-                                                <div class="w-10 h-10 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
-                                                    <LayoutTemplate size={20} />
+                                                <div 
+                                                    class="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
+                                                    style="background-color: {ws.color ? ws.color + '1a' : '#6366f11a'}; color: {ws.color || '#6366f1'}"
+                                                >
+                                                    <svelte:component this={getIcon(ws.icon)} size={20} />
                                                 </div>
                                             </div>
                                             <h3 class="text-base font-semibold text-slate-900 dark:text-white mb-1 line-clamp-2">
@@ -598,8 +668,11 @@
                                         on:click={() => enterWorkspace(ws)}
                                         class="w-full text-left bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-500/30 rounded-xl px-4 py-3 hover:shadow-md transition-shadow flex items-center gap-4 group cursor-pointer"
                                     >
-                                        <div class="w-9 h-9 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
-                                            <LayoutTemplate size={18} />
+                                        <div 
+                                            class="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+                                            style="background-color: {ws.color ? ws.color + '1a' : '#6366f11a'}; color: {ws.color || '#6366f1'}"
+                                        >
+                                            <svelte:component this={getIcon(ws.icon)} size={18} />
                                         </div>
                                         <div class="flex-1 min-w-0">
                                             <h3 class="text-sm font-semibold text-slate-900 dark:text-white truncate">{ws.name}</h3>
@@ -672,8 +745,11 @@
                                             class="w-full text-left bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-xl shadow-sm hover:shadow-md transition-shadow flex flex-col h-full ring-2 ring-transparent focus:outline-none focus:ring-indigo-500"
                                         >
                                             <div class="mb-3">
-                                                <div class="w-10 h-10 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
-                                                    <LayoutTemplate size={20} />
+                                                <div 
+                                                    class="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
+                                                    style="background-color: {ws.color ? ws.color + '1a' : '#6366f11a'}; color: {ws.color || '#6366f1'}"
+                                                >
+                                                    <svelte:component this={getIcon(ws.icon)} size={20} />
                                                 </div>
                                             </div>
                                             <h3 class="text-base font-semibold text-slate-900 dark:text-white mb-1 line-clamp-2">
@@ -757,8 +833,11 @@
                                         on:click={() => enterWorkspace(ws)}
                                         class="w-full text-left bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 hover:shadow-md transition-shadow flex items-center gap-4 group cursor-pointer"
                                     >
-                                        <div class="w-9 h-9 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
-                                            <LayoutTemplate size={18} />
+                                        <div 
+                                            class="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+                                            style="background-color: {ws.color ? ws.color + '1a' : '#6366f11a'}; color: {ws.color || '#6366f1'}"
+                                        >
+                                            <svelte:component this={getIcon(ws.icon)} size={18} />
                                         </div>
                                         <div class="flex-1 min-w-0">
                                             <h3 class="text-sm font-semibold text-slate-900 dark:text-white truncate">{ws.name}</h3>
@@ -837,6 +916,37 @@
                         />
                     </div>
 
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{$_('dashboard__modal_color_label') || 'Color'}</label>
+                        <div class="flex flex-wrap gap-2">
+                            {#each COLORS as c}
+                                <button
+                                    type="button"
+                                    on:click={() => newWorkspaceColor = c.value}
+                                    class="w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 {newWorkspaceColor === c.value ? 'border-indigo-500 scale-110 ring-2 ring-indigo-500/20' : 'border-transparent'}"
+                                    style="background-color: {c.value}"
+                                    title={c.name}
+                                ></button>
+                            {/each}
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{$_('dashboard__modal_icon_label') || 'Icon'}</label>
+                        <div class="grid grid-cols-6 gap-2 max-h-32 overflow-y-auto p-1 custom-scrollbar">
+                            {#each ICON_OPTIONS_LIST as opt}
+                                <button
+                                    type="button"
+                                    on:click={() => newWorkspaceIcon = opt.key}
+                                    class="flex items-center justify-center p-2 rounded-lg border-2 transition-all {newWorkspaceIcon === opt.key ? 'border-primary bg-primary/5 text-primary' : 'border-slate-100 dark:border-slate-800 text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}"
+                                    title={opt.name}
+                                >
+                                    <svelte:component this={opt.component} size={18} />
+                                </button>
+                            {/each}
+                        </div>
+                    </div>
+
                     <div class="flex gap-3 pt-4">
                         <button
                             type="button"
@@ -884,6 +994,37 @@
                             required
                             autofocus
                         />
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{$_('dashboard__modal_color_label') || 'Color'}</label>
+                        <div class="flex flex-wrap gap-2">
+                            {#each COLORS as c}
+                                <button
+                                    type="button"
+                                    on:click={() => editWorkspaceColor = c.value}
+                                    class="w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 {editWorkspaceColor === c.value ? 'border-indigo-500 scale-110 ring-2 ring-indigo-500/20' : 'border-transparent'}"
+                                    style="background-color: {c.value}"
+                                    title={c.name}
+                                ></button>
+                            {/each}
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">{$_('dashboard__modal_icon_label') || 'Icon'}</label>
+                        <div class="grid grid-cols-6 gap-2 max-h-32 overflow-y-auto p-1 custom-scrollbar">
+                            {#each ICON_OPTIONS_LIST as opt}
+                                <button
+                                    type="button"
+                                    on:click={() => editWorkspaceIcon = opt.key}
+                                    class="flex items-center justify-center p-2 rounded-lg border-2 transition-all {editWorkspaceIcon === opt.key ? 'border-primary bg-primary/5 text-primary' : 'border-slate-100 dark:border-slate-800 text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'}"
+                                    title={opt.name}
+                                >
+                                    <svelte:component this={opt.component} size={18} />
+                                </button>
+                            {/each}
+                        </div>
                     </div>
 
                     <div class="flex gap-3 pt-4">
@@ -956,3 +1097,19 @@
         </div>
     </div>
 {/if}
+
+<style>
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background-color: #cbd5e1;
+        border-radius: 20px;
+    }
+    .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+        background-color: #334155;
+    }
+</style>

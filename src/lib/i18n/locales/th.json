@@ -583,6 +583,8 @@
 	"dashboard__modal_title": "สร้าง Workspace ใหม่",
 	"dashboard__modal_name_label": "ชื่อ Workspace",
 	"dashboard__modal_name_placeholder": "เช่น ทีม Marketing, โครงการพัฒนาเว็ปไซต์...",
+	"dashboard__modal_color_label": "เลือกสีเวิร์กสเปซ",
+	"dashboard__modal_icon_label": "เลือกไอคอนเวิร์กสเปซ",
 	"dashboard__modal_btn_cancel": "ยกเลิก",
 	"dashboard__modal_btn_create": "สร้าง",
 	"dashboard__btn_open": "เปิด",

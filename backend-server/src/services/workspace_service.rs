@@ -39,6 +39,8 @@ impl WorkspaceService {
         let workspace = Workspace {
             id: None,
             name: payload.name.clone(),
+            color: payload.color.clone(),
+            icon: payload.icon.clone(),
             owner_id: owner_id.clone(),
             room_code: room_code.clone(),
             created_at: chrono::Utc::now(),
@@ -58,7 +60,13 @@ impl WorkspaceService {
         workspace_id: &ObjectId,
         payload: UpdateWorkspaceRequest,
     ) -> Result<bool, String> {
-        repo.update(workspace_id, owner_id, &payload.name)
+        repo.update(
+            workspace_id, 
+            owner_id, 
+            &payload.name, 
+            payload.color.as_deref(), 
+            payload.icon.as_deref()
+        )
             .await
             .map_err(|e| format!("Database error: {}", e))
     }

@@ -38,10 +38,21 @@ impl WorkspaceRepository {
         Ok(workspace)
     }
 
-    pub async fn update(&self, id: &ObjectId, owner_id: &ObjectId, new_name: &str) -> mongodb::error::Result<bool> {
+    pub async fn update(
+        &self, 
+        id: &ObjectId, 
+        owner_id: &ObjectId, 
+        new_name: &str,
+        new_color: Option<&str>,
+        new_icon: Option<&str>
+    ) -> mongodb::error::Result<bool> {
         let update_res = self.collection.update_one(
             doc! { "_id": id, "owner_id": owner_id },
-            doc! { "$set": { "name": new_name } },
+            doc! { "$set": { 
+                "name": new_name,
+                "color": new_color,
+                "icon": new_icon
+            } },
             None
         ).await?;
         Ok(update_res.matched_count > 0)

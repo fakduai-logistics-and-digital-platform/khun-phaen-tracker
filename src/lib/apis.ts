@@ -182,7 +182,11 @@ export const api = {
         credentials: "include",
       });
     },
-    create: async (name: string): Promise<Response> => {
+    create: async (
+      name: string,
+      color?: string,
+      icon?: string,
+    ): Promise<Response> => {
       let token = "";
       if (typeof document !== "undefined") {
         const match = document.cookie.match(
@@ -201,7 +205,7 @@ export const api = {
         method: "POST",
         headers,
         credentials: "include",
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, color, icon }),
       });
     },
     getStats: async (): Promise<Response> => {
@@ -238,7 +242,12 @@ export const api = {
         credentials: "include",
       });
     },
-    update: async (id: string, name: string): Promise<Response> => {
+    update: async (
+      id: string,
+      name: string,
+      color?: string,
+      icon?: string,
+    ): Promise<Response> => {
       let token = "";
       if (typeof document !== "undefined") {
         const match = document.cookie.match(
@@ -257,7 +266,7 @@ export const api = {
         method: "PUT",
         headers,
         credentials: "include",
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, color, icon }),
       });
     },
     delete: async (id: string): Promise<Response> => {

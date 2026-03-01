@@ -1,8 +1,31 @@
 <script lang="ts">
-	import { CheckCircle2, Circle, Loader2, Calendar, FlaskConical, LayoutTemplate, ArrowLeft } from 'lucide-svelte';
-	import { currentWorkspaceName } from '$lib/stores/workspace';
+	import { 
+		CheckCircle2, Circle, Loader2, Calendar, FlaskConical, LayoutTemplate, ArrowLeft,
+		Briefcase, Code2, Rocket, Zap, Heart, Target, Globe, Book, Camera, Coffee, Music, Smile
+	} from 'lucide-svelte';
+	import { currentWorkspaceName, currentWorkspaceColor, currentWorkspaceIcon } from '$lib/stores/workspace';
 	import { _ } from 'svelte-i18n';
 	import { base } from '$app/paths';
+
+	const ICON_MAP: Record<string, any> = {
+		'LayoutTemplate': LayoutTemplate,
+		'Briefcase': Briefcase,
+		'Code2': Code2,
+		'Rocket': Rocket,
+		'Zap': Zap,
+		'Heart': Heart,
+		'Target': Target,
+		'Globe': Globe,
+		'Book': Book,
+		'Camera': Camera,
+		'Coffee': Coffee,
+		'Music': Music,
+		'Smile': Smile,
+	};
+
+	function getIcon(key?: string | null) {
+		return ICON_MAP[key || 'LayoutTemplate'] || LayoutTemplate;
+	}
 
 	export let stats: {
 		total: number;
@@ -15,8 +38,17 @@
 </script>
 
 {#if $currentWorkspaceName}
-	<div class="mb-2 inline-flex items-center rounded-xl border border-indigo-200/70 dark:border-indigo-500/30 bg-indigo-50/80 dark:bg-indigo-500/10 px-3 py-1.5">
-		<p class="max-w-[70vw] truncate text-xs font-black uppercase tracking-wider text-indigo-700 dark:text-indigo-300">
+	<div 
+		class="mb-2 inline-flex items-center rounded-xl border px-3 py-1.5 gap-2"
+		style="background-color: {$currentWorkspaceColor ? $currentWorkspaceColor + '1a' : '#6366f11a'}; border-color: {$currentWorkspaceColor ? $currentWorkspaceColor + '4d' : '#6366f14d'}"
+	>
+		<div style="color: {$currentWorkspaceColor || '#6366f1'}">
+			<svelte:component this={getIcon($currentWorkspaceIcon)} size={12} />
+		</div>
+		<p 
+			class="max-w-[70vw] truncate text-xs font-black uppercase tracking-wider"
+			style="color: {$currentWorkspaceColor || '#6366f1'}"
+		>
 			{$currentWorkspaceName}
 		</p>
 	</div>
@@ -93,18 +125,24 @@
 		<div class="flex items-start justify-between">
 			<div class="min-w-0">
 				<p class="text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1 opacity-70">{$_('statsPanel__workspace')}</p>
-				<h3 class="text-lg font-black text-gray-900 dark:text-white leading-tight truncate">{$currentWorkspaceName || 'Workspace'}</h3>
+				<h3 class="text-lg font-black text-gray-900 dark:text-white leading-tight truncate">
+					{$currentWorkspaceName || 'Workspace'}
+				</h3>
 				
 				<a 
 					href="{base}/dashboard" 
-					class="mt-2 flex items-center gap-1.5 text-[10px] font-black text-indigo-500 hover:text-indigo-600 transition-colors uppercase tracking-widest"
+					class="mt-2 flex items-center gap-1.5 text-[10px] font-black transition-colors uppercase tracking-widest"
+					style="color: {$currentWorkspaceColor || '#6366f1'}"
 				>
 					<ArrowLeft size={14} />
 					{$_('statsPanel__switch_workspace')}
 				</a>
 			</div>
-			<div class="p-3 bg-indigo-500/5 rounded-xl">
-				<LayoutTemplate class="text-indigo-500" size={24} />
+			<div 
+				class="p-3 rounded-xl"
+				style="background-color: {$currentWorkspaceColor ? $currentWorkspaceColor + '1a' : '#6366f11a'}; color: {$currentWorkspaceColor || '#6366f1'}"
+			>
+				<svelte:component this={getIcon($currentWorkspaceIcon)} size={24} />
 			</div>
 		</div>
 	</div>

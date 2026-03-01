@@ -39,6 +39,8 @@ pub async fn get_workspaces_handler(
                 serde_json::json!({
                     "id": w.id.map(|id| id.to_hex()).unwrap_or_default(),
                     "name": w.name,
+                    "color": w.color,
+                    "icon": w.icon,
                     "owner_id": w.owner_id.to_hex(),
                     "room_code": w.room_code,
                     "created_at": w.created_at,
@@ -117,6 +119,8 @@ pub async fn create_workspace_handler(
             let workspace_json = serde_json::json!({
                 "id": workspace.id.map(|id| id.to_hex()).unwrap_or_default(),
                 "name": workspace.name,
+                "color": workspace.color,
+                "icon": workspace.icon,
                 "owner_id": workspace.owner_id.to_hex(),
                 "room_code": workspace.room_code,
                 "created_at": workspace.created_at,
@@ -259,14 +263,31 @@ pub async fn check_workspace_access_handler(
 
     match ws {
         Some(w) => {
+            let workspace_json = serde_json::json!({
+                "id": w.id.map(|id| id.to_hex()).unwrap_or_default(),
+                "name": w.name.clone(),
+                "color": w.color.clone(),
+                "icon": w.icon.clone(),
+                "owner_id": w.owner_id.to_hex(),
+                "room_code": w.room_code.clone(),
+            });
+
             if w.owner_id == user_id {
-                return axum::Json(serde_json::json!({ "success": true, "has_access": true })).into_response();
+                return axum::Json(serde_json::json!({
+                    "success": true,
+                    "has_access": true,
+                    "workspace": workspace_json
+                })).into_response();
             }
             if let Some(id) = w.id {
                 let data_repo = crate::repositories::data_repo::DataRepository::new(&state.db);
                 if let Ok(assigned) = data_repo.find_assigned_workspaces(&user_id.to_hex()).await {
                     if assigned.contains(&id) {
-                        return axum::Json(serde_json::json!({ "success": true, "has_access": true })).into_response();
+                        return axum::Json(serde_json::json!({
+                            "success": true,
+                            "has_access": true,
+                            "workspace": workspace_json
+                        })).into_response();
                     }
                 }
             }
