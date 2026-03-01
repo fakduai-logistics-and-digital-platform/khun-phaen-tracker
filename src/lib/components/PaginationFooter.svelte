@@ -18,8 +18,8 @@
 	}
 </script>
 
-<div class="px-3 py-1.5 bg-gray-50/80 dark:bg-gray-800/80 border-t border-gray-100 dark:border-gray-700 flex flex-col md:flex-row items-center justify-between gap-2 backdrop-blur-sm">
-	<div class="flex items-center gap-3 order-2 md:order-1">
+<div class="px-3 py-1.5 bg-gray-50/80 dark:bg-gray-800/80 border-t border-gray-100 dark:border-gray-700 flex flex-col md:flex-row items-center justify-end gap-2 backdrop-blur-sm">
+	<div class="flex items-center gap-3">
 		<div class="flex items-center gap-2 text-xs font-semibold text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-900/50 px-3 py-1.5 rounded-full border border-gray-100 dark:border-gray-700 shadow-sm">
 			<span>กำลังแสดง {((currentPage - 1) * pageSize) + 1} - {Math.min(currentPage * pageSize, totalTasks)} จากทั้งหมด {totalTasks}</span>
 		</div>
@@ -34,7 +34,7 @@
 	</div>
 
 	{#if totalPages > 1}
-		<div class="flex items-center gap-1 bg-white dark:bg-gray-900 p-1 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm order-1 md:order-2">
+		<div class="flex items-center gap-1 bg-white dark:bg-gray-900 p-1 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
 			<button
 				class="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-20 transition-all"
 				disabled={currentPage === 1}
