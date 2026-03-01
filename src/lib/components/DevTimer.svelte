@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
 	import { browser } from '$app/environment';
-	import { Play, Pause, RotateCcw, Timer, HelpCircle, Bookmark, Save, History, PenTool, FileText, Settings2, Bell, BellOff, X, Check } from 'lucide-svelte';
+	import { Play, Pause, RotateCcw, Timer, HelpCircle, Bookmark, Save, History, PenTool, FileText, Settings2, Bell, BellOff, X, Check, ChevronLeft, ChevronRight, Pin, PinOff } from 'lucide-svelte';
 	import { showKeyboardShortcuts } from '$lib/stores/keyboardShortcuts';
 	import { timeLogs, formatDuration } from '$lib/stores/timeLogs';
 	import { createEventDispatcher } from 'svelte';
@@ -36,6 +36,11 @@
 	let targetHours = 8;
 	let targetMinutes = 0;
 	let soundEnabled = true;
+	let isUtilsExpanded = true;
+	let isPinned = false;
+
+	const UTILS_EXPANDED_KEY = 'khunphaen-timer-utils-expanded';
+	const TIMER_PINNED_KEY = 'khunphaen-timer-pinned';
 
 	const pomodoroPresets = [15, 25, 45, 60, 90];
 
@@ -211,6 +216,7 @@
 	}
 
 	function handleMouseEnter() {
+		if (isPinned) return;
 		if (expandTimeout) clearTimeout(expandTimeout);
 		if (hideTimeout) clearTimeout(hideTimeout);
 		isExpanded = true;
@@ -218,6 +224,7 @@
 	}
 
 	function handleMouseLeave() {
+		if (isPinned) return;
 		expandTimeout = setTimeout(() => {
 			isVisible = false;
 			hideTimeout = setTimeout(() => {
@@ -229,8 +236,43 @@
 		}, 200);
 	}
 
+	function toggleUtils() {
+		isUtilsExpanded = !isUtilsExpanded;
+		if (browser) {
+			localStorage.setItem(UTILS_EXPANDED_KEY, String(isUtilsExpanded));
+		}
+	}
+
+	function togglePin() {
+		isPinned = !isPinned;
+		if (browser) {
+			localStorage.setItem(TIMER_PINNED_KEY, String(isPinned));
+		}
+		if (isPinned) {
+			isExpanded = true;
+			isVisible = true;
+		} else {
+			// Trigger normal hide logic if mouse is not over it
+			// For simplicity, we just keep it open until next hover/leave cycle
+		}
+	}
+
 	onMount(() => {
-		if (browser) window.addEventListener('beforeunload', handleBeforeUnload);
+		if (browser) {
+			window.addEventListener('beforeunload', handleBeforeUnload);
+			
+			const savedUtils = localStorage.getItem(UTILS_EXPANDED_KEY);
+			if (savedUtils !== null) isUtilsExpanded = savedUtils === 'true';
+			
+			const savedPinned = localStorage.getItem(TIMER_PINNED_KEY);
+			if (savedPinned !== null) {
+				isPinned = savedPinned === 'true';
+				if (isPinned) {
+					isExpanded = true;
+					isVisible = true;
+				}
+			}
+		}
 	});
 
 	onDestroy(() => {
@@ -241,19 +283,34 @@
 	$: progress = timerMode === 'countup' ? 0 : (initialRemaining > 0 ? (1 - remaining / initialRemaining) * 100 : 0);
 </script>
 
-<div class="fixed bottom-6 right-6 z-[60] flex items-center gap-3 font-sans">
-	<!-- Utility Buttons Row -->
-	<div class="flex items-center gap-2">
-		<button onclick={() => dispatch('showQuickNotes')} class="util-btn bg-indigo-600/90 hover:bg-indigo-500" title={$_('quickNotes__title')}>
-			<FileText size={18} />
-		</button>
-		<button onclick={() => dispatch('showBookmarks')} class="util-btn bg-amber-500/90 hover:bg-amber-400 text-amber-950" title={$_('timer__bookmarks_tooltip')}>
-			<Bookmark size={18} />
-		</button>
-		<button onclick={() => dispatch('showWhiteboard')} class="util-btn bg-sky-500/90 hover:bg-sky-400 text-sky-950" title={$_('timer__whiteboard_tooltip')}>
-			<PenTool size={18} />
-		</button>
-	</div>
+<div class="fixed bottom-6 right-6 z-[60] flex items-center gap-2 font-sans">
+	<!-- Toggle Utility Visibility -->
+	<button 
+		onclick={toggleUtils} 
+		class="util-btn bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:text-primary dark:hover:text-white hover:border-primary/50 transition-all duration-300 shadow-2xl scale-110 active:scale-95" 
+		title={isUtilsExpanded ? 'ซ่อนเมนูเครื่องมือ' : 'แสดงเมนูเครื่องมือ'}
+	>
+		{#if isUtilsExpanded}
+			<ChevronRight size={22} strokeWidth={2.5} />
+		{:else}
+			<ChevronLeft size={22} strokeWidth={2.5} />
+		{/if}
+	</button>
+
+	{#if isUtilsExpanded}
+		<div transition:slide={{ axis: 'x', duration: 300 }} class="flex items-center gap-2">
+			<!-- Utility Buttons Row -->
+			<button onclick={() => dispatch('showQuickNotes')} class="util-btn bg-indigo-600 hover:bg-indigo-500 shadow-lg shadow-indigo-500/30 border border-indigo-400/20" title={$_('quickNotes__title')}>
+				<FileText size={18} />
+			</button>
+			<button onclick={() => dispatch('showBookmarks')} class="util-btn bg-amber-500 hover:bg-amber-400 shadow-lg shadow-amber-500/30 border border-amber-400/20 text-white" title={$_('timer__bookmarks_tooltip')}>
+				<Bookmark size={18} />
+			</button>
+			<button onclick={() => dispatch('showWhiteboard')} class="util-btn bg-violet-600 hover:bg-violet-500 shadow-lg shadow-violet-500/30 border border-violet-400/20" title={$_('timer__whiteboard_tooltip')}>
+				<PenTool size={18} />
+			</button>
+		</div>
+	{/if}
 
 	<!-- Main Timer Complex -->
 	<div class="relative group" onmouseenter={handleMouseEnter} onmouseleave={handleMouseLeave} role="group">
@@ -276,6 +333,9 @@
 							</span>
 						</div>
 						<div class="flex items-center gap-1">
+							<button onclick={togglePin} class="icon-btn {isPinned ? 'text-primary bg-primary/10' : ''}" title={isPinned ? 'ปลดหมุดแดชบอร์ด' : 'ปักหมุดแดชบอร์ด'}>
+								{#if isPinned}<Pin size={16} />{:else}<PinOff size={16} />{/if}
+							</button>
 							<button onclick={toggleLogs} class="icon-btn {showLogs ? 'bg-primary/20 text-primary' : ''}" title={$_('timer__history_title')}>
 								<History size={16} />
 							</button>
