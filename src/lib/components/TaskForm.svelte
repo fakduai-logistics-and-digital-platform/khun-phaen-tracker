@@ -7,7 +7,7 @@ import { createTaskComment, deleteTaskComment, getCommentImages, getTaskComments
 	import { taskDefaults } from '$lib/stores/taskDefaults';
 	import type { Assignee, ChecklistItem, CommentImage, Project, Sprint, Task, TaskComment } from '$lib/types';
 	import { CATEGORIES } from '$lib/types';
-	import { _ } from 'svelte-i18n';
+	import { _, locale } from 'svelte-i18n';
 import { Calendar, Check, CheckCircle, ChevronLeft, ChevronRight, Copy, Download, Edit2, ExternalLink, FileText, Folder, GitBranch, GitPullRequest, Image as ImageIcon, Link, Maximize, MessageCircle, RotateCcw, RotateCw, Send, Tag, Trash2, X, ZoomIn, ZoomOut } from 'lucide-svelte';
 	import AssigneeSelector from './AssigneeSelector.svelte';
 	import BranchDialog from './BranchDialog.svelte';
@@ -52,6 +52,11 @@ import { Calendar, Check, CheckCircle, ChevronLeft, ChevronRight, Copy, Download
 	let commentsError = '';
 	let commentContent = '';
 	let commentFiles: File[] = [];
+	let commentFilePreviews: { key: string; file: File; url: string }[] = [];
+	let commentDropActive = false;
+	let commentComposerActive = false;
+	let commentComposerEl: HTMLDivElement | null = null;
+	let keepCommentComposerOpen = false;
 	let commentSubmitting = false;
 	let commentDeleting = false;
 	let showDeleteCommentConfirm = false;
@@ -117,7 +122,7 @@ import { Calendar, Check, CheckCircle, ChevronLeft, ChevronRight, Copy, Download
 		assignee_id_to_add = null;
 		showBranchDialog = false;
 		commentContent = '';
-		commentFiles = [];
+		setCommentFiles([]);
 		comments = [];
 		commentsError = '';
 		commentsPage = 1;
@@ -160,7 +165,7 @@ import { Calendar, Check, CheckCircle, ChevronLeft, ChevronRight, Copy, Download
 			imagePaginationByComment[key] = {
 				...current,
 				loading: false,
-				error: error instanceof Error ? error.message : 'Failed to load images'
+				error: error instanceof Error ? error.message : $_('taskForm__comments_error_load_images')
 			};
 		}
 	}
@@ -188,7 +193,7 @@ import { Calendar, Check, CheckCircle, ChevronLeft, ChevronRight, Copy, Download
 				await loadCommentImages(comment);
 			}
 		} catch (error) {
-			commentsError = error instanceof Error ? error.message : 'Failed to load comments';
+			commentsError = error instanceof Error ? error.message : $_('taskForm__comments_error_load');
 		} finally {
 			commentsLoading = false;
 		}
@@ -214,14 +219,102 @@ import { Calendar, Check, CheckCircle, ChevronLeft, ChevronRight, Copy, Download
 		void loadCommentImages(comment);
 	}
 
+	function makeFileKey(file: File): string {
+		return `${file.name}:${file.size}:${file.lastModified}`;
+	}
+
+	function rebuildCommentFilePreviews() {
+		const existing = new Map(commentFilePreviews.map((item) => [item.key, item]));
+		const nextPreviews: { key: string; file: File; url: string }[] = [];
+		for (const file of commentFiles) {
+			const key = makeFileKey(file);
+			const prev = existing.get(key);
+			if (prev) {
+				nextPreviews.push(prev);
+				existing.delete(key);
+				continue;
+			}
+			nextPreviews.push({ key, file, url: URL.createObjectURL(file) });
+		}
+		for (const stale of existing.values()) {
+			URL.revokeObjectURL(stale.url);
+		}
+		commentFilePreviews = nextPreviews;
+	}
+
+	function setCommentFiles(files: File[]) {
+		commentFiles = files.slice(0, 10);
+		rebuildCommentFilePreviews();
+	}
+
+	function appendCommentFiles(inputFiles: File[]) {
+		const imageFiles = inputFiles.filter((file) => file.type.startsWith('image/'));
+		if (imageFiles.length === 0) return;
+		const merged = [...commentFiles];
+		const seen = new Set(merged.map(makeFileKey));
+		for (const file of imageFiles) {
+			const key = makeFileKey(file);
+			if (seen.has(key)) continue;
+			merged.push(file);
+			seen.add(key);
+			if (merged.length >= 10) break;
+		}
+		setCommentFiles(merged);
+	}
+
 	function handleCommentFileChange(event: Event) {
 		const input = event.currentTarget as HTMLInputElement;
-		const files = Array.from(input.files || []).filter((file) => file.type.startsWith('image/'));
-		commentFiles = files.slice(0, 10);
+		commentComposerActive = true;
+		appendCommentFiles(Array.from(input.files || []));
+		input.value = '';
 	}
 
 	function removeCommentFile(index: number) {
-		commentFiles = commentFiles.filter((_, i) => i !== index);
+		setCommentFiles(commentFiles.filter((_, i) => i !== index));
+	}
+
+	function handleCommentPaste(event: ClipboardEvent) {
+		appendCommentFiles(Array.from(event.clipboardData?.files || []));
+	}
+
+	function handleCommentDragOver() {
+		commentDropActive = true;
+	}
+
+	function handleCommentDragLeave() {
+		commentDropActive = false;
+	}
+
+	function handleCommentDrop(event: DragEvent) {
+		commentDropActive = false;
+		appendCommentFiles(Array.from(event.dataTransfer?.files || []));
+	}
+
+	function handleCommentComposerFocusIn() {
+		commentComposerActive = true;
+	}
+
+	function handleCommentComposerFocusOut(event: FocusEvent) {
+		const next = event.relatedTarget as Node | null;
+		if (commentComposerEl && next && commentComposerEl.contains(next)) return;
+		requestAnimationFrame(() => {
+			if (keepCommentComposerOpen) return;
+			const active = document.activeElement;
+			if (commentComposerEl && active && commentComposerEl.contains(active)) return;
+			if (!commentContent.trim() && commentFiles.length === 0) {
+				commentComposerActive = false;
+			}
+		});
+	}
+
+	function holdCommentComposerOpen() {
+		keepCommentComposerOpen = true;
+	}
+
+	function releaseCommentComposerOpen() {
+		requestAnimationFrame(() => {
+			keepCommentComposerOpen = false;
+		});
 	}
 
 	function formatCommentAuthor(comment: TaskComment): string {
@@ -229,16 +322,17 @@ import { Calendar, Check, CheckCircle, ChevronLeft, ChevronRight, Copy, Download
 		if (uid && comment.created_by === uid) {
 			const profile = $user?.profile;
 			const fullName = [profile?.first_name, profile?.last_name].filter(Boolean).join(' ').trim();
-			return profile?.nickname || fullName || $user?.email?.split('@')[0] || 'Unknown';
+			return profile?.nickname || fullName || $user?.email?.split('@')[0] || $_('taskForm__comments_unknown_author');
 		}
-		return comment.created_by || 'Unknown';
+		return comment.created_by || $_('taskForm__comments_unknown_author');
 	}
 
 	function formatCommentTime(value?: string): string {
 		if (!value) return '';
 		const date = new Date(value);
 		if (Number.isNaN(date.getTime())) return value;
-		return new Intl.DateTimeFormat('th-TH', {
+		const formatLocale = $locale === 'th' ? 'th-TH' : 'en-US';
+		return new Intl.DateTimeFormat(formatLocale, {
 			year: 'numeric',
 			month: 'short',
 			day: '2-digit',
@@ -253,19 +347,19 @@ import { Calendar, Check, CheckCircle, ChevronLeft, ChevronRight, Copy, Download
 		if (Number.isNaN(date.getTime())) return formatCommentTime(value);
 		const diffMs = Date.now() - date.getTime();
 		const diffSec = Math.max(0, Math.floor(diffMs / 1000));
-		if (diffSec < 60) return 'just now';
+		if (diffSec < 60) return $_('taskForm__comments_time_just_now');
 		const diffMin = Math.floor(diffSec / 60);
-		if (diffMin < 60) return `${diffMin}m ago`;
+		if (diffMin < 60) return $_('taskForm__comments_time_min_ago').replace('{count}', String(diffMin));
 		const diffHr = Math.floor(diffMin / 60);
-		if (diffHr < 24) return `${diffHr}h ago`;
+		if (diffHr < 24) return $_('taskForm__comments_time_hour_ago').replace('{count}', String(diffHr));
 		const diffDay = Math.floor(diffHr / 24);
-		if (diffDay < 7) return `${diffDay}d ago`;
+		if (diffDay < 7) return $_('taskForm__comments_time_day_ago').replace('{count}', String(diffDay));
 		return formatCommentTime(value);
 	}
 
 	function getAuthorInitials(comment: TaskComment): string {
 		const name = formatCommentAuthor(comment).trim();
-		if (!name) return 'U';
+		if (!name) return $_('taskForm__comments_unknown_initial');
 		return name
 			.split(/\s+/)
 			.map((p) => p[0])
@@ -283,7 +377,7 @@ import { Calendar, Check, CheckCircle, ChevronLeft, ChevronRight, Copy, Download
 		if (images.length === 0) return;
 		lightboxImages = images.map((img) => ({
 			src: getCommentImageUrl(img.file_key),
-			alt: img.filename || 'image'
+			alt: img.filename || $_('taskForm__comments_image_fallback_alt')
 		}));
 		lightboxIndex = Math.min(Math.max(imageIndex, 0), lightboxImages.length - 1);
 		lightboxSrc = lightboxImages[lightboxIndex].src;
@@ -342,10 +436,10 @@ import { Calendar, Check, CheckCircle, ChevronLeft, ChevronRight, Copy, Download
 			const res = await fetch(lightboxSrc);
 			const blob = await res.blob();
 			await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
-			copyFeedback = 'Copied!';
+			copyFeedback = $_('taskForm__comments_lightbox_copied');
 			setTimeout(() => copyFeedback = '', 2000);
 		} catch {
-			copyFeedback = 'Failed';
+			copyFeedback = $_('taskForm__comments_lightbox_copy_failed');
 			setTimeout(() => copyFeedback = '', 2000);
 		}
 	}
@@ -356,7 +450,7 @@ import { Calendar, Check, CheckCircle, ChevronLeft, ChevronRight, Copy, Download
 			const res = await fetch(lightboxSrc);
 			const blob = await res.blob();
 			a.href = URL.createObjectURL(blob);
-			a.download = (lightboxAlt && lightboxAlt !== 'image' ? lightboxAlt : 'image') + '.png';
+			a.download = (lightboxAlt && lightboxAlt !== $_('taskForm__comments_image_fallback_alt') ? lightboxAlt : $_('taskForm__comments_image_fallback_alt')) + '.png';
 			document.body.appendChild(a);
 			a.click();
 			document.body.removeChild(a);
@@ -418,10 +512,10 @@ import { Calendar, Check, CheckCircle, ChevronLeft, ChevronRight, Copy, Download
 		try {
 			await createTaskComment(editingTask.id, { content: commentContent, files: commentFiles });
 			commentContent = '';
-			commentFiles = [];
+			setCommentFiles([]);
 			await loadComments(1);
 		} catch (error) {
-			commentsError = error instanceof Error ? error.message : 'Failed to submit comment';
+			commentsError = error instanceof Error ? error.message : $_('taskForm__comments_error_submit');
 		} finally {
 			commentSubmitting = false;
 		}
@@ -446,16 +540,18 @@ import { Calendar, Check, CheckCircle, ChevronLeft, ChevronRight, Copy, Download
 	async function handleDeleteComment() {
 		if (!editingTask?.id || !pendingDeleteComment?.id) return;
 		commentsError = '';
+		const taskId = editingTask.id;
+		const commentId = pendingDeleteComment.id;
 		commentDeleting = true;
+		forceCloseDeleteCommentConfirm();
 		try {
-			await deleteTaskComment(editingTask.id, pendingDeleteComment.id);
+			await deleteTaskComment(taskId, commentId);
 			const nextTotal = Math.max(0, commentsTotal - 1);
 			const nextPages = Math.max(1, Math.ceil(nextTotal / commentsLimit));
 			const nextPage = Math.min(commentsPage, nextPages);
 			await loadComments(nextPage);
-			forceCloseDeleteCommentConfirm();
 		} catch (error) {
-			commentsError = error instanceof Error ? error.message : 'Failed to delete comment';
+			commentsError = error instanceof Error ? error.message : $_('taskForm__comments_error_delete');
 		} finally {
 			commentDeleting = false;
 		}
@@ -480,7 +576,7 @@ import { Calendar, Check, CheckCircle, ChevronLeft, ChevronRight, Copy, Download
 			cancelEditComment();
 			await loadComments(commentsPage);
 		} catch (error) {
-			commentsError = error instanceof Error ? error.message : 'Failed to update comment';
+			commentsError = error instanceof Error ? error.message : $_('taskForm__comments_error_update');
 		} finally {
 			commentUpdating = false;
 		}
@@ -602,6 +698,9 @@ import { Calendar, Check, CheckCircle, ChevronLeft, ChevronRight, Copy, Download
 	});
 
 	onDestroy(() => {
+		for (const preview of commentFilePreviews) {
+			URL.revokeObjectURL(preview.url);
+		}
 		if (browser) {
 			document.removeEventListener('keydown', handleKeydown);
 		}
@@ -620,26 +719,26 @@ import { Calendar, Check, CheckCircle, ChevronLeft, ChevronRight, Copy, Download
 					</h2>
 					<div class="flex items-center gap-2">
 						{#if editingTask?.id}
-							<button type="button" on:click={copyShareLink} class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium {copySuccess ? 'text-green-600 dark:text-green-400 border-green-300 dark:border-green-600 bg-green-50 dark:bg-green-900/10' : 'text-blue-600 dark:text-blue-400 border-blue-300 dark:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/10'} border rounded-lg transition-all" title="Copy share link">
+							<button type="button" on:click={copyShareLink} class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium {copySuccess ? 'text-green-600 dark:text-green-400 border-green-300 dark:border-green-600 bg-green-50 dark:bg-green-900/10' : 'text-blue-600 dark:text-blue-400 border-blue-300 dark:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/10'} border rounded-lg transition-all" title={$_('taskForm__copy_share_link')}>
 								{#if copySuccess}
 									<Check size={14} />
-									<span>Copied!</span>
+									<span>{$_('taskForm__copied')}</span>
 								{:else}
 									<Link size={14} />
-									<span>Share</span>
+									<span>{$_('taskForm__share')}</span>
 								{/if}
 							</button>
 						{/if}
 						{#if currentProjectRepoUrl}
-							<button type="button" on:click={openPullRequest} class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-emerald-600 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-600 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/30 transition-colors" title="Open Pull Request">
+							<button type="button" on:click={openPullRequest} class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-emerald-600 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-600 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/30 transition-colors" title={$_('taskForm__open_pull_request')}>
 								<GitPullRequest size={14} />
-								<span>Pull Request</span>
+								<span>{$_('taskForm__pull_request')}</span>
 								<ExternalLink size={12} class="opacity-60" />
 							</button>
 						{/if}
-						<button type="button" on:click={openBranchDialog} class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" title="Branch">
+						<button type="button" on:click={openBranchDialog} class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" title={$_('taskForm__branch')}>
 							<GitBranch size={14} />
-							<span>Branch</span>
+							<span>{$_('taskForm__branch')}</span>
 						</button>
 						<button type="button" on:click={handleClose} class="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
 							<X size={20} />
@@ -689,101 +788,122 @@ import { Calendar, Check, CheckCircle, ChevronLeft, ChevronRight, Copy, Download
 							</div>
 
 							{#if editingTask?.id}
-								<div class="xl:col-span-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-900/30 p-4 space-y-3 h-fit">
-								<div class="flex items-center gap-2 text-sm font-semibold text-gray-800 dark:text-gray-100"><MessageCircle size={16} /><span>Comments and activity</span></div>
-								<textarea bind:value={commentContent} placeholder="Write a comment..." rows="3" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none dark:bg-gray-800 dark:text-white"></textarea>
-								<div class="flex items-center gap-3">
-									<label class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm text-gray-700 dark:text-gray-200 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"><ImageIcon size={14} /><span>Attach images</span><input type="file" accept="image/*" multiple class="hidden" on:change={handleCommentFileChange} /></label>
-									<button type="button" on:click={handleCommentSubmit} disabled={commentSubmitting || (!commentContent.trim() && commentFiles.length === 0)} class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed"><Send size={14} /><span>{commentSubmitting ? 'Saving...' : 'Save'}</span></button>
+								<div class="xl:col-span-2 rounded-xl bg-[#0f1b2d] p-4 space-y-3 h-full min-h-[560px] xl:max-h-[calc(90vh-11rem)] flex flex-col">
+								<div class="flex items-center gap-2 text-sm font-semibold text-gray-800 dark:text-gray-100"><MessageCircle size={16} /><span>{$_('taskForm__comments_title')}</span></div>
+								<div bind:this={commentComposerEl} on:focusin={handleCommentComposerFocusIn} on:focusout={handleCommentComposerFocusOut} class="space-y-3">
+									<textarea
+										bind:value={commentContent}
+										placeholder={$_('taskForm__comments_placeholder')}
+										rows={commentComposerActive || commentContent.trim() || commentFiles.length > 0 ? 3 : 1}
+										on:paste={handleCommentPaste}
+										on:dragenter|preventDefault={handleCommentDragOver}
+										on:dragover|preventDefault={handleCommentDragOver}
+										on:dragleave|preventDefault={handleCommentDragLeave}
+										on:drop|preventDefault={handleCommentDrop}
+										class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none dark:bg-gray-800 dark:text-white transition-colors {commentDropActive ? 'border-primary bg-primary/[0.08] dark:bg-primary/[0.14]' : 'border-gray-300 dark:border-gray-600'}"
+									></textarea>
+									{#if commentComposerActive || commentContent.trim() || commentFiles.length > 0}
+										<div class="flex items-center gap-3">
+											<label on:mousedown={holdCommentComposerOpen} on:mouseup={releaseCommentComposerOpen} class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm text-gray-700 dark:text-gray-200 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"><ImageIcon size={14} /><span>{$_('taskForm__comments_attach_images')}</span><input type="file" accept="image/*" multiple class="hidden" on:change={handleCommentFileChange} /></label>
+											<button type="button" on:mousedown={holdCommentComposerOpen} on:mouseup={releaseCommentComposerOpen} on:click={handleCommentSubmit} disabled={commentSubmitting || (!commentContent.trim() && commentFiles.length === 0)} class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed"><Send size={14} /><span>{commentSubmitting ? $_('taskForm__comments_saving') : $_('taskForm__btn_save')}</span></button>
+										</div>
+									{/if}
 								</div>
 
 								{#if commentFiles.length > 0}
-									<div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
-										{#each commentFiles as file, idx}
-											<div class="relative rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-2 text-xs text-gray-600 dark:text-gray-300"><p class="truncate">{file.name}</p><button type="button" on:click={() => removeCommentFile(idx)} class="absolute top-1 right-1 text-red-500">×</button></div>
+									<div class="grid grid-cols-3 sm:grid-cols-4 gap-2">
+										{#each commentFilePreviews as preview, idx (preview.key)}
+											<div class="relative rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
+												<img src={preview.url} alt={preview.file.name} class="w-full h-16 object-cover" />
+												<button type="button" on:click={() => removeCommentFile(idx)} class="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/65 text-white text-xs leading-none">×</button>
+											</div>
 										{/each}
 									</div>
 								{/if}
 
 								{#if commentsError}<p class="text-sm text-red-500">{commentsError}</p>{/if}
 
-								{#if commentsLoading}
-									<p class="text-sm text-gray-500 dark:text-gray-400">Loading comments...</p>
-								{:else if comments.length === 0}
-									<p class="text-sm text-gray-500 dark:text-gray-400">No comments yet</p>
-								{:else}
-									<div class="space-y-3">
-										{#each comments as comment}
-											<div class="p-1 space-y-2">
-												<div class="flex items-center gap-2 text-xs">
-													<div class="w-7 h-7 rounded-full bg-primary/15 dark:bg-primary/20 text-primary font-semibold flex items-center justify-center">
-														{getAuthorInitials(comment)}
-													</div>
-													<span class="font-semibold text-gray-800 dark:text-gray-200">{formatCommentAuthor(comment)}</span>
-													<span class="text-primary underline underline-offset-2">{formatCommentRelativeTime(comment.created_at)}</span>
-												</div>
-												{#if editingCommentId === String(comment.id || '')}
-													<div class="space-y-2">
-														<textarea
-															bind:value={editingCommentText}
-															rows="3"
-															class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none dark:bg-gray-800 dark:text-white"
-														></textarea>
-														<div class="flex items-center gap-2">
-															<button type="button" on:click={() => saveEditComment(comment)} disabled={commentUpdating} class="px-3 py-1.5 rounded-md bg-primary text-white text-xs font-medium disabled:opacity-50">{commentUpdating ? 'Saving...' : 'Save'}</button>
-															<button type="button" on:click={cancelEditComment} disabled={commentUpdating} class="px-3 py-1.5 rounded-md border border-gray-300 dark:border-gray-600 text-xs font-medium">Cancel</button>
+								<div class="flex-1 min-h-0 overflow-y-auto pr-1 space-y-3 custom-scrollbar">
+									{#if commentsLoading}
+										<p class="text-sm text-gray-500 dark:text-gray-400">{$_('taskForm__comments_loading')}</p>
+									{:else if comments.length === 0}
+										<div class="h-full min-h-[200px] flex items-center justify-center p-3">
+											<p class="text-sm text-gray-400 text-center">{$_('taskForm__comments_empty')}</p>
+										</div>
+									{:else}
+										<div class="space-y-3">
+											{#each comments as comment}
+												<div class="p-1 space-y-2">
+													<div class="flex items-center gap-2 text-xs">
+														<div class="w-7 h-7 rounded-full bg-primary/15 dark:bg-primary/20 text-primary font-semibold flex items-center justify-center">
+															{getAuthorInitials(comment)}
 														</div>
+														<span class="font-semibold text-gray-800 dark:text-gray-200">{formatCommentAuthor(comment)}</span>
+														<span class="text-primary underline underline-offset-2">{formatCommentRelativeTime(comment.created_at)}</span>
 													</div>
-												{:else if comment.content}
-													<p class="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap rounded-lg bg-gray-50 dark:bg-gray-900/60 px-3 py-2">{comment.content}</p>
-												{/if}
-												{#if getImageState(comment.id)?.total > 0}
-													{#if getImageState(comment.id)?.loading}
-														<p class="text-xs text-gray-500">Loading images...</p>
-													{:else}
-														<div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
-															{#each getImageState(comment.id)?.images || [] as image, imageIndex}
-																<a href={getCommentImageUrl(image.file_key)} target="_blank" rel="noreferrer" on:click|preventDefault={() => openCommentImageLightbox(comment, imageIndex)} class="block rounded-md overflow-hidden border border-gray-200 dark:border-gray-700"><img src={getCommentImageUrl(image.file_key)} alt={image.filename} class="w-full h-24 object-cover" loading="lazy" /></a>
-															{/each}
-														</div>
-														{#if (getImageState(comment.id)?.total || 0) > (getImageState(comment.id)?.limit || 1)}
-															<div class="flex items-center justify-between text-xs text-gray-500 mt-2">
-																<button type="button" class="px-2 py-1 border rounded disabled:opacity-50" disabled={(getImageState(comment.id)?.page || 1) <= 1} on:click={() => prevCommentImagesPage(comment)}>Prev</button>
-																<span>Page {getImageState(comment.id)?.page || 1} / {Math.max(1, Math.ceil((getImageState(comment.id)?.total || 0) / (getImageState(comment.id)?.limit || 1)))}</span>
-																<button type="button" class="px-2 py-1 border rounded disabled:opacity-50" disabled={(getImageState(comment.id)?.page || 1) >= Math.ceil((getImageState(comment.id)?.total || 0) / (getImageState(comment.id)?.limit || 1))} on:click={() => nextCommentImagesPage(comment)}>Next</button>
+													{#if editingCommentId === String(comment.id || '')}
+														<div class="space-y-2">
+															<textarea
+																bind:value={editingCommentText}
+																rows="3"
+																class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none dark:bg-gray-800 dark:text-white"
+															></textarea>
+															<div class="flex items-center gap-2">
+																<button type="button" on:click={() => saveEditComment(comment)} disabled={commentUpdating} class="px-3 py-1.5 rounded-md bg-primary text-white text-xs font-medium disabled:opacity-50">{commentUpdating ? $_('taskForm__comments_saving') : $_('taskForm__btn_save')}</button>
+																<button type="button" on:click={cancelEditComment} disabled={commentUpdating} class="px-3 py-1.5 rounded-md border border-gray-300 dark:border-gray-600 text-xs font-medium">{$_('taskForm__btn_cancel')}</button>
 															</div>
+														</div>
+													{:else if comment.content}
+														<p class="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap rounded-lg bg-gray-50 dark:bg-gray-900/60 px-3 py-2">{comment.content}</p>
+													{/if}
+													{#if getImageState(comment.id)?.total > 0}
+														{#if getImageState(comment.id)?.loading}
+															<p class="text-xs text-gray-500">{$_('taskForm__comments_images_loading')}</p>
+														{:else}
+															<div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+																{#each getImageState(comment.id)?.images || [] as image, imageIndex}
+																	<a href={getCommentImageUrl(image.file_key)} target="_blank" rel="noreferrer" on:click|preventDefault={() => openCommentImageLightbox(comment, imageIndex)} class="block rounded-md overflow-hidden border border-gray-200 dark:border-gray-700"><img src={getCommentImageUrl(image.file_key)} alt={image.filename} class="w-full h-24 object-cover" loading="lazy" /></a>
+																{/each}
+															</div>
+															{#if (getImageState(comment.id)?.total || 0) > (getImageState(comment.id)?.limit || 1)}
+																<div class="flex items-center justify-between text-xs text-gray-500 mt-2">
+																	<button type="button" class="px-2 py-1 border rounded disabled:opacity-50" disabled={(getImageState(comment.id)?.page || 1) <= 1} on:click={() => prevCommentImagesPage(comment)}>{$_('taskForm__pagination_prev')}</button>
+																	<span>{$_('taskForm__pagination_page').replace('{page}', String(getImageState(comment.id)?.page || 1)).replace('{pages}', String(Math.max(1, Math.ceil((getImageState(comment.id)?.total || 0) / (getImageState(comment.id)?.limit || 1)))) )}</span>
+																	<button type="button" class="px-2 py-1 border rounded disabled:opacity-50" disabled={(getImageState(comment.id)?.page || 1) >= Math.ceil((getImageState(comment.id)?.total || 0) / (getImageState(comment.id)?.limit || 1))} on:click={() => nextCommentImagesPage(comment)}>{$_('taskForm__pagination_next')}</button>
+																</div>
+															{/if}
 														{/if}
 													{/if}
-												{/if}
-												<div class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-													<button
-														type="button"
-														on:click={() => startEditComment(comment)}
-														class="inline-flex items-center gap-1 hover:text-primary"
-														title="Edit comment text"
-													>
-														<Edit2 size={12} />
-														<span>Edit</span>
-													</button>
-													<span>•</span>
-													<button
-														type="button"
-														on:click={() => openDeleteCommentConfirm(comment)}
-														class="inline-flex items-center gap-1 text-danger hover:opacity-80"
-														title="Delete comment"
-													>
-														<Trash2 size={12} />
-														<span>Delete</span>
-													</button>
+													<div class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+														<button
+															type="button"
+															on:click={() => startEditComment(comment)}
+															class="inline-flex items-center gap-1 hover:text-primary"
+															title={$_('taskForm__comments_edit_title')}
+														>
+															<Edit2 size={12} />
+															<span>{$_('taskForm__comments_edit')}</span>
+														</button>
+														<span>•</span>
+														<button
+															type="button"
+															on:click={() => openDeleteCommentConfirm(comment)}
+															class="inline-flex items-center gap-1 text-danger hover:opacity-80"
+															title={$_('taskForm__comments_delete_title')}
+														>
+															<Trash2 size={12} />
+															<span>{$_('taskForm__comments_delete')}</span>
+														</button>
+													</div>
 												</div>
-											</div>
-										{/each}
-									</div>
+											{/each}
+										</div>
 
-									{#if commentsTotal > commentsLimit}
-										<Pagination totalItems={commentsTotal} bind:pageSize={commentsLimit} bind:currentPage={commentsPage} pageSizeOptions={[10, 20, 50]} />
+										{#if commentsTotal > commentsLimit}
+											<Pagination totalItems={commentsTotal} bind:pageSize={commentsLimit} bind:currentPage={commentsPage} pageSizeOptions={[10, 20, 50]} />
+										{/if}
 									{/if}
-								{/if}
+								</div>
 								</div>
 							{/if}
 						</div>
@@ -809,7 +929,7 @@ import { Calendar, Check, CheckCircle, ChevronLeft, ChevronRight, Copy, Download
 			tabindex="-1"
 			role="dialog"
 			aria-modal="true"
-			aria-label="Image viewer"
+			aria-label={$_('taskForm__comments_lightbox_aria')}
 		>
 			<div class="absolute top-4 right-4 flex items-center gap-1.5 z-10">
 				<span class="text-white/70 text-sm font-mono bg-black/40 px-2 py-1 rounded">{Math.round(lightboxZoom * 100)}%</span>
@@ -820,36 +940,36 @@ import { Calendar, Check, CheckCircle, ChevronLeft, ChevronRight, Copy, Download
 					<span class="text-white/70 text-sm bg-black/40 px-2 py-1 rounded">{lightboxIndex + 1}/{lightboxImages.length}</span>
 				{/if}
 				<div class="w-px h-5 bg-white/20"></div>
-				<button type="button" on:click={zoomIn} class="p-2 bg-black/40 hover:bg-black/60 text-white rounded-lg transition-colors" title="Zoom in (+)">
+				<button type="button" on:click={zoomIn} class="p-2 bg-black/40 hover:bg-black/60 text-white rounded-lg transition-colors" title={$_('taskForm__comments_lightbox_zoom_in')}>
 					<ZoomIn size={18} />
 				</button>
-				<button type="button" on:click={zoomOut} class="p-2 bg-black/40 hover:bg-black/60 text-white rounded-lg transition-colors" title="Zoom out (-)">
+				<button type="button" on:click={zoomOut} class="p-2 bg-black/40 hover:bg-black/60 text-white rounded-lg transition-colors" title={$_('taskForm__comments_lightbox_zoom_out')}>
 					<ZoomOut size={18} />
 				</button>
-				<button type="button" on:click={fitToScreen} class="p-2 bg-black/40 hover:bg-black/60 text-white rounded-lg transition-colors" title="Fit to screen (F)">
+				<button type="button" on:click={fitToScreen} class="p-2 bg-black/40 hover:bg-black/60 text-white rounded-lg transition-colors" title={$_('taskForm__comments_lightbox_fit')}>
 					<Maximize size={18} />
 				</button>
-				<button type="button" on:click={rotateRight} class="p-2 bg-black/40 hover:bg-black/60 text-white rounded-lg transition-colors" title="Rotate (R)">
+				<button type="button" on:click={rotateRight} class="p-2 bg-black/40 hover:bg-black/60 text-white rounded-lg transition-colors" title={$_('taskForm__comments_lightbox_rotate')}>
 					<RotateCw size={18} />
 				</button>
-				<button type="button" on:click={resetView} class="p-2 bg-black/40 hover:bg-black/60 text-white rounded-lg transition-colors" title="Reset (0)">
+				<button type="button" on:click={resetView} class="p-2 bg-black/40 hover:bg-black/60 text-white rounded-lg transition-colors" title={$_('taskForm__comments_lightbox_reset')}>
 					<RotateCcw size={18} />
 				</button>
 				<div class="w-px h-5 bg-white/20"></div>
-				<button type="button" on:click={() => void copyToClipboard()} class="p-2 bg-black/40 hover:bg-black/60 text-white rounded-lg transition-colors relative" title="Copy (C)">
+				<button type="button" on:click={() => void copyToClipboard()} class="p-2 bg-black/40 hover:bg-black/60 text-white rounded-lg transition-colors relative" title={$_('taskForm__comments_lightbox_copy')}>
 					<Copy size={18} />
 					{#if copyFeedback}
 						<span class="absolute -bottom-7 left-1/2 -translate-x-1/2 text-xs bg-green-500 text-white px-2 py-0.5 rounded whitespace-nowrap">{copyFeedback}</span>
 					{/if}
 				</button>
-				<button type="button" on:click={downloadImage} class="p-2 bg-black/40 hover:bg-black/60 text-white rounded-lg transition-colors" title="Download">
+				<button type="button" on:click={downloadImage} class="p-2 bg-black/40 hover:bg-black/60 text-white rounded-lg transition-colors" title={$_('taskForm__comments_lightbox_download')}>
 					<Download size={18} />
 				</button>
-				<button type="button" on:click={openInNewTab} class="p-2 bg-black/40 hover:bg-black/60 text-white rounded-lg transition-colors" title="Open in new tab">
+				<button type="button" on:click={openInNewTab} class="p-2 bg-black/40 hover:bg-black/60 text-white rounded-lg transition-colors" title={$_('taskForm__comments_lightbox_open_new_tab')}>
 					<ExternalLink size={18} />
 				</button>
 				<div class="w-px h-5 bg-white/20"></div>
-				<button type="button" on:click={closeLightbox} class="p-2 bg-black/40 hover:bg-red-600/80 text-white rounded-lg transition-colors" title="Close (Esc)">
+				<button type="button" on:click={closeLightbox} class="p-2 bg-black/40 hover:bg-red-600/80 text-white rounded-lg transition-colors" title={$_('taskForm__comments_lightbox_close')}>
 					<X size={18} />
 				</button>
 			</div>
@@ -859,7 +979,7 @@ import { Calendar, Check, CheckCircle, ChevronLeft, ChevronRight, Copy, Download
 					type="button"
 					on:click={navigatePrev}
 					class="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-black/40 hover:bg-black/60 text-white rounded-full transition-colors z-10"
-					title="Previous (←)"
+					title={$_('taskForm__comments_lightbox_prev')}
 				>
 					<ChevronLeft size={24} />
 				</button>
@@ -867,7 +987,7 @@ import { Calendar, Check, CheckCircle, ChevronLeft, ChevronRight, Copy, Download
 					type="button"
 					on:click={navigateNext}
 					class="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-black/40 hover:bg-black/60 text-white rounded-full transition-colors z-10"
-					title="Next (→)"
+					title={$_('taskForm__comments_lightbox_next')}
 				>
 					<ChevronRight size={24} />
 				</button>
@@ -885,7 +1005,7 @@ import { Calendar, Check, CheckCircle, ChevronLeft, ChevronRight, Copy, Download
 				draggable="false"
 			/>
 
-			{#if lightboxAlt && lightboxAlt !== 'image'}
+			{#if lightboxAlt && lightboxAlt !== $_('taskForm__comments_image_fallback_alt')}
 				<div class="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 text-white/80 text-sm px-4 py-1.5 rounded-full">
 					{lightboxAlt}
 				</div>
@@ -897,7 +1017,7 @@ import { Calendar, Check, CheckCircle, ChevronLeft, ChevronRight, Copy, Download
 		<div class="fixed inset-0 z-[20010] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" on:click|self={closeDeleteCommentConfirm}>
 			<div class="w-full max-w-sm rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-2xl">
 				<div class="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-					<h3 class="text-sm font-semibold">Delete comment?</h3>
+					<h3 class="text-sm font-semibold">{$_('taskForm__comments_delete_confirm_title')}</h3>
 					<button
 						type="button"
 						on:click={closeDeleteCommentConfirm}
@@ -908,14 +1028,14 @@ import { Calendar, Check, CheckCircle, ChevronLeft, ChevronRight, Copy, Download
 					</button>
 				</div>
 				<div class="px-4 py-3 space-y-3">
-					<p class="text-sm text-gray-600 dark:text-gray-300">Deleting a comment is forever. There is no undo.</p>
+					<p class="text-sm text-gray-600 dark:text-gray-300">{$_('taskForm__comments_delete_confirm_desc')}</p>
 					<button
 						type="button"
 						on:click={handleDeleteComment}
 						disabled={commentDeleting}
 						class="w-full rounded-md bg-danger hover:opacity-90 text-white text-sm font-semibold py-2.5 disabled:opacity-50"
 					>
-						{commentDeleting ? 'Deleting...' : 'Delete comment'}
+						{commentDeleting ? $_('taskForm__comments_deleting') : $_('taskForm__comments_delete_confirm_btn')}
 					</button>
 				</div>
 			</div>
