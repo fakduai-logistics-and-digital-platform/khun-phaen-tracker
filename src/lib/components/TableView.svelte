@@ -2,10 +2,15 @@
 	import { createEventDispatcher } from 'svelte';
 	import { _ } from '$lib/i18n';
 	import type { Task, Sprint } from '$lib/types';
-	import { ArrowUpDown, ArrowUp, ArrowDown, Edit2, Trash2, CheckCircle2, Circle, PlayCircle, User, Folder, Clock, Calendar, MoreVertical, ChevronDown, ChevronUp, ChevronRight, Flag, X, QrCode, FlaskConical, ListTodo, Check, Square, CheckSquare } from 'lucide-svelte';
+	import { ArrowUpDown, ArrowUp, ArrowDown, Edit2, Trash2, CheckCircle2, Circle, PlayCircle, User, Folder, Clock, Calendar, MoreVertical, ChevronDown, ChevronUp, ChevronRight, Flag, X, QrCode, FlaskConical, ListTodo, Check, Square, CheckSquare, FlaskConical as FlaskConicalIcon } from 'lucide-svelte'; // Renamed FlaskConical to avoid conflict with type
+	import PaginationFooter from './PaginationFooter.svelte';
 
 	export let tasks: Task[] = [];
 	export let sprints: Sprint[] = [];
+	export let currentPage: number = 1;
+	export let totalPages: number = 1;
+	export let totalTasks: number = 0;
+	export let pageSize: number = 20;
 
 	const dispatch = createEventDispatcher<{
 		edit: Task;
@@ -17,6 +22,8 @@
 		changeStatus: (string | number)[];
 		changeProject: (string | number)[];
 		exportQR: (string | number)[];
+		pageChange: number;
+		pageSizeSettings: number;
 	}>();
 
 	function getSprintName(sprintId: string | number | null | undefined): string | null {
@@ -139,7 +146,7 @@
 		switch (status) {
 			case 'done': return CheckCircle2;
 			case 'in-progress': return PlayCircle;
-			case 'in-test': return FlaskConical;
+			case 'in-test': return FlaskConicalIcon; // Use FlaskConicalIcon
 			default: return Circle;
 		}
 	}
@@ -396,7 +403,7 @@
 			</thead>
 			<tbody class="divide-y divide-gray-200 dark:divide-gray-700">
 				{#each sortedTasks as task (task.id)}
-					<tr 
+					<tr
 						class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
 						on:click={() => dispatch('edit', task)}
 					>
@@ -570,7 +577,7 @@
 		{#if sortedTasks.length > 0}
 			<div class="divide-y divide-gray-200 dark:divide-gray-700">
 				{#each sortedTasks as task (task.id)}
-						<div 
+						<div
 							class="p-3 sm:p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
 							on:click={() => dispatch('edit', task)}
 							on:keydown={(e) => e.key === 'Enter' && dispatch('edit', task)}
@@ -720,7 +727,16 @@
 		{/if}
 	</div>
 
-
+	{#if totalTasks > 0}
+		<PaginationFooter
+			{currentPage}
+			{totalPages}
+			{totalTasks}
+			{pageSize}
+			on:pageChange
+			on:pageSizeSettings
+		/>
+	{/if}
 </div>
 
 <style>

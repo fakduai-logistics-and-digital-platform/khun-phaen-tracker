@@ -102,8 +102,6 @@ import { List, CalendarDays, Columns3, Table, GanttChart, UsersRound, Filter, Se
 		if (newPage < 1 || newPage > totalPages || newPage === currentPage) return;
 		currentPage = newPage;
 		void loadData();
-		// Scroll to top of table
-		window.scrollTo({ top: 0, behavior: 'smooth' });
 	}
 
 	$: {
@@ -3093,39 +3091,62 @@ import { List, CalendarDays, Columns3, Table, GanttChart, UsersRound, Filter, Se
 				</div>
 			
 			</div>
-		{:else if currentView === 'list'}
-			<TaskList
-				tasks={filteredTasks}
-				sprints={$sprints}
-				on:edit={handleEditTask}
-				on:delete={handleDeleteTask}
-				on:statusChange={handleStatusChange}
-			/>
-		{:else if currentView === 'calendar'}
-			<CalendarView
-				tasks={filteredTasks}
-				on:selectTask={handleEditTask}
-			/>
 		{:else if currentView === 'kanban'}
-			<KanbanBoard
-				tasks={filteredTasks}
-				sprints={$sprints}
-				on:move={handleKanbanMove}
-				on:dragState={handleKanbanDragState}
-				on:edit={handleEditTask}
-				on:delete={handleDeleteTask}
-			/>
+			<div class="animate-fade-in">
+				<KanbanBoard 
+					tasks={tasks} 
+					sprints={$sprints}
+					{currentPage}
+					{totalPages}
+					{totalTasks}
+					{pageSize}
+					on:move={(e) => handleStatusChange({ detail: { id: e.detail.id, status: e.detail.newStatus } } as any)} 
+					on:edit={handleEditTask}
+					on:delete={handleDeleteTask}
+					on:dragState={(e) => isDragging = e.detail.dragging}
+					on:pageChange={(e) => handlePageChange(e.detail)}
+					on:pageSizeSettings={() => { newPageSize = pageSize; showPageSizeModal = true; }}
+				/>
+			</div>
+		{:else if currentView === 'list'}
+			<div class="animate-fade-in">
+				<TaskList 
+					tasks={tasks} 
+					sprints={$sprints}
+					{currentPage}
+					{totalPages}
+					{totalTasks}
+					{pageSize}
+					on:edit={handleEditTask} 
+					on:delete={handleDeleteTask}
+					on:statusChange={handleStatusChange}
+					on:pageChange={(e) => handlePageChange(e.detail)}
+					on:pageSizeSettings={() => { newPageSize = pageSize; showPageSizeModal = true; }}
+				/>
+			</div>
+		{:else if currentView === 'calendar'}
+			<div class="animate-fade-in">
+				<CalendarView tasks={filteredTasks} on:selectTask={handleEditTask} />
+			</div>
 		{:else if currentView === 'table'}
-			<TableView
-				tasks={filteredTasks}
-				sprints={$sprints}
-				on:edit={handleEditTask}
-				on:delete={handleDeleteTask}
-				on:deleteSelected={handleDeleteSelectedTasks}
-				on:statusChange={handleStatusChange}
-				on:checklistToggle={handleChecklistToggle}
-				on:exportQR={handleExportQR}
-			/>
+			<div class="animate-fade-in">
+				<TableView 
+					tasks={tasks} 
+					sprints={$sprints}
+					{currentPage}
+					{totalPages}
+					{totalTasks}
+					{pageSize}
+					on:edit={handleEditTask}
+					on:delete={handleDeleteTask}
+					on:deleteSelected={handleDeleteSelectedTasks}
+					on:statusChange={handleStatusChange}
+					on:checklistToggle={handleChecklistToggle}
+					on:exportQR={handleExportQR}
+					on:pageChange={(e) => handlePageChange(e.detail)}
+					on:pageSizeSettings={() => { newPageSize = pageSize; showPageSizeModal = true; }}
+				/>
+			</div>
 		{:else if currentView === 'gantt'}
 			<GanttView
 				tasks={ganttTasks}
@@ -3138,70 +3159,6 @@ import { List, CalendarDays, Columns3, Table, GanttChart, UsersRound, Filter, Se
 				{assignees}
 				on:selectAssignee={handleSelectAssigneeFromWorkload}
 			/>
-		{/if}
-
-		<!-- Pagination -->
-		{#if totalTasks > 0 && !['gantt', 'workload'].includes(currentView)}
-			<div class="mt-12 flex flex-col items-center gap-4 pb-8">
-				{#if totalPages > 1}
-					<div class="flex items-center gap-1 bg-white/50 dark:bg-gray-800/50 p-1.5 rounded-2xl border border-gray-100 dark:border-gray-700 backdrop-blur-sm shadow-sm">
-						<button
-							class="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 disabled:hover:bg-transparent transition-all"
-							disabled={currentPage === 1}
-							on:click={() => handlePageChange(currentPage - 1)}
-							title="หน้าก่อนหน้า"
-							aria-label="Previous page"
-						>
-							<ChevronLeft size={20} />
-						</button>
-
-						<div class="flex items-center gap-1 px-2">
-							{#each Array(totalPages) as _, i}
-								{@const pageNum = i + 1}
-								{#if totalPages <= 7 || pageNum === 1 || pageNum === totalPages || (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)}
-									<button
-										class="w-10 h-10 rounded-xl font-bold transition-all flex items-center justify-center text-sm
-											{currentPage === pageNum 
-												? 'bg-primary text-white shadow-lg shadow-primary/30 scale-105' 
-												: 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400'}"
-										on:click={() => handlePageChange(pageNum)}
-									>
-										{pageNum}
-									</button>
-								{:else if (pageNum === 2 && currentPage > 3) || (pageNum === totalPages - 1 && currentPage < totalPages - 2)}
-									<div class="w-8 flex items-center justify-center text-gray-400">
-										<span class="text-xs tracking-widest">...</span>
-									</div>
-								{/if}
-							{/each}
-						</div>
-
-						<button
-							class="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-30 disabled:hover:bg-transparent transition-all"
-							disabled={currentPage === totalPages}
-							on:click={() => handlePageChange(currentPage + 1)}
-							title="หน้าถัดไป"
-							aria-label="Next page"
-						>
-							<ChevronRight size={20} />
-						</button>
-					</div>
-				{/if}
-
-				<div class="flex items-center gap-3">
-					<div class="flex items-center gap-2 text-xs font-medium text-gray-400 dark:text-gray-500 bg-gray-50/50 dark:bg-gray-900/30 px-3 py-1.5 rounded-full border border-gray-100/50 dark:border-gray-800/50">
-						<span>แสดง {((currentPage - 1) * pageSize) + 1} - {Math.min(currentPage * pageSize, totalTasks)} จากทั้งหมด {totalTasks}</span>
-					</div>
-					
-					<button
-						on:click={() => { newPageSize = pageSize; showPageSizeModal = true; }}
-						class="flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 rounded-full border border-gray-100 dark:border-gray-700 transition-colors text-xs font-medium shadow-sm"
-					>
-						<Settings2 size={14} />
-						<span>{pageSize} / หน้า</span>
-					</button>
-				</div>
-			</div>
 		{/if}
 	</div>
 

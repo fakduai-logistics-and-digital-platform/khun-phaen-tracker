@@ -3,6 +3,7 @@
 	import { createEventDispatcher, tick } from 'svelte';
 	import type { Task, Sprint } from '$lib/types';
 	import { Edit2, Trash2, MoreVertical, Folder, Clock3, Hammer, CheckCircle2, Flag, FlaskConical, ListTodo } from 'lucide-svelte';
+	import PaginationFooter from './PaginationFooter.svelte';
 	import { _ } from '$lib/i18n';
 
 	const dispatch = createEventDispatcher<{
@@ -10,10 +11,16 @@
 		edit: Task;
 		delete: number;
 		dragState: { dragging: boolean };
+		pageChange: number;
+		pageSizeSettings: void;
 	}>();
 
 	export let tasks: Task[] = [];
 	export let sprints: Sprint[] = [];
+	export let currentPage: number = 1;
+	export let totalPages: number = 1;
+	export let totalTasks: number = 0;
+	export let pageSize: number = 20;
 
 	interface TaskWithRequiredId extends Task {
 		id: number;
@@ -212,34 +219,32 @@
 	let openMenuId: number | null = null;
 </script>
 
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-	{#each statusColumns as { status, items, meta }}
-		<div class="{getColumnBg(status)} rounded-xl p-3 transition-colors">
-			<div class="flex items-center justify-between mb-3 px-1">
-				<div class="flex items-center gap-2">
-					<svelte:component this={getIconByStatus(status)} size={18} class={getIconColorClass(status)} />
-					<h3 class={getHeaderTextClass(status)}>{getColumnTitle(status)}</h3>
-					<span class="{getCountBadgeClass(status)} px-2 py-0.5 rounded-full text-xs font-medium">
-						{items.length}
-					</span>
+<div class="bg-white dark:bg-gray-800/20 rounded-xl border border-gray-200 dark:border-gray-700/50 overflow-hidden flex flex-col">
+	<div class="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 flex-1 overflow-x-auto">
+		{#each statusColumns as { status, items, meta }}
+			<!-- ... existing column structure ... -->
+			<div class="{getColumnBg(status)} rounded-xl p-3 transition-colors flex flex-col min-w-[280px]">
+				<div class="flex items-center justify-between mb-3 px-1">
+					<div class="flex items-center gap-2">
+						<svelte:component this={getIconByStatus(status)} size={18} class={getIconColorClass(status)} />
+						<h3 class={getHeaderTextClass(status)}>{getColumnTitle(status)}</h3>
+						<span class="{getCountBadgeClass(status)} px-2 py-0.5 rounded-full text-xs font-medium">
+							{items.length}
+						</span>
+					</div>
 				</div>
-			</div>
 
-			<div
-				use:dndzone={{ items, flipDurationMs: 200 }}
-				on:consider={(e) => handleDndConsider(e, status)}
-				on:finalize={(e) => handleDndFinalize(e, status)}
-				class="space-y-2 min-h-32 pb-4"
-			>
-
-				{#each items as task (task.id)}
-					<div 
-						class="kanban-card relative group {getCardBorderClass(status)} cursor-pointer hover:shadow-md transition-all"
-						on:click={() => dispatch('edit', task)}
-						on:keydown={(e) => e.key === 'Enter' && dispatch('edit', task)}
-						role="button"
-						tabindex="0"
-					>
+				<div
+					use:dndzone={{ items, flipDurationMs: 200 }}
+					on:consider={(e) => handleDndConsider(e, status)}
+					on:finalize={(e) => handleDndFinalize(e, status)}
+					class="space-y-2 min-h-[300px] flex-1 pb-4"
+				>
+					{#each items as task (task.id)}
+						<div 
+							class="kanban-card relative group {getCardBorderClass(status)} cursor-pointer hover:shadow-md transition-all"
+							on:click={() => dispatch('edit', task)}
+						>
 						<div class="flex items-start justify-between gap-2">
 							<h4 class={getTitleClass(status)}>{task.title}</h4>
 							<button
@@ -269,7 +274,7 @@
 									{#each task.assignees as assignee}
 										<span class="flex items-center gap-1" title={assignee.name}>
 											<span class="w-2 h-2 rounded-full" style="background-color: {assignee.color}"></span>
-											<span class="truncate max-w-15">{assignee.name}</span>
+											<span class="truncate max-w-15 text-[10px]">{assignee.name}</span>
 										</span>
 									{/each}
 								</div>
@@ -284,7 +289,7 @@
 								<div class="flex justify-between items-center text-[10px] text-gray-400 dark:text-gray-500 mb-1 px-0.5">
 									<span class="flex items-center gap-1">
 										<ListTodo size={11} />
-										Checklist: {completed}/{total}
+										{completed}/{total}
 									</span>
 									<span>{percent}%</span>
 								</div>
@@ -315,11 +320,23 @@
 								</button>
 							</div>
 						{/if}
-					</div>
-				{/each}
+						</div>
+					{/each}
+				</div>
 			</div>
-		</div>
-	{/each}
+		{/each}
+	</div>
+
+	{#if totalTasks > 0}
+		<PaginationFooter
+			{currentPage}
+			{totalPages}
+			{totalTasks}
+			{pageSize}
+			on:pageChange
+			on:pageSizeSettings
+		/>
+	{/if}
 </div>
 
 <!-- Click outside to close menu -->
