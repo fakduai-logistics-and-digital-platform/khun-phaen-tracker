@@ -95,6 +95,9 @@ async fn main() {
     if room_idle_timeout_seconds > 0 {
         spawn_room_cleanup_task(state.clone());
     }
+    
+    // Start automated notifications service
+    crate::services::notification_service::spawn_notification_service_task(state.clone());
 
     // Check and create initial admin if needed
     check_and_create_initial_admin(&state.db).await;
@@ -131,6 +134,8 @@ async fn main() {
         .route("/api/workspaces", get(handlers::workspace_handler::get_workspaces_handler))
         .route("/api/workspaces", post(handlers::workspace_handler::create_workspace_handler))
         .route("/api/workspaces/:id", put(handlers::workspace_handler::update_workspace_handler))
+        .route("/api/workspaces/:id/notifications", get(handlers::workspace_handler::get_notification_config_handler))
+        .route("/api/workspaces/:id/notifications", put(handlers::workspace_handler::update_notification_config_handler))
         .route("/api/workspaces/:id", delete(handlers::workspace_handler::delete_workspace_handler))
         .route("/api/workspaces/access/:room_code", get(handlers::workspace_handler::check_workspace_access_handler))
         // Data routes (workspace-scoped)

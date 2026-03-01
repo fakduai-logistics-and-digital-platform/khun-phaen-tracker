@@ -55,6 +55,37 @@ impl WorkspaceRepository {
         Ok(delete_res.deleted_count > 0)
     }
 
+    pub async fn update_notification_config(&self, id: &ObjectId, owner_id: &ObjectId, config: crate::models::workspace::NotificationConfig) -> mongodb::error::Result<bool> {
+        let config_bson = mongodb::bson::to_bson(&config)?;
+        let update_res = self.collection.update_one(
+            doc! { "_id": id, "owner_id": owner_id },
+            doc! { "$set": { "notification_config": config_bson } },
+            None
+        ).await?;
+        Ok(update_res.matched_count > 0)
+    }
+
+    pub async fn find_all_notifications(&self) -> mongodb::error::Result<Vec<Workspace>> {
+        let mut cursor = self.collection.find(doc! { "notification_config.enabled": true }, None).await?;
+        let mut workspaces = Vec::new();
+        while let Some(result) = cursor.next().await {
+            match result {
+                Ok(doc) => workspaces.push(doc),
+                Err(e) => return Err(e),
+            }
+        }
+        Ok(workspaces)
+    }
+
+    pub async fn update_last_sent(&self, id: &ObjectId, last_sent_at: chrono::DateTime<chrono::Utc>) -> mongodb::error::Result<bool> {
+        let update_res = self.collection.update_one(
+            doc! { "_id": id },
+            doc! { "$set": { "notification_config.last_sent_at": last_sent_at } },
+            None
+        ).await?;
+        Ok(update_res.matched_count > 0)
+    }
+
     pub async fn find_by_room_code(&self, room_code: &str) -> mongodb::error::Result<Option<Workspace>> {
         self.collection.find_one(doc! { "room_code": room_code }, None).await
     }

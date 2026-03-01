@@ -231,3 +231,83 @@ pub async fn check_workspace_access_handler(
         None => axum::Json(serde_json::json!({ "success": false, "error": "Workspace not found" })).into_response()
     }
 }
+
+pub async fn get_notification_config_handler(
+    State(state): State<SharedState>,
+    Path(id): Path<String>,
+    headers: HeaderMap,
+    jar: CookieJar,
+) -> axum::response::Response {
+    let user_id = match extract_user_id(&headers, &jar, &state.jwt_secret) {
+        Some(id) => id,
+        None => return (axum::http::StatusCode::UNAUTHORIZED, axum::Json(serde_json::json!({ "error": "Not logged in" }))).into_response(),
+    };
+
+    let workspace_id = match ObjectId::parse_str(&id) {
+        Ok(oid) => oid,
+        Err(_) => return (axum::http::StatusCode::BAD_REQUEST, axum::Json(serde_json::json!({ "error": "Invalid workspace ID syntax" }))).into_response(),
+    };
+
+    let workspace_repo = WorkspaceRepository::new(&state.db);
+    match workspace_repo.find_by_id(&workspace_id).await {
+        Ok(Some(ws)) => {
+            // Check access
+            if ws.owner_id != user_id {
+                return (axum::http::StatusCode::FORBIDDEN, axum::Json(serde_json::json!({ "error": "Forbidden" }))).into_response();
+            }
+            axum::Json(serde_json::json!({ "success": true, "config": ws.notification_config })).into_response()
+        },
+        Ok(None) => (axum::http::StatusCode::NOT_FOUND, axum::Json(serde_json::json!({ "error": "Workspace not found" }))).into_response(),
+        Err(e) => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, axum::Json(serde_json::json!({ "error": e.to_string() }))).into_response(),
+    }
+}
+
+pub async fn update_notification_config_handler(
+    State(state): State<SharedState>,
+    Path(id): Path<String>,
+    headers: HeaderMap,
+    jar: CookieJar,
+    Json(payload): Json<crate::models::workspace::UpdateNotificationConfigRequest>,
+) -> axum::response::Response {
+    let user_id = match extract_user_id(&headers, &jar, &state.jwt_secret) {
+        Some(id) => id,
+        None => return (axum::http::StatusCode::UNAUTHORIZED, axum::Json(serde_json::json!({ "error": "Not logged in" }))).into_response(),
+    };
+
+    let workspace_id = match ObjectId::parse_str(&id) {
+        Ok(oid) => oid,
+        Err(_) => return (axum::http::StatusCode::BAD_REQUEST, axum::Json(serde_json::json!({ "error": "Invalid workspace ID syntax" }))).into_response(),
+    };
+
+    let config = crate::models::workspace::NotificationConfig {
+        discord_webhook_url: payload.discord_webhook_url,
+        enabled: payload.enabled,
+        days: payload.days,
+        time: payload.time,
+        last_sent_at: None, // Preserve existing value if possible? Better lookup first.
+    };
+
+    let workspace_repo = WorkspaceRepository::new(&state.db);
+    
+    // Preserve last_sent_at
+    let existing = match workspace_repo.find_by_id(&workspace_id).await {
+        Ok(Some(ws)) => {
+            if ws.owner_id != user_id {
+                return (axum::http::StatusCode::FORBIDDEN, axum::Json(serde_json::json!({ "error": "Forbidden" }))).into_response();
+            }
+            ws
+        },
+        _ => return (axum::http::StatusCode::NOT_FOUND, axum::Json(serde_json::json!({ "error": "Workspace not found" }))).into_response(),
+    };
+
+    let mut final_config = config;
+    if let Some(c) = existing.notification_config {
+        final_config.last_sent_at = c.last_sent_at;
+    }
+
+    match WorkspaceService::update_notification_config(&workspace_repo, &user_id, &workspace_id, final_config).await {
+        Ok(true) => axum::Json(serde_json::json!({ "success": true })).into_response(),
+        Ok(_) => (axum::http::StatusCode::NOT_FOUND, axum::Json(serde_json::json!({ "error": "Not found" }))).into_response(),
+        Err(e) => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, axum::Json(serde_json::json!({ "error": e }))).into_response(),
+    }
+}

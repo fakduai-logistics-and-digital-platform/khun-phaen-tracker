@@ -62,6 +62,17 @@ impl WorkspaceService {
             .map_err(|e| format!("Database error: {}", e))
     }
 
+    pub async fn update_notification_config(
+        repo: &WorkspaceRepository,
+        owner_id: &ObjectId,
+        workspace_id: &ObjectId,
+        config: crate::models::workspace::NotificationConfig,
+    ) -> Result<bool, String> {
+        repo.update_notification_config(workspace_id, owner_id, config)
+            .await
+            .map_err(|e| format!("Database error: {}", e))
+    }
+
     pub async fn delete_workspace(
         workspace_repo: &WorkspaceRepository,
         room_repo: &RoomRepository,

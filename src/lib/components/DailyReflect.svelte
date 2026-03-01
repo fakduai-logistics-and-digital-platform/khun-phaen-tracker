@@ -7,6 +7,8 @@
 	import type { Task } from '$lib/types';
 	import { getTasks } from '$lib/db';
 	import { browser } from '$app/environment';
+	import { page } from '$app/stores';
+	import { api } from '$lib/apis';
 
 	export let show = false;
 
@@ -23,6 +25,75 @@
 	let isSending = false;
 	let sendSuccess = false;
 	let sendError = '';
+
+	// Automation Settings
+	let autoEnabled = false;
+	let autoDays: number[] = [1, 2, 3, 4, 5]; // Mon-Fri
+	let autoTime = '09:00';
+	let isSavingAuto = false;
+
+	async function fetchAutoConfig() {
+		const wsId = $page.params.workspace_id;
+		if (!wsId || wsId === 'offline') return;
+
+		try {
+			const res = await api.workspaces.getNotificationConfig(wsId);
+			if (res.ok) {
+				const data = await res.json();
+				if (data.success && data.config) {
+					webhookUrl = data.config.discord_webhook_url || webhookUrl;
+					autoEnabled = data.config.enabled;
+					autoDays = data.config.days;
+					autoTime = data.config.time;
+					
+					// Update local storage too for compatibility with manual send if needed
+					if (data.config.discord_webhook_url) {
+						localStorage.setItem('discordWebhookUrl', data.config.discord_webhook_url);
+					}
+				}
+			}
+		} catch (err) {
+			console.error('Failed to fetch auto config:', err);
+		}
+	}
+
+	async function saveAutomationSettings() {
+		const wsId = $page.params.workspace_id;
+		if (!wsId || wsId === 'offline') {
+			saveWebhookSettings();
+			return;
+		}
+
+		isSavingAuto = true;
+		try {
+			const res = await api.workspaces.updateNotificationConfig(wsId, {
+				discord_webhook_url: webhookUrl,
+				enabled: autoEnabled,
+				days: autoDays,
+				time: autoTime
+			});
+			if (res.ok) {
+				const data = await res.json();
+				if (data.success) {
+					saveWebhookSettings();
+					sendSuccess = true;
+					setTimeout(() => { sendSuccess = false; }, 2000);
+				}
+			}
+		} catch (err) {
+			console.error('Failed to save auto config:', err);
+		} finally {
+			isSavingAuto = false;
+		}
+	}
+
+	function toggleDay(day: number) {
+		if (autoDays.includes(day)) {
+			autoDays = autoDays.filter(d => d !== day);
+		} else {
+			autoDays = [...autoDays, day].sort();
+		}
+	}
 
 	async function loadTodayData() {
 		isLoading = true;
@@ -213,6 +284,7 @@
 
 	$: if (show) {
 		loadTodayData();
+		fetchAutoConfig();
 	}
 </script>
 
@@ -263,20 +335,84 @@
 				<!-- Settings Panel -->
 				{#if showSettings}
 					<div class="mt-4 p-4 bg-gray-50/80 dark:bg-gray-800/80 rounded-2xl border border-gray-100 dark:border-gray-700" transition:slide>
-						<div class="flex flex-col gap-3">
-							<div class="flex items-center justify-between">
-								<label for="webhook" class="text-xs font-bold uppercase tracking-wider text-gray-500">{$_('dailyReflect__webhook_label')}</label>
-								<button on:click={saveWebhookSettings} class="text-xs font-bold text-primary flex items-center gap-1 hover:underline">
-									<Save size={12} /> {$_('timer__btn_save')}
-								</button>
+						<div class="flex flex-col gap-4">
+							<div class="space-y-3">
+								<div class="flex items-center justify-between">
+									<label for="webhook" class="text-xs font-bold uppercase tracking-wider text-gray-500">{$_('dailyReflect__webhook_label')}</label>
+									<button on:click={saveWebhookSettings} class="text-xs font-bold text-primary flex items-center gap-1 hover:underline">
+										<Save size={12} /> {$_('timer__btn_save')}
+									</button>
+								</div>
+								<input 
+									id="webhook"
+									type="text" 
+									bind:value={webhookUrl}
+									placeholder={$_('dailyReflect__webhook_placeholder')}
+									class="w-full px-4 py-2 text-sm bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-primary/50 outline-none transition-all"
+								/>
 							</div>
-							<input 
-								id="webhook"
-								type="text" 
-								bind:value={webhookUrl}
-								placeholder={$_('dailyReflect__webhook_placeholder')}
-								class="w-full px-4 py-2 text-sm bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-primary/50 outline-none"
-							/>
+
+							{#if $page.params.workspace_id && $page.params.workspace_id !== 'offline'}
+								<div class="pt-2 border-t border-gray-100 dark:border-gray-700 space-y-4">
+									<div class="flex items-center justify-between">
+										<div class="flex items-center gap-2">
+											<div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+												<Clock size={16} />
+											</div>
+											<span class="text-sm font-bold text-gray-700 dark:text-gray-200">{$_('dailyReflect__automation_title')}</span>
+										</div>
+										<label class="relative inline-flex items-center cursor-pointer">
+											<input type="checkbox" bind:checked={autoEnabled} class="sr-only peer">
+											<div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
+										</label>
+									</div>
+
+									{#if autoEnabled}
+										<div class="space-y-4" transition:slide>
+											<div class="space-y-2">
+												<span class="text-[10px] font-bold uppercase tracking-wider text-gray-400">{$_('dailyReflect__automation_days')}</span>
+												<div class="flex flex-wrap gap-1.5">
+													{#each [1, 2, 3, 4, 5, 6, 0] as day}
+														<button 
+															on:click={() => toggleDay(day)}
+															class="px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all {autoDays.includes(day) ? 'bg-primary text-white shadow-md shadow-primary/20' : 'bg-white dark:bg-gray-900 text-gray-400 border border-gray-100 dark:border-gray-700'}"
+														>
+															{$_(`dailyReflect__day_${day}`)}
+														</button>
+													{/each}
+												</div>
+											</div>
+
+											<div class="space-y-2">
+												<label class="text-[10px] font-bold uppercase tracking-widest text-gray-400 pl-1">{$_('dailyReflect__automation_time')}</label>
+												<div class="relative group">
+													<div class="absolute inset-y-0 left-4 flex items-center pointer-events-none text-gray-400 group-focus-within:text-primary transition-colors">
+														<Clock size={18} />
+													</div>
+													<input 
+														type="time" 
+														bind:value={autoTime}
+														class="w-full pl-12 pr-4 py-4 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-2xl text-xl font-black text-gray-800 dark:text-white transition-all outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary shadow-sm active:scale-[0.99]"
+													/>
+												</div>
+											</div>
+
+											<button 
+												on:click={saveAutomationSettings}
+												disabled={isSavingAuto}
+												class="w-full py-2.5 bg-primary/10 hover:bg-primary text-primary hover:text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2"
+											>
+												{#if isSavingAuto}
+													<RefreshCcw size={14} class="animate-spin" />
+												{:else}
+													<Save size={14} />
+												{/if}
+												{$_('dailyReflect__automation_save')}
+											</button>
+										</div>
+									{/if}
+								</div>
+							{/if}
 						</div>
 					</div>
 				{/if}
@@ -428,5 +564,12 @@
 	textarea::-webkit-scrollbar-thumb {
 		background-color: rgba(156, 163, 175, 0.5);
 		border-radius: 10px;
+	}
+	.scrollbar-hide::-webkit-scrollbar {
+		display: none;
+	}
+	.scrollbar-hide {
+		-ms-overflow-style: none;
+		scrollbar-width: none;
 	}
 </style>
