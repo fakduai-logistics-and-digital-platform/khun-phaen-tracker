@@ -27,14 +27,16 @@ services:
       dockerfile: Dockerfile
     ports:
       - "3001:3001"
+    env_file:
+      - ./backend-server/.env
     environment:
-      - PORT=3001
-      - RUST_LOG=info
-      # Connection URI with admin credentials
-      - MONGODB_URI=mongodb://admin:password123@mongodb:27017/tracker-db?authSource=admin
-      - DB_NAME=tracker-db
-      - JWT_SECRET=khunphaen_super_secret_key_2026_!@#
-      - ROOM_IDLE_TIMEOUT_SECONDS=3600
+      - PORT=${PORT:-3001}
+      - RUST_LOG=${RUST_LOG:-info}
+      # Will use MONGODB_URI from .env if available, otherwise fallback to local mongodb container
+      - MONGODB_URI=${MONGODB_URI:-mongodb://admin:password123@mongodb:27017/tracker-db?authSource=admin}
+      - DB_NAME=${DB_NAME:-tracker-db}
+      - JWT_SECRET=${JWT_SECRET:-khunphaen_super_secret_key_2026_!@#}
+      - ROOM_IDLE_TIMEOUT_SECONDS=${ROOM_IDLE_TIMEOUT_SECONDS:-3600}
     restart: unless-stopped
     depends_on:
       - mongodb
