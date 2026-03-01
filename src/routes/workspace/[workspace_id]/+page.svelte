@@ -169,7 +169,24 @@ import { List, CalendarDays, Columns3, Table, GanttChart, UsersRound, Filter, Se
 		clearTimeout(loadDataTimer);
 		loadDataTimer = setTimeout(() => {
 			void loadData();
-		}, 50);
+		}, 300);
+	}
+
+	// Auto-open task from URL
+	$: if (browser && !loadingData && allTasksIncludingArchived.length > 0) {
+		const urlTaskId = $page.url.searchParams.get('task');
+		if (urlTaskId && (!editingTask || String(editingTask.id) !== urlTaskId)) {
+			// Find task in all loaded tasks
+			const task = allTasksIncludingArchived.find(t => String(t.id) === urlTaskId);
+			if (task) {
+				editingTask = task;
+				showForm = true;
+			}
+		} else if (!urlTaskId && showForm && editingTask) {
+			// Handle case where user hits back button or URL changes manually
+			showForm = false;
+			editingTask = null;
+		}
 	}
 
 	$: isOwner = $currentWorkspaceOwnerId && $user?.id ? $currentWorkspaceOwnerId === $user.id : false;
@@ -1358,13 +1375,28 @@ import { List, CalendarDays, Columns3, Table, GanttChart, UsersRound, Filter, Se
 	}
 
 	function handleEditTask(event: CustomEvent<Task>) {
-		editingTask = event.detail;
+		const task = event.detail;
+		editingTask = task;
 		showForm = true;
+
+		// Update URL with task ID for sharing
+		if (browser && task?.id) {
+			const url = new URL(window.location.href);
+			url.searchParams.set('task', String(task.id));
+			goto(url.toString(), { replaceState: true, noScroll: true });
+		}
 	}
 	
 	function cancelEdit() {
 		editingTask = null;
 		showForm = false;
+
+		// Remove task ID from URL
+		if (browser) {
+			const url = new URL(window.location.href);
+			url.searchParams.delete('task');
+			goto(url.toString(), { replaceState: true, noScroll: true });
+		}
 	}
 	
 	async function handleStatusChange(event: CustomEvent<{ id: string | number; status: Task['status'] }>) {
@@ -2938,7 +2970,16 @@ import { List, CalendarDays, Columns3, Table, GanttChart, UsersRound, Filter, Se
 			{/if}
 
 			<button
-				on:click={() => { showForm = !showForm; editingTask = null; }}
+				on:click={() => { 
+					showForm = !showForm; 
+					editingTask = null;
+					// Clear task param from URL
+					if (browser) {
+						const url = new URL(window.location.href);
+						url.searchParams.delete('task');
+						goto(url.toString(), { replaceState: true, noScroll: true });
+					}
+				}}
 				class="flex-1 lg:flex-none flex items-center justify-center gap-3 px-6 h-12 bg-primary hover:bg-primary-dark text-white rounded-xl font-black uppercase tracking-widest transition-all shadow-sm ring-1 ring-white/5 text-sm whitespace-nowrap active:scale-95"
 			>
 				<Plus size={22} strokeWidth={3} />

@@ -3,7 +3,7 @@
 	import { browser } from '$app/environment';
 	import type { Task, Project, Assignee, Sprint, ChecklistItem } from '$lib/types';
 	import { CATEGORIES } from '$lib/types';
-	import { Calendar, FileText, Tag, CheckCircle, Folder, X, GitBranch, GitPullRequest, ExternalLink } from 'lucide-svelte';
+	import { Calendar, FileText, Tag, CheckCircle, Folder, X, GitBranch, GitPullRequest, ExternalLink, Link, Check } from 'lucide-svelte';
 	import { taskDefaults } from '$lib/stores/taskDefaults';
 	import { _ } from 'svelte-i18n';
 	import SearchableSelect from './SearchableSelect.svelte';
@@ -41,6 +41,16 @@
 	let checklist: ChecklistItem[] = [];
 	let showBranchDialog = false;
 	let formInitKey = 'closed';
+	let copySuccess = false;
+
+	function copyShareLink() {
+		if (!editingTask?.id) return;
+		const url = new URL(window.location.href);
+		url.searchParams.set('task', String(editingTask.id));
+		navigator.clipboard.writeText(url.toString());
+		copySuccess = true;
+		setTimeout(() => { copySuccess = false; }, 2000);
+	}
 
 	$: activeSprint = sprints.find(s => s.status === 'active');
 
@@ -222,6 +232,23 @@
 					{editingTask ? $_('taskForm__edit_task_title') : $_('taskForm__add_task_title')}
 				</h2>
 				<div class="flex items-center gap-2">
+					{#if editingTask?.id}
+						<button
+							type="button"
+							on:click={copyShareLink}
+							class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium {copySuccess ? 'text-green-600 dark:text-green-400 border-green-300 dark:border-green-600 bg-green-50 dark:bg-green-900/10' : 'text-blue-600 dark:text-blue-400 border-blue-300 dark:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/10'} border rounded-lg transition-all"
+							title="Copy share link"
+						>
+							{#if copySuccess}
+								<Check size={14} />
+								<span>Copied!</span>
+							{:else}
+								<Link size={14} />
+								<span>Share</span>
+							{/if}
+						</button>
+					{/if}
+
 					{#if currentProjectRepoUrl}
 						<button
 							type="button"
