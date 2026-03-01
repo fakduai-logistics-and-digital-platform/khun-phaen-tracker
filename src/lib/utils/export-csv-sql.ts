@@ -1,187 +1,231 @@
-import type { Task, Project, Assignee, Sprint } from '$lib/types';
+import type { Task, Project, Assignee, Sprint } from "$lib/types";
 
 export function formatDateISO(date: Date): string {
-	const year = date.getFullYear();
-	const month = String(date.getMonth() + 1).padStart(2, '0');
-	const day = String(date.getDate()).padStart(2, '0');
-	return `${year}-${month}-${day}`;
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 export function formatExportTimestamp(now = new Date()) {
-	const year = now.getFullYear();
-	const month = String(now.getMonth() + 1).padStart(2, '0');
-	const day = String(now.getDate()).padStart(2, '0');
-	const hours = String(now.getHours()).padStart(2, '0');
-	const minutes = String(now.getMinutes()).padStart(2, '0');
-	const seconds = String(now.getSeconds()).padStart(2, '0');
-	return `${year}-${month}-${day}_${hours}-${minutes}-${seconds}`;
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  const hours = String(now.getHours()).padStart(2, "0");
+  const minutes = String(now.getMinutes()).padStart(2, "0");
+  const seconds = String(now.getSeconds()).padStart(2, "0");
+  return `${year}-${month}-${day}_${hours}-${minutes}-${seconds}`;
 }
 
 export function downloadBlob(fileName: string, blob: Blob) {
-	const link = document.createElement('a');
-	const url = URL.createObjectURL(blob);
-	link.setAttribute('href', url);
-	link.setAttribute('download', fileName);
-	document.body.appendChild(link);
-	link.click();
-	document.body.removeChild(link);
-	URL.revokeObjectURL(url);
+  const link = document.createElement("a");
+  const url = URL.createObjectURL(blob);
+  link.setAttribute("href", url);
+  link.setAttribute("download", fileName);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
 
 export function csvEscape(value: unknown): string {
-	if (value === null || value === undefined) return '';
-	const str = String(value);
-	if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-		return `"${str.replace(/"/g, '""')}"`;
-	}
-	return str;
+  if (value === null || value === undefined) return "";
+  const str = String(value);
+  if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
 }
 
 export function buildCsvFromSnapshot(
-	taskSnapshot: Task[],
-	relatedProjects: Project[],
-	relatedAssignees: Assignee[],
-	relatedSprints: Sprint[]
+  taskSnapshot: Task[],
+  relatedProjects: Project[],
+  relatedAssignees: Assignee[],
+  relatedSprints: Sprint[],
 ): string {
-	const rows: string[] = [];
-	const taskHeaders = ['id', 'title', 'project', 'duration_minutes', 'date', 'status', 'category', 'notes', 'assignee_id', 'assignee_name', 'sprint_id', 'is_archived', 'created_at', 'updated_at'];
-	rows.push('# TASKS');
-	rows.push(taskHeaders.join(','));
-	for (const task of taskSnapshot) {
-		const assigneeName = task.assignee?.name || relatedAssignees.find((a) => a.id === task.assignee_id)?.name || '';
-		const taskRow: Record<string, unknown> = {
-			id: task.id,
-			title: task.title,
-			project: task.project,
-			duration_minutes: task.duration_minutes,
-			date: task.date,
-			status: task.status,
-			category: task.category,
-			notes: task.notes,
-			assignee_id: task.assignee_id,
-			assignee_name: assigneeName,
-			sprint_id: task.sprint_id,
-			is_archived: task.is_archived ? 1 : 0,
-			created_at: task.created_at,
-			updated_at: task.updated_at
-		};
-		rows.push(taskHeaders.map((h) => csvEscape(taskRow[h])).join(','));
-	}
+  const rows: string[] = [];
+  const taskHeaders = [
+    "id",
+    "title",
+    "project",
+    "duration_minutes",
+    "date",
+    "status",
+    "category",
+    "notes",
+    "assignee_id",
+    "assignee_name",
+    "sprint_id",
+    "is_archived",
+    "created_at",
+    "updated_at",
+  ];
+  rows.push("# TASKS");
+  rows.push(taskHeaders.join(","));
+  for (const task of taskSnapshot) {
+    const assigneeName =
+      task.assignee?.name ||
+      relatedAssignees.find((a) => a.id === task.assignee_id)?.name ||
+      "";
+    const taskRow: Record<string, unknown> = {
+      id: task.id,
+      title: task.title,
+      project: task.project,
+      duration_minutes: task.duration_minutes,
+      date: task.date,
+      status: task.status,
+      category: task.category,
+      notes: task.notes,
+      assignee_id: task.assignee_id,
+      assignee_name: assigneeName,
+      sprint_id: task.sprint_id,
+      is_archived: task.is_archived ? 1 : 0,
+      created_at: task.created_at,
+      updated_at: task.updated_at,
+    };
+    rows.push(taskHeaders.map((h) => csvEscape(taskRow[h])).join(","));
+  }
 
-	rows.push('');
-	rows.push('# PROJECTS');
-	const projectHeaders = ['id', 'name', 'created_at'];
-	rows.push(projectHeaders.join(','));
-	for (const project of relatedProjects) {
-		rows.push(projectHeaders.map((h) => csvEscape((project as unknown as Record<string, unknown>)[h])).join(','));
-	}
+  rows.push("");
+  rows.push("# PROJECTS");
+  const projectHeaders = ["id", "name", "created_at"];
+  rows.push(projectHeaders.join(","));
+  for (const project of relatedProjects) {
+    rows.push(
+      projectHeaders
+        .map((h) =>
+          csvEscape((project as unknown as Record<string, unknown>)[h]),
+        )
+        .join(","),
+    );
+  }
 
-	rows.push('');
-	rows.push('# ASSIGNEES');
-	const assigneeHeaders = ['id', 'name', 'color', 'created_at'];
-	rows.push(assigneeHeaders.join(','));
-	for (const assignee of relatedAssignees) {
-		rows.push(assigneeHeaders.map((h) => csvEscape((assignee as unknown as Record<string, unknown>)[h])).join(','));
-	}
+  rows.push("");
+  rows.push("# ASSIGNEES");
+  const assigneeHeaders = ["id", "name", "color", "created_at"];
+  rows.push(assigneeHeaders.join(","));
+  for (const assignee of relatedAssignees) {
+    rows.push(
+      assigneeHeaders
+        .map((h) =>
+          csvEscape((assignee as unknown as Record<string, unknown>)[h]),
+        )
+        .join(","),
+    );
+  }
 
-	rows.push('');
-	rows.push('# SPRINTS');
-	const sprintHeaders = ['id', 'name', 'start_date', 'end_date', 'status', 'created_at'];
-	rows.push(sprintHeaders.join(','));
-	for (const sprint of relatedSprints) {
-		rows.push(sprintHeaders.map((h) => csvEscape((sprint as unknown as Record<string, unknown>)[h])).join(','));
-	}
+  rows.push("");
+  rows.push("# SPRINTS");
+  const sprintHeaders = [
+    "id",
+    "name",
+    "start_date",
+    "end_date",
+    "status",
+    "created_at",
+  ];
+  rows.push(sprintHeaders.join(","));
+  for (const sprint of relatedSprints) {
+    rows.push(
+      sprintHeaders
+        .map((h) =>
+          csvEscape((sprint as unknown as Record<string, unknown>)[h]),
+        )
+        .join(","),
+    );
+  }
 
-	return rows.join('\n');
+  return rows.join("\n");
 }
 
 export function escapePostgresString(value: string): string {
-	return value.replace(/'/g, "''");
+  return value.replace(/'/g, "''");
 }
 
 export function toPostgresValue(value: unknown): string {
-	if (value === null || value === undefined) return 'NULL';
-	if (typeof value === 'number') return Number.isFinite(value) ? String(value) : 'NULL';
-	if (typeof value === 'boolean') return value ? 'TRUE' : 'FALSE';
-	return `'${escapePostgresString(String(value))}'`;
+  if (value === null || value === undefined) return "NULL";
+  if (typeof value === "number")
+    return Number.isFinite(value) ? String(value) : "NULL";
+  if (typeof value === "boolean") return value ? "TRUE" : "FALSE";
+  return `'${escapePostgresString(String(value))}'`;
 }
 
 export function buildPostgresSqlFromSnapshot(
-	taskSnapshot: Task[],
-	relatedProjects: Project[],
-	relatedAssignees: Assignee[],
-	relatedSprints: Sprint[]
+  taskSnapshot: Task[],
+  relatedProjects: Project[],
+  relatedAssignees: Assignee[],
+  relatedSprints: Sprint[],
 ): string {
-	const sql: string[] = [
-		'-- PostgreSQL export generated by task-tracker-offline',
-		'BEGIN;',
-		'',
-		'CREATE TABLE IF NOT EXISTS projects (',
-		'  id INTEGER PRIMARY KEY,',
-		'  name TEXT NOT NULL,',
-		'  repo_url TEXT,',
-		'  created_at TEXT',
-		');',
-		'',
-		'CREATE TABLE IF NOT EXISTS assignees (',
-		'  id INTEGER PRIMARY KEY,',
-		'  name TEXT NOT NULL,',
-		'  color TEXT,',
-		'  created_at TEXT',
-		');',
-		'',
-		'CREATE TABLE IF NOT EXISTS sprints (',
-		'  id INTEGER PRIMARY KEY,',
-		'  name TEXT NOT NULL,',
-		'  start_date TEXT,',
-		'  end_date TEXT,',
-		'  status TEXT,',
-		'  created_at TEXT',
-		');',
-		'',
-		'CREATE TABLE IF NOT EXISTS tasks (',
-		'  id INTEGER PRIMARY KEY,',
-		'  title TEXT NOT NULL,',
-		'  project TEXT,',
-		'  duration_minutes INTEGER DEFAULT 0,',
-		'  date TEXT,',
-		'  status TEXT,',
-		'  category TEXT,',
-		'  notes TEXT,',
-		'  assignee_id INTEGER,',
-		'  sprint_id INTEGER,',
-		'  is_archived BOOLEAN DEFAULT FALSE,',
-		'  created_at TEXT,',
-		'  updated_at TEXT,',
-		'  end_date TEXT',
-		');',
-		''
-	];
+  const sql: string[] = [
+    "-- PostgreSQL export generated by khun-phaen-tracker",
+    "BEGIN;",
+    "",
+    "CREATE TABLE IF NOT EXISTS projects (",
+    "  id INTEGER PRIMARY KEY,",
+    "  name TEXT NOT NULL,",
+    "  repo_url TEXT,",
+    "  created_at TEXT",
+    ");",
+    "",
+    "CREATE TABLE IF NOT EXISTS assignees (",
+    "  id INTEGER PRIMARY KEY,",
+    "  name TEXT NOT NULL,",
+    "  color TEXT,",
+    "  created_at TEXT",
+    ");",
+    "",
+    "CREATE TABLE IF NOT EXISTS sprints (",
+    "  id INTEGER PRIMARY KEY,",
+    "  name TEXT NOT NULL,",
+    "  start_date TEXT,",
+    "  end_date TEXT,",
+    "  status TEXT,",
+    "  created_at TEXT",
+    ");",
+    "",
+    "CREATE TABLE IF NOT EXISTS tasks (",
+    "  id INTEGER PRIMARY KEY,",
+    "  title TEXT NOT NULL,",
+    "  project TEXT,",
+    "  duration_minutes INTEGER DEFAULT 0,",
+    "  date TEXT,",
+    "  status TEXT,",
+    "  category TEXT,",
+    "  notes TEXT,",
+    "  assignee_id INTEGER,",
+    "  sprint_id INTEGER,",
+    "  is_archived BOOLEAN DEFAULT FALSE,",
+    "  created_at TEXT,",
+    "  updated_at TEXT,",
+    "  end_date TEXT",
+    ");",
+    "",
+  ];
 
-	for (const project of relatedProjects) {
-		sql.push(
-			`INSERT INTO projects (id, name, repo_url, created_at) VALUES (${toPostgresValue(project.id)}, ${toPostgresValue(project.name)}, ${toPostgresValue(project.repo_url)}, ${toPostgresValue(project.created_at)}) ON CONFLICT (id) DO NOTHING;`
-		);
-	}
+  for (const project of relatedProjects) {
+    sql.push(
+      `INSERT INTO projects (id, name, repo_url, created_at) VALUES (${toPostgresValue(project.id)}, ${toPostgresValue(project.name)}, ${toPostgresValue(project.repo_url)}, ${toPostgresValue(project.created_at)}) ON CONFLICT (id) DO NOTHING;`,
+    );
+  }
 
-	for (const assignee of relatedAssignees) {
-		sql.push(
-			`INSERT INTO assignees (id, name, color, created_at) VALUES (${toPostgresValue(assignee.id)}, ${toPostgresValue(assignee.name)}, ${toPostgresValue(assignee.color)}, ${toPostgresValue(assignee.created_at)}) ON CONFLICT (id) DO NOTHING;`
-		);
-	}
+  for (const assignee of relatedAssignees) {
+    sql.push(
+      `INSERT INTO assignees (id, name, color, created_at) VALUES (${toPostgresValue(assignee.id)}, ${toPostgresValue(assignee.name)}, ${toPostgresValue(assignee.color)}, ${toPostgresValue(assignee.created_at)}) ON CONFLICT (id) DO NOTHING;`,
+    );
+  }
 
-	for (const sprint of relatedSprints) {
-		sql.push(
-			`INSERT INTO sprints (id, name, start_date, end_date, status, created_at) VALUES (${toPostgresValue(sprint.id)}, ${toPostgresValue(sprint.name)}, ${toPostgresValue(sprint.start_date)}, ${toPostgresValue(sprint.end_date)}, ${toPostgresValue(sprint.status)}, ${toPostgresValue(sprint.created_at)}) ON CONFLICT (id) DO NOTHING;`
-		);
-	}
+  for (const sprint of relatedSprints) {
+    sql.push(
+      `INSERT INTO sprints (id, name, start_date, end_date, status, created_at) VALUES (${toPostgresValue(sprint.id)}, ${toPostgresValue(sprint.name)}, ${toPostgresValue(sprint.start_date)}, ${toPostgresValue(sprint.end_date)}, ${toPostgresValue(sprint.status)}, ${toPostgresValue(sprint.created_at)}) ON CONFLICT (id) DO NOTHING;`,
+    );
+  }
 
-	for (const task of taskSnapshot) {
-		sql.push(
-			`INSERT INTO tasks (id, title, project, duration_minutes, date, status, category, notes, assignee_id, sprint_id, is_archived, created_at, updated_at, end_date) VALUES (${toPostgresValue(task.id)}, ${toPostgresValue(task.title)}, ${toPostgresValue(task.project)}, ${toPostgresValue(task.duration_minutes)}, ${toPostgresValue(task.date)}, ${toPostgresValue(task.status)}, ${toPostgresValue(task.category)}, ${toPostgresValue(task.notes)}, ${toPostgresValue(task.assignee_id)}, ${toPostgresValue(task.sprint_id)}, ${toPostgresValue(!!task.is_archived)}, ${toPostgresValue(task.created_at)}, ${toPostgresValue(task.updated_at)}, ${toPostgresValue(task.end_date)}) ON CONFLICT (id) DO NOTHING;`
-		);
-	}
+  for (const task of taskSnapshot) {
+    sql.push(
+      `INSERT INTO tasks (id, title, project, duration_minutes, date, status, category, notes, assignee_id, sprint_id, is_archived, created_at, updated_at, end_date) VALUES (${toPostgresValue(task.id)}, ${toPostgresValue(task.title)}, ${toPostgresValue(task.project)}, ${toPostgresValue(task.duration_minutes)}, ${toPostgresValue(task.date)}, ${toPostgresValue(task.status)}, ${toPostgresValue(task.category)}, ${toPostgresValue(task.notes)}, ${toPostgresValue(task.assignee_id)}, ${toPostgresValue(task.sprint_id)}, ${toPostgresValue(!!task.is_archived)}, ${toPostgresValue(task.created_at)}, ${toPostgresValue(task.updated_at)}, ${toPostgresValue(task.end_date)}) ON CONFLICT (id) DO NOTHING;`,
+    );
+  }
 
-	sql.push('', 'COMMIT;');
-	return sql.join('\n');
+  sql.push("", "COMMIT;");
+  return sql.join("\n");
 }
