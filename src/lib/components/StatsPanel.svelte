@@ -14,6 +14,14 @@
 	} = { total: 0, todo: 0, in_progress: 0, in_test: 0, done: 0, total_minutes: 0 };
 </script>
 
+{#if $currentWorkspaceName}
+	<div class="mb-2 inline-flex items-center rounded-xl border border-indigo-200/70 dark:border-indigo-500/30 bg-indigo-50/80 dark:bg-indigo-500/10 px-3 py-1.5">
+		<p class="max-w-[70vw] truncate text-xs font-black uppercase tracking-wider text-indigo-700 dark:text-indigo-300">
+			{$currentWorkspaceName}
+		</p>
+	</div>
+{/if}
+
 <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
 	<!-- Total Tasks -->
 	<div class="bg-gray-50 dark:bg-gray-800/40 p-5 rounded-2xl border border-gray-200 dark:border-gray-700/30 backdrop-blur-md transition-all group shadow-sm">
