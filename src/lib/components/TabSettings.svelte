@@ -217,7 +217,7 @@
 					<button
 						on:click={() => moveUp(index)}
 						disabled={index === 0}
-						class="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-all hover:scale-110 active:scale-95"
+						class="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-all"
 						title={$_('tabSettings__move_up')}
 					>
 						<ChevronUp size={16} />
@@ -225,7 +225,7 @@
 					<button
 						on:click={() => moveDown(index)}
 						disabled={index === editingTabs.length - 1}
-						class="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-all hover:scale-110 active:scale-95"
+						class="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 rounded disabled:opacity-30 disabled:cursor-not-allowed transition-all"
 						title={$_('tabSettings__move_down')}
 					>
 						<ChevronDown size={16} />
@@ -238,7 +238,7 @@
 	<div class="flex items-center gap-2 pt-3 border-t border-gray-200 dark:border-gray-700">
 		<button
 			on:click={handleReset}
-			class="px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg flex items-center gap-1.5 transition-all hover:scale-105 active:scale-95"
+			class="px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg flex items-center gap-1.5 transition-all"
 		>
 			<RotateCcw size={16} />
 			{$_('tabSettings__btn_reset')}
@@ -248,7 +248,7 @@
 		
 		<button
 			on:click={handleCancel}
-			class="px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-all hover:scale-105 active:scale-95"
+			class="px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-all"
 		>
 			{$_('tabSettings__btn_cancel')}
 		</button>
@@ -256,7 +256,7 @@
 		<button
 			on:click={handleSave}
 			disabled={!hasChanges}
-			class="px-3 py-2 text-sm font-medium bg-primary text-white rounded-lg hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 transition-all hover:scale-105 active:scale-95"
+			class="px-3 py-2 text-sm font-medium bg-primary text-white rounded-lg hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 transition-all"
 		>
 			<Check size={16} />
 			{$_('tabSettings__btn_save')}

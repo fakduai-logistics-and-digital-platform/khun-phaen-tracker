@@ -154,7 +154,7 @@
 
 <!-- Modal Backdrop -->
 <div
-	class="fixed inset-0 bg-black/50 z-40 flex items-center justify-center p-4"
+	class="fixed inset-0 bg-black/50 z-[20000] flex items-center justify-center p-4"
 	on:click={handleBackdropClick}
 	on:keydown={(e) => e.key === 'Escape' && dispatch('close')}
 	role="button"
@@ -355,7 +355,7 @@
 
 							<!-- Actions -->
 							{#if isOwner}
-								<div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all scale-95 group-hover:scale-100">
+								<div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
 									<button
 										on:click={() => startEdit(worker)}
 										class="p-2 text-gray-400 dark:text-gray-500 hover:text-primary hover:bg-white dark:hover:bg-gray-700 rounded-lg transition-colors border border-transparent hover:border-gray-100 dark:hover:border-gray-600 shadow-sm"

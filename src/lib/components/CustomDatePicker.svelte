@@ -181,7 +181,7 @@
 
 <svelte:window on:click={handleClickOutside} on:keydown={handleKeyDown} />
 
-<div class="date-picker-container relative">
+<div class="date-picker-container relative {isOpen ? 'z-[9000]' : 'z-auto'}">
 	<!-- Trigger Button -->
 	<button
 		type="button"
@@ -208,7 +208,7 @@
 	<!-- Dropdown -->
 	{#if isOpen}
 		<div 
-			class="absolute z-50 w-80 mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-xl shadow-2xl overflow-hidden animate-dropdown-in"
+			class="absolute z-[9000] w-80 mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-xl shadow-2xl overflow-hidden animate-dropdown-in"
 		>
 			<!-- Header -->
 			<div class="bg-gradient-to-r from-primary/10 to-primary/5 dark:from-primary/20 dark:to-primary/10 px-4 py-3 border-b border-gray-100 dark:border-gray-700">

@@ -314,7 +314,7 @@
 
 <!-- Modal Backdrop -->
 <div
-	class="fixed inset-0 bg-black/50 z-40 flex items-center justify-center p-4"
+	class="fixed inset-0 bg-black/50 z-[20000] flex items-center justify-center p-4"
 	on:click={handleBackdropClick}
 	on:keydown={(e) => e.key === 'Escape' && dispatch('close')}
 	role="button"
@@ -627,7 +627,7 @@
 	<!-- Move Tasks Confirmation Modal -->
 	{#if showMoveTasksConfirm && pendingSprintData}
 		{@const tasksToMove = getTasksToMoveToNewSprint()}
-		<div class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+		<div class="fixed inset-0 bg-black/60 z-[20001] flex items-center justify-center p-4">
 			<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full p-6 animate-modal-in">
 				<div class="flex items-center gap-3 mb-4">
 					<div class="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
@@ -693,7 +693,7 @@
 		{@const incompleteTasks = tasks.filter(t => t.sprint_id === completeConfirmId && t.status !== 'done')}
 		{@const completedTasks = tasks.filter(t => t.sprint_id === completeConfirmId && t.status === 'done')}
 		{@const hasIncompleteTasks = incompleteTasks.length > 0}
-		<div class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+		<div class="fixed inset-0 bg-black/60 z-[20002] flex items-center justify-center p-4">
 			<div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full p-6 animate-modal-in">
 				<div class="flex items-center gap-3 mb-4">
 					<div class="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">

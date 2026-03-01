@@ -831,6 +831,7 @@
 			projects = await getProjects();
 			projectList = await getProjectsList();
 			assignees = await getAssignees();
+			console.log('DEBUG: assignees loaded', assignees.length, 'myAssigneeId:', myAssigneeId);
 			await sprints.refresh();
 		} catch (e) {
 			console.error('❌ loadData failed:', e);
@@ -2634,7 +2635,7 @@
 </script>
 
 {#if videoExportInProgress}
-	<div class="fixed top-20 right-4 z-50 animate-fade-in">
+	<div class="fixed top-20 right-4 z-[10000] animate-fade-in">
 		<div class="bg-blue-600 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 min-w-70">
 			<svg class="animate-spin" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
 				<circle cx="12" cy="12" r="10" stroke-opacity="0.3"></circle>
@@ -2650,7 +2651,7 @@
 
 <!-- Message Toast -->
 {#if message}
-	<div class="fixed top-20 right-4 z-50 animate-fade-in">
+	<div class="fixed top-20 right-4 z-[10000] animate-fade-in">
 		<div class="{messageType === 'success' ? 'bg-success' : 'bg-danger'} text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-2">
 			{#if messageType === 'success'}
 				<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
@@ -2691,7 +2692,8 @@
 	<StatsPanel {stats} />
 	
 	<!-- Search & Quick Actions -->
-	<div class="flex flex-col md:flex-row items-center gap-3 bg-white/50 dark:bg-gray-900/30 p-2 rounded-2xl border border-gray-200/50 dark:border-gray-800/50 backdrop-blur-sm transition-all group shadow-sm">
+	<!-- Search & Quick Actions -->
+	<div class="relative z-[1000] flex flex-col md:flex-row items-center gap-3 bg-white/50 dark:bg-gray-900/30 p-2 rounded-2xl border border-gray-200/50 dark:border-gray-800/50 backdrop-blur-sm transition-all group shadow-sm">
 		<!-- Search Component -->
 		<div class="relative flex-1 group/search w-full">
 			<div class="absolute left-4 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-400 group-focus-within/search:text-primary group-focus-within/search:bg-primary/10 transition-all duration-300">
@@ -2796,7 +2798,8 @@
 	{/if}
 
 	<!-- View Tabs -->
-	<div class="flex flex-col lg:flex-row gap-4 items-center bg-white/50 dark:bg-gray-900/30 p-2 rounded-2xl border border-gray-200/50 dark:border-gray-800/50 backdrop-blur-sm shadow-sm transition-all">
+	<!-- View Tabs -->
+	<div class="relative z-[10000] flex flex-col lg:flex-row gap-4 items-center bg-white/50 dark:bg-gray-900/30 p-2 rounded-2xl border border-gray-200/50 dark:border-gray-800/50 backdrop-blur-sm shadow-sm transition-all">
 		<div class="flex-1 flex p-1 bg-gray-200/80 dark:bg-gray-800/80 rounded-xl transition-all w-full overflow-x-auto scrollbar-none">
 			{#each visibleTabs as tab (tab.id)}
 				<button
@@ -2823,7 +2826,7 @@
 			{/each}
 		</div>
 		
-		<div class="flex items-center gap-2 shrink-0 w-full lg:w-auto overflow-x-auto lg:overflow-visible">
+		<div class="flex items-center gap-2 shrink-0 w-full lg:w-auto lg:overflow-visible">
 			<!-- Tab Settings -->
 			<button
 				on:click={() => showTabSettings = !showTabSettings}
@@ -2834,7 +2837,7 @@
 			</button>
 			
 			{#if showTabSettings}
-				<div class="absolute top-[calc(100%+1rem)] right-0 z-100 animate-fade-in origin-top-right">
+				<div class="absolute top-[calc(100%+1rem)] right-0 z-[10001] animate-fade-in origin-top-right">
 					<TabSettings 
 						on:close={() => showTabSettings = false}
 						on:save={() => showTabSettings = false}
@@ -2925,22 +2928,22 @@
 						id="assignee"
 						bind:value={filters.assignee_id}
 						options={[
-							...(myAssigneeId ? [{ 
-								value: myAssigneeId, 
-								label: $_('page__filter_assignee_me'), 
-								badge: true, 
-								badgeColor: 'bg-indigo-500' 
-							}] : []),
 							{ value: 'all', label: $_('page__filter_assignee_all') },
-							{ value: null, label: $_('page__unassigned'), badge: true, badgeColor: 'bg-gray-300' },
+							{ 
+								value: 'me', 
+                                label: `✨ ${$_('page__filter_assignee_me')}`, 
+								badge: true, 
+								badgeColor: 'bg-primary' 
+							},
+							{ value: null, label: `⚪ ${$_('page__unassigned')}` },
 							...assignees
-							.filter((a) => a.id !== undefined && a.id !== myAssigneeId)
-							.map(a => ({ 
-								value: a.id!, 
-								label: a.name,
-								badge: true,
-								badgeColor: a.color ? '' : 'bg-indigo-500'
-							}))
+								.filter(a => a.id !== undefined && a.id !== myAssigneeId)
+								.map(a => ({ 
+									value: a.id!, 
+									label: a.name,
+									badge: true,
+									badgeColor: a.color || 'bg-gray-400'
+								}))
 						]}
 						placeholder="ค้นหาผู้รับผิดชอบ..."
 					/>
@@ -3052,7 +3055,7 @@
 
 		{#if showMonthlySummary}
 			<div
-				class="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 pt-20 backdrop-blur-sm"
+				class="fixed inset-0 bg-black/55 flex items-start justify-center z-[20000] p-4 pt-20 backdrop-blur-sm"
 				on:click|self={() => showMonthlySummary = false}
 				on:keydown={(event) => event.key === 'Escape' && (showMonthlySummary = false)}
 				role="button"
@@ -3256,7 +3259,7 @@
 		<!-- svelte-ignore a11y-click-events-have-key-events -->
 		<!-- svelte-ignore a11y-no-static-element-interactions -->
 		<div
-			class="fixed inset-0 bg-black/55 flex items-start justify-center z-60 p-4 pt-[12vh] backdrop-blur-sm"
+			class="fixed inset-0 bg-black/55 flex items-start justify-center z-[20000] p-4 pt-[12vh] backdrop-blur-sm"
 			on:click|self={closeCommandPalette}
 			role="button"
 			tabindex="0"
@@ -3343,7 +3346,7 @@
 		<!-- svelte-ignore a11y-click-events-have-key-events -->
 		<!-- svelte-ignore a11y-no-static-element-interactions -->
 		<div
-			class="fixed inset-0 bg-black/80 flex items-center justify-center z-9999 p-4 backdrop-blur-sm"
+			class="fixed inset-0 bg-black/80 flex items-center justify-center z-[20000] p-4 backdrop-blur-sm"
 			on:click|self={() => $showKeyboardShortcuts = false}
 			on:keydown={(event) => event.key === 'Escape' && ($showKeyboardShortcuts = false)}
 			role="button"

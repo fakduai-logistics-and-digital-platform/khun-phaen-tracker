@@ -20,9 +20,9 @@
 		)
 		: options;
 
-	// Show only top N in dropdown if no search
-	$: displayOptions = searchQuery.trim() ? filteredOptions : filteredOptions.slice(0, maxDisplay);
-	$: hasMore = !searchQuery.trim() && filteredOptions.length > maxDisplay;
+	// Show all filtered options (remove slice to ensure "Me" is always visible at the top)
+	$: displayOptions = filteredOptions;
+	$: hasMore = false;
 
 	// Get selected label
 	$: selectedLabel = options.find(opt => opt.value === value)?.label || 'ทั้งหมด';
@@ -57,7 +57,7 @@
 
 <svelte:window on:click={handleClickOutside} on:keydown={handleKeyDown} />
 
-<div class="relative" bind:this={dropdownRef}>
+<div class="relative {isOpen ? 'z-[9000]' : 'z-auto'}" bind:this={dropdownRef}>
 	<!-- Trigger Button -->
 	<button
 		type="button"
@@ -80,7 +80,7 @@
 
 	<!-- Dropdown -->
 	{#if isOpen}
-		<div class="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-80 overflow-hidden" transition:fade={{ duration: 100 }}>
+		<div class="absolute z-[9000] w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-80 overflow-hidden" transition:fade={{ duration: 100 }}>
 			<!-- Search Input -->
 			{#if showSearch && options.length > maxDisplay}
 				<div class="p-2 border-b border-gray-200 dark:border-gray-700">

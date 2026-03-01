@@ -336,7 +336,7 @@
 			<div class="flex gap-3">
 				<button
 					on:click={confirmImport}
-					class="flex-1 bg-primary hover:bg-primary-dark text-white py-4 px-6 rounded-2xl font-black uppercase tracking-widest transition-all hover:scale-[1.02] active:scale-95 shadow-lg shadow-primary/25"
+					class="flex-1 bg-primary hover:bg-primary-dark text-white py-4 px-6 rounded-2xl font-black uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-primary/25"
 				>
 					{$_('exportImport__btn_import')}
 				</button>

@@ -74,7 +74,7 @@
 
 <svelte:window on:click={handleClickOutside} on:keydown={handleKeyDown} />
 
-<div class="relative" bind:this={dropdownRef}>
+<div class="relative {isOpen ? 'z-[9000]' : 'z-auto'}" bind:this={dropdownRef}>
 	<!-- Trigger Button -->
 	<button
 		type="button"
@@ -92,7 +92,7 @@
 
 	<!-- Dropdown -->
 	{#if isOpen}
-		<div class="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-80 overflow-hidden">
+		<div class="absolute z-[9000] w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-80 overflow-hidden">
 			<!-- Search Input -->
 			<div class="p-2 border-b border-gray-200 dark:border-gray-700">
 				<div class="relative">

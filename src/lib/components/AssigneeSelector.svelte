@@ -84,7 +84,7 @@
 							type="button"
 							on:click={() => newAssigneeColor = color}
 							aria-label={$_('taskForm__select_color', { values: { color } })}
-							class="w-6 h-6 rounded-full border-2 transition-all {newAssigneeColor === color ? 'border-gray-800 dark:border-white scale-110' : 'border-transparent hover:scale-105'}"
+							class="w-6 h-6 rounded-full border-2 transition-all {newAssigneeColor === color ? 'border-gray-800 dark:border-white scale-110' : 'border-transparent'}"
 							style="background-color: {color}"
 						></button>
 					{/each}

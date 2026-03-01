@@ -83,7 +83,7 @@
 
 <!-- Modal Backdrop -->
 <div
-	class="fixed inset-0 bg-black/50 z-40 flex items-center justify-center p-4"
+	class="fixed inset-0 bg-black/50 z-[20000] flex items-center justify-center p-4"
 	on:click={handleBackdropClick}
 	on:keydown={(e) => e.key === 'Escape' && dispatch('close')}
 	role="button"

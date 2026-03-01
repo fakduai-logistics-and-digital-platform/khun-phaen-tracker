@@ -205,9 +205,9 @@
 </script>
 
 {#if show}
-	<div class="fixed inset-0 bg-black/20 backdrop-blur-sm z-[999] pointer-events-none !m-0"></div>
+	<div class="fixed inset-0 bg-black/20 backdrop-blur-sm z-[20000] pointer-events-none !m-0"></div>
 	<div
-		class="fixed inset-0 z-[999] overflow-y-auto !m-0"
+		class="fixed inset-0 z-[20000] overflow-y-auto !m-0"
 		on:click|self={handleClose}
 		on:keydown|self={(e) => e.key === 'Escape' && handleClose()}
 		role="button"

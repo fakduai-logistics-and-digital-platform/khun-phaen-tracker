@@ -22,7 +22,7 @@
 				<p class="text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2 opacity-70">{$_('statsPanel__total_tasks')}</p>
 				<p class="text-4xl font-black text-gray-900 dark:text-white leading-none tracking-tighter">{stats.total}</p>
 			</div>
-			<div class="p-4 bg-blue-500/10 rounded-2xl group-hover:scale-110 transition-transform">
+			<div class="p-4 bg-blue-500/10 rounded-2xl">
 				<Calendar class="text-blue-500" size={28} />
 			</div>
 		</div>
@@ -35,7 +35,7 @@
 				<p class="text-[10px] font-black text-amber-600/80 dark:text-amber-500/80 uppercase tracking-widest mb-2 opacity-70">{$_('statsPanel__todo')}</p>
 				<p class="text-4xl font-black text-amber-600 dark:text-amber-500 leading-none tracking-tighter">{stats.todo}</p>
 			</div>
-			<div class="p-4 bg-amber-500/10 rounded-2xl group-hover:scale-110 transition-transform">
+			<div class="p-4 bg-amber-500/10 rounded-2xl">
 				<Circle class="text-amber-500" size={28} />
 			</div>
 		</div>
@@ -48,7 +48,7 @@
 				<p class="text-[10px] font-black text-blue-600/80 dark:text-blue-500/80 uppercase tracking-widest mb-2 opacity-70">{$_('statsPanel__in_progress')}</p>
 				<p class="text-4xl font-black text-blue-600 dark:text-blue-500 leading-none tracking-tighter">{stats.in_progress}</p>
 			</div>
-			<div class="p-4 bg-blue-600/10 rounded-2xl group-hover:scale-110 transition-transform">
+			<div class="p-4 bg-blue-600/10 rounded-2xl">
 				<Loader2 class="text-blue-500" size={28} />
 			</div>
 		</div>
@@ -61,7 +61,7 @@
 				<p class="text-[10px] font-black text-purple-600/80 dark:text-purple-500/80 uppercase tracking-widest mb-2 opacity-70">{$_('statsPanel__in_test')}</p>
 				<p class="text-4xl font-black text-purple-600 dark:text-purple-500 leading-none tracking-tighter">{stats.in_test}</p>
 			</div>
-			<div class="p-4 bg-purple-500/10 rounded-2xl group-hover:scale-110 transition-transform">
+			<div class="p-4 bg-purple-500/10 rounded-2xl">
 				<FlaskConical class="text-purple-500" size={28} />
 			</div>
 		</div>
@@ -74,7 +74,7 @@
 				<p class="text-[10px] font-black text-emerald-600/80 dark:text-emerald-500/80 uppercase tracking-widest mb-2 opacity-70">{$_('statsPanel__done')}</p>
 				<p class="text-4xl font-black text-emerald-600 dark:text-emerald-500 leading-none tracking-tighter">{stats.done}</p>
 			</div>
-			<div class="p-4 bg-emerald-500/10 rounded-2xl group-hover:scale-110 transition-transform">
+			<div class="p-4 bg-emerald-500/10 rounded-2xl">
 				<CheckCircle2 class="text-emerald-500" size={28} />
 			</div>
 		</div>
@@ -95,7 +95,7 @@
 					{$_('statsPanel__switch_workspace')}
 				</a>
 			</div>
-			<div class="p-4 bg-indigo-500/10 rounded-2xl group-hover:scale-110 transition-transform">
+			<div class="p-4 bg-indigo-500/10 rounded-2xl">
 				<LayoutTemplate class="text-indigo-500" size={28} />
 			</div>
 		</div>
