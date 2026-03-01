@@ -50,20 +50,38 @@ RUN if [ ! -d "khun-phaen-tracker" ]; then \
     cp khun-phaen-tracker/404.html khun-phaen-tracker/index.html; \
     fi
 
-# Configure Nginx to serve from the custom directory
+# Configure Nginx to serve from the custom directory and proxy to backend
 RUN echo 'server { \
     listen 80; \
     root /usr/app; \
     index index.html; \
     \
-    # Normal location for the base path
+    # Support for the khun-phaen-tracker base path \
     location /khun-phaen-tracker/ { \
         alias /usr/app/khun-phaen-tracker/; \
         index index.html; \
         try_files $uri $uri/ /khun-phaen-tracker/index.html; \
     } \
     \
-    # Support accessing at root by falling back to the subfolder app
+    # Proxy API requests to backend-server service (Internal Docker Network) \
+    location /api/ { \
+        proxy_pass http://backend-server:3001/api/; \
+        proxy_set_header Host $host; \
+        proxy_set_header X-Real-IP $remote_addr; \
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; \
+        proxy_set_header X-Forwarded-Proto $scheme; \
+    } \
+    \
+    # Proxy WebSocket requests to backend-server \
+    location /ws { \
+        proxy_pass http://backend-server:3001/ws; \
+        proxy_http_version 1.1; \
+        proxy_set_header Upgrade $http_upgrade; \
+        proxy_set_header Connection "Upgrade"; \
+        proxy_set_header Host $host; \
+    } \
+    \
+    # Fallback for SPA routing \
     location / { \
         root /usr/app/khun-phaen-tracker; \
         try_files $uri $uri/ /index.html; \

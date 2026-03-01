@@ -8,6 +8,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=/api
+        - VITE_WS_URL=ws://localhost:8080/ws
+        - VITE_SERVER_URL=
+        - VITE_TLDRAW_LICENSE_KEY=${VITE_TLDRAW_LICENSE_KEY}
     ports:
       - "8080:80"
     restart: unless-stopped
@@ -17,9 +22,9 @@ services:
     env_file:
       - .env
     environment:
-      - VITE_API_URL=${VITE_API_URL:-http://localhost:3001/api}
-      - VITE_WS_URL=${VITE_WS_URL:-ws://localhost:3001/ws}
-      - VITE_SERVER_URL=${VITE_SERVER_URL:-http://localhost:3001}
+      - VITE_API_URL=/api
+      - VITE_WS_URL=ws://localhost:8080/ws
+      - VITE_SERVER_URL=
       - VITE_TLDRAW_LICENSE_KEY=${VITE_TLDRAW_LICENSE_KEY}
 
   # Backend Server - Sync Server handling WebSockets and API

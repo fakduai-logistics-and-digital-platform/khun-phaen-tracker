@@ -15,12 +15,16 @@ use dotenv::dotenv;
 use mongodb::Client;
 use std::sync::Arc;
 use tokio::sync::broadcast;
-use tower_governor::{errors::GovernorError, key_extractor::KeyExtractor};
-use tracing::info;
-
 use crate::models::message::SystemEvent;
+use crate::models::user::User;
+use crate::models::profile::UserProfile;
+use crate::repositories::user_repo::UserRepository;
+use crate::repositories::profile_repo::ProfileRepository;
 use crate::services::room_service::spawn_room_cleanup_task;
 use crate::state::AppState;
+use bcrypt::{hash, DEFAULT_COST};
+use tower_governor::{errors::GovernorError, key_extractor::KeyExtractor};
+use tracing::info;
 
 #[derive(Clone, Copy)]
 struct IpHeaderKeyExtractor;
@@ -91,6 +95,9 @@ async fn main() {
     if room_idle_timeout_seconds > 0 {
         spawn_room_cleanup_task(state.clone());
     }
+
+    // Check and create initial admin if needed
+    check_and_create_initial_admin(&state.db).await;
 
     let governor_conf = Arc::new(
         tower_governor::governor::GovernorConfigBuilder::default()
@@ -229,4 +236,62 @@ async fn health_check(State(state): State<Arc<AppState>>) -> impl IntoResponse {
         "rooms": state.rooms.len(),
         "timestamp": chrono::Utc::now()
     }))
+}
+
+async fn check_and_create_initial_admin(db: &mongodb::Database) {
+    let user_repo = UserRepository::new(db);
+    let profile_repo = ProfileRepository::new(db);
+
+    match user_repo.count().await {
+        Ok(0) => {
+            info!("🆕 No users found in database. Initializing system...");
+            
+            let email = std::env::var("INITIAL_ADMIN_EMAIL")
+                .unwrap_or_else(|_| "admin@example.com".to_string());
+            let password = std::env::var("INITIAL_ADMIN_PASSWORD")
+                .unwrap_or_else(|_| "admin1234".to_string());
+            let nickname = std::env::var("INITIAL_ADMIN_NICKNAME")
+                .unwrap_or_else(|_| "Admin".to_string());
+
+            let password_hash = hash(password, 10).expect("Failed to hash password");
+            let user_id = uuid::Uuid::now_v7().to_string();
+
+            let new_user = User {
+                id: None,
+                user_id: user_id.clone(),
+                email: email.clone(),
+                role: "admin".to_string(),
+                password_hash: Some(password_hash),
+                created_at: chrono::Utc::now(),
+                setup_token: None,
+                is_active: true,
+                discord_id: None,
+            };
+
+            if let Err(e) = user_repo.create(new_user).await {
+                tracing::error!("❌ Failed to create initial admin user: {}", e);
+                return;
+            }
+
+            let new_profile = UserProfile {
+                profile_id: uuid::Uuid::now_v7().to_string(),
+                user_id,
+                first_name: None,
+                last_name: None,
+                nickname: Some(nickname),
+                position: Some("System Administrator".to_string()),
+            };
+
+            if let Err(e) = profile_repo.create(new_profile).await {
+                tracing::error!("❌ Failed to create initial admin profile: {}", e);
+                return;
+            }
+
+            info!("✅ System initialized successfully!");
+            info!("📧 Admin Email: {}", email);
+            info!("🔒 Password: [HIDDEN] (Check INITIAL_ADMIN_PASSWORD in .env)");
+        }
+        Ok(n) => info!("ℹ️ System already has {} users. Skipping initialization.", n),
+        Err(e) => tracing::error!("❌ Failed to check user count: {}", e),
+    }
 }
