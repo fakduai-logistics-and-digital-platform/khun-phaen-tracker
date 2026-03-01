@@ -84,6 +84,7 @@
 		// Get all tasks that either:
 		// 1. Have no sprint (sprint_id is null)
 		// 2. Belong to a completed/expired sprint
+		// AND are NOT done
 		const activeOrPlannedSprintIds = new Set(
 			$sprints
 				.filter(s => s.status === 'active' || s.status === 'planned')
@@ -91,7 +92,7 @@
 		);
 
 		return tasks
-			.filter(t => t.id !== undefined && (!t.sprint_id || !activeOrPlannedSprintIds.has(String(t.sprint_id))))
+			.filter(t => t.id !== undefined && t.status !== 'done' && (!t.sprint_id || !activeOrPlannedSprintIds.has(String(t.sprint_id))))
 			.map(t => t.id!);
 	}
 
@@ -254,6 +255,15 @@
 		}
 		// Set this sprint to active
 		await sprints.update(id, { status: 'active' });
+
+		// ALSO move unfinished tasks from backlog/old sprints into this started sprint
+		const tasksToMove = getTasksToMoveToNewSprint();
+		if (tasksToMove.length > 0) {
+			dispatch('moveTasksToSprint', {
+				sprintId: id,
+				taskIds: tasksToMove
+			});
+		}
 	}
 
 	function getTaskCount(sprintId: string | number): { total: number; done: number } {

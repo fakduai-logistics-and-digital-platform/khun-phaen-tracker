@@ -855,7 +855,7 @@
 		searchQuery.set(searchInput);
 		
 		if ($wasmReady) {
-			filteredTasks = performSearch(searchInput, $tasks);
+			filteredTasks = performSearch(searchInput, tasks);
 		} else {
 			// Fallback to client-side filter
 			filters.search = searchInput;
@@ -867,7 +867,7 @@
 	function handleClearSearch() {
 		searchInput = '';
 		clearSearch([]);
-		filteredTasks = $tasks;
+		filteredTasks = tasks;
 	}
 	
 	let realtimeSyncDebounce: ReturnType<typeof setTimeout>;
@@ -1046,6 +1046,7 @@
 		tasks = tasks.map(updateTaskSprint);
 		sprintManagerTasks = sprintManagerTasks.map(updateTaskSprint);
 		filteredTasks = filteredTasks.map(updateTaskSprint);
+		allTasksIncludingArchived = allTasksIncludingArchived.map(updateTaskSprint);
 	}
 	
 	async function handleCompleteSprint(event: CustomEvent<number>): Promise<boolean> {
@@ -1133,7 +1134,7 @@
 	
 	async function handleAddTask(event: CustomEvent<Omit<Task, 'id' | 'created_at'>>) {
 		const isEditing = Boolean(editingTask);
-		const oldTasks = $tasks;
+		const oldTasks = tasks;
 		const oldFiltered = filteredTasks;
 
 		// Close modal immediately for smooth UX
@@ -2719,7 +2720,7 @@
 			<!-- Filter Toggle -->
 			<button
 				on:click={() => showFilters = !showFilters}
-				class="flex items-center justify-center p-3.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-all hover:scale-105 active:scale-95 shadow-sm {showFilters ? 'bg-primary/10 border-primary text-primary' : ''}"
+				class="flex items-center justify-center p-3.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-all shadow-sm {showFilters ? 'bg-primary/10 border-primary text-primary' : ''}"
 				title={$_('page__filters')}
 			>
 				<Filter size={20} />
@@ -2727,7 +2728,7 @@
 
 			<button
 				on:click={() => showWorkerManager = true}
-				class="flex items-center justify-center p-3.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-all hover:scale-105 active:scale-95 shadow-sm"
+				class="flex items-center justify-center p-3.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-all shadow-sm"
 				title={$_('page__team')}
 			>
 				<Users size={20} />
@@ -2737,7 +2738,7 @@
 
 			<button
 				on:click={() => showProjectManager = true}
-				class="flex items-center gap-2.5 px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-400 font-bold text-xs uppercase tracking-widest transition-all hover:scale-105 active:scale-95 shadow-sm hover:text-primary"
+				class="flex items-center gap-2.5 px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-400 font-bold text-xs uppercase tracking-widest transition-all shadow-sm hover:text-primary"
 			>
 				<Folder size={16} />
 				<span class="hidden lg:inline">{$_('page__projects')}</span>
@@ -2745,7 +2746,7 @@
 			
 			<button
 				on:click={() => showSprintManager = true}
-				class="flex items-center gap-2.5 px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-400 font-bold text-xs uppercase tracking-widest transition-all hover:scale-105 active:scale-95 shadow-sm hover:text-amber-500"
+				class="flex items-center gap-2.5 px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-400 font-bold text-xs uppercase tracking-widest transition-all shadow-sm hover:text-amber-500"
 			>
 				<Flag size={16} />
 				<span class="hidden lg:inline">{$_('page__sprint')}</span>
@@ -2753,7 +2754,7 @@
 
 			<button
 				on:click={() => showMonthlySummary = true}
-				class="flex items-center gap-2.5 px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-400 font-bold text-xs uppercase tracking-widest transition-all hover:scale-105 active:scale-95 shadow-sm hover:text-purple-500"
+				class="flex items-center gap-2.5 px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-400 font-bold text-xs uppercase tracking-widest transition-all shadow-sm hover:text-purple-500"
 			>
 				<CalendarDays size={16} />
 				<span class="hidden lg:inline">Report 1M</span>
@@ -2761,7 +2762,7 @@
 
 			<button
 				on:click={() => showDailyReflect = true}
-				class="flex items-center gap-2.5 px-4 py-3 bg-blue-500/10 border border-blue-500/30 rounded-xl hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 font-bold text-xs uppercase tracking-widest transition-all hover:scale-105 active:scale-95 shadow-lg shadow-blue-500/10"
+				class="flex items-center gap-2.5 px-4 py-3 bg-blue-500/10 border border-blue-500/30 rounded-xl hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 font-bold text-xs uppercase tracking-widest transition-all shadow-lg shadow-blue-500/10"
 			>
 				<MessageSquareQuote size={16} />
 				<span class="hidden lg:inline">Daily Summary</span>
@@ -2800,7 +2801,7 @@
 			{#each visibleTabs as tab (tab.id)}
 				<button
 					on:click={() => switchView(tab.id)}
-					class="flex-1 min-w-[100px] flex items-center justify-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-bold uppercase tracking-wider transition-all duration-300 {currentView === tab.id ? 'bg-white dark:bg-gray-700 text-primary dark:text-white shadow-lg ring-1 ring-black/5' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-white/5'}"
+					class="flex-1 min-w-[100px] flex items-center justify-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-bold uppercase tracking-wider {currentView === tab.id ? 'bg-white dark:bg-gray-700 text-primary dark:text-white shadow-lg ring-1 ring-black/5' : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-white/50 dark:hover:bg-white/5'}"
 				>
 					<div class="p-1 rounded-md {currentView === tab.id ? 'bg-primary/10 text-primary dark:text-white' : 'text-gray-400 dark:text-gray-500'}">
 						{#if tab.icon === 'List'}
@@ -2826,7 +2827,7 @@
 			<!-- Tab Settings -->
 			<button
 				on:click={() => showTabSettings = !showTabSettings}
-				class="flex items-center justify-center gap-2 p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-all hover:scale-105 active:scale-95 shadow-sm"
+				class="flex items-center justify-center gap-2 p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-all shadow-sm"
 				title={$_('page__tab_settings')}
 			>
 				<Settings2 size={18} />
@@ -2843,7 +2844,7 @@
 
 			<button
 				on:click={() => { showForm = !showForm; editingTask = null; }}
-				class="flex-1 lg:flex-none flex items-center justify-center gap-2.5 px-6 py-3 bg-primary hover:bg-primary-dark text-white rounded-xl font-black uppercase tracking-widest transition-all hover:scale-[1.02] active:scale-95 shadow-lg shadow-primary/20 ring-1 ring-white/10 text-sm"
+				class="flex-1 lg:flex-none flex items-center justify-center gap-2.5 px-6 py-3 bg-primary hover:bg-primary-dark text-white rounded-xl font-black uppercase tracking-widest transition-all shadow-lg shadow-primary/20 ring-1 ring-white/10 text-sm"
 			>
 				<Plus size={20} strokeWidth={3} />
 				<span>{$_('page__add_task')}</span>
@@ -2996,7 +2997,7 @@
 				</div>
 				<button
 					on:click={() => { showForm = true; editingTask = null; }}
-					class="px-6 py-3 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/20 hover:scale-105 transition-all active:scale-95"
+					class="px-6 py-3 bg-primary text-white rounded-xl font-bold shadow-lg shadow-primary/20 transition-all"
 				>
 					Add Your First Task
 				</button>
@@ -3215,7 +3216,7 @@
 	<!-- Sprint Manager Modal -->
 	{#if showSprintManager}
 		<SprintManager
-			tasks={sprintManagerTasks}
+			tasks={allTasksIncludingArchived.filter(t => !t.is_archived)}
 			on:close={() => showSprintManager = false}
 			on:complete={handleCompleteSprint}
 			on:completeAndExport={handleCompleteAndExport}
