@@ -1,4 +1,15 @@
 import { writable, get } from "svelte/store";
+import type { FilterOptions, Sprint, Task } from "$lib/types";
+import {
+  getAssigneeStats,
+  getAssignees,
+  getCategories,
+  getProjects,
+  getProjectsList,
+  getStatsFromTasks,
+  getTasks,
+} from "$lib/db";
+import { sprints } from "$lib/stores/sprintStore";
 
 /**
  * Stores the current workspace's MongoDB _id ($oid string).
@@ -87,4 +98,181 @@ export function getWorkspaceId(): string {
   const id = get(currentWorkspaceId);
   if (!id) throw new Error("No workspace selected");
   return id;
+}
+
+export type WorkspaceDataLoadResult = {
+  failedApis: string[];
+  paginatedTasks: Task[];
+  totalTasks: number;
+  totalPages: number;
+  allTasks: Task[];
+  monthlySummaryTasks: Task[];
+  categories?: string[];
+  projects?: string[];
+  projectList?: {
+    id?: string | number;
+    name: string;
+    repo_url?: string;
+    created_at?: string;
+  }[];
+  assignees?: any[];
+  workerStats?: { id: string; taskCount: number }[];
+  stats?: {
+    total: number;
+    todo: number;
+    in_progress: number;
+    in_test: number;
+    done: number;
+    total_minutes: number;
+  };
+};
+
+function addDays(date: Date, days: number): Date {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
+function buildTaskFilters(
+  filters: FilterOptions,
+  sprintList: Sprint[],
+  currentPage: number,
+  pageSize: number,
+): FilterOptions {
+  const taskFilters: FilterOptions = { ...filters };
+  const preset = filters.dueDatePreset || "all";
+  const today = new Date();
+  const todayYmd = today.toISOString().split("T")[0];
+
+  taskFilters.dueStartDate = "";
+  taskFilters.dueEndDate = "";
+  taskFilters.dueDatePreset = preset;
+
+  if (preset === "next_day") {
+    taskFilters.dueStartDate = todayYmd;
+    taskFilters.dueEndDate = addDays(today, 1).toISOString().split("T")[0];
+  }
+  if (preset === "next_week") {
+    taskFilters.dueStartDate = todayYmd;
+    taskFilters.dueEndDate = addDays(today, 7).toISOString().split("T")[0];
+  }
+  if (preset === "next_month") {
+    taskFilters.dueStartDate = todayYmd;
+    taskFilters.dueEndDate = addDays(today, 30).toISOString().split("T")[0];
+  }
+  if (filters.sprint_id && filters.sprint_id !== "all") {
+    const selectedSprint = sprintList.find(
+      (s) => String(s.id) === String(filters.sprint_id),
+    );
+    if (selectedSprint?.status === "completed") {
+      taskFilters.includeArchived = true;
+    }
+  }
+
+  taskFilters.page = currentPage;
+  taskFilters.limit = pageSize;
+  return taskFilters;
+}
+
+export async function loadWorkspaceData(params: {
+  filters: FilterOptions;
+  currentPage: number;
+  pageSize: number;
+}): Promise<WorkspaceDataLoadResult> {
+  const sprintListPromise = sprints.refresh();
+  const allTasksPromise = getTasks({ includeArchived: true, limit: 1000 });
+  const categoriesPromise = getCategories();
+  const projectsPromise = getProjects();
+  const assigneesPromise = getAssignees(true);
+  const workerStatsPromise = getAssigneeStats();
+  const projectListPromise = getProjectsList();
+
+  const taskFilters = buildTaskFilters(
+    params.filters,
+    get(sprints),
+    params.currentPage,
+    params.pageSize,
+  );
+  const paginatedPromise = getTasks(taskFilters);
+
+  const [
+    sprintListRes,
+    paginatedRes,
+    allRes,
+    categoriesRes,
+    projectsRes,
+    assigneesRes,
+    workerStatsRes,
+    projectListRes,
+  ] = await Promise.allSettled([
+    sprintListPromise,
+    paginatedPromise,
+    allTasksPromise,
+    categoriesPromise,
+    projectsPromise,
+    assigneesPromise,
+    workerStatsPromise,
+    projectListPromise,
+  ]);
+
+  const failedApis: string[] = [];
+  if (sprintListRes.status === "rejected") failedApis.push("sprints");
+
+  let paginatedTasks: Task[] = [];
+  let totalTasks = 0;
+  let totalPages = 1;
+  if (paginatedRes.status === "fulfilled") {
+    const value = paginatedRes.value;
+    if (!Array.isArray(value)) {
+      paginatedTasks = value.tasks;
+      totalTasks = value.total;
+      totalPages = value.pages;
+    } else {
+      paginatedTasks = value;
+      totalTasks = value.length;
+      totalPages = Math.ceil(totalTasks / params.pageSize) || 1;
+    }
+  } else {
+    failedApis.push("tasks");
+  }
+
+  let allTasks: Task[] = [];
+  let stats: WorkspaceDataLoadResult["stats"] | undefined;
+  if (allRes.status === "fulfilled") {
+    const all = allRes.value;
+    allTasks = Array.isArray(all) ? all : all.tasks;
+    stats = getStatsFromTasks(allTasks);
+  } else {
+    failedApis.push("all tasks");
+  }
+
+  return {
+    failedApis,
+    paginatedTasks,
+    totalTasks,
+    totalPages,
+    allTasks,
+    monthlySummaryTasks: allTasks,
+    categories:
+      categoriesRes.status === "fulfilled"
+        ? categoriesRes.value
+        : (failedApis.push("categories"), undefined),
+    projects:
+      projectsRes.status === "fulfilled"
+        ? projectsRes.value
+        : (failedApis.push("projects"), undefined),
+    projectList:
+      projectListRes.status === "fulfilled"
+        ? projectListRes.value
+        : (failedApis.push("project list"), undefined),
+    assignees:
+      assigneesRes.status === "fulfilled"
+        ? assigneesRes.value
+        : (failedApis.push("assignees"), undefined),
+    workerStats:
+      workerStatsRes.status === "fulfilled"
+        ? workerStatsRes.value
+        : (failedApis.push("assignee stats"), undefined),
+    stats,
+  };
 }

@@ -7,23 +7,25 @@
 	import { api } from '$lib/apis';
 	import { _ } from 'svelte-i18n';
 	import type { Task, Project, Assignee, ViewMode, FilterOptions } from '$lib/types';
-	import { getTasks, getTasksBySprint, addTask, updateTask, deleteTask, getStats, getStatsFromTasks, exportToCSV, importFromCSV, importAllData, mergeAllData, getCategories, getAssignees, getProjects, getProjectsList, addProject, updateProject, deleteProject, getProjectStats, addAssignee as addAssigneeDB, getAssigneeStats, updateAssignee, deleteAssignee, archiveTasksBySprint, exportFilteredSQLiteBinary } from '$lib/db';
-	import TaskForm from '$lib/components/TaskForm.svelte';
-	import TaskList from '$lib/components/TaskList.svelte';
-	import CalendarView from '$lib/components/CalendarView.svelte';
-	import KanbanBoard from '$lib/components/KanbanBoard.svelte';
-	import TableView from '$lib/components/TableView.svelte';
-	import GanttView from '$lib/components/GanttView.svelte';
-	import WorkloadView from '$lib/components/WorkloadView.svelte';
-	import StatsPanel from '$lib/components/StatsPanel.svelte';
+import { getTasks, getTasksBySprint, addTask, updateTask, deleteTask, getStats, exportToCSV, importFromCSV, importAllData, mergeAllData, getAssignees, getProjectStats, addAssignee as addAssigneeDB, archiveTasksBySprint, exportFilteredSQLiteBinary } from '$lib/db';
+import TaskForm from '$lib/components/TaskForm.svelte';
+import TaskList from '$lib/components/TaskList.svelte';
+import CalendarView from '$lib/components/CalendarView.svelte';
+import KanbanBoard from '$lib/components/KanbanBoard.svelte';
+import TableView from '$lib/components/TableView.svelte';
+import GanttView from '$lib/components/GanttView.svelte';
+import WorkloadView from '$lib/components/WorkloadView.svelte';
+import TaskViewPlaceholder from '$lib/components/TaskViewPlaceholder.svelte';
+import PageSizeModal from '$lib/components/PageSizeModal.svelte';
+import StatsPanel from '$lib/components/StatsPanel.svelte';
 	import ExportImport from '$lib/components/ExportImport.svelte';
 	import WorkerManager from '$lib/components/WorkerManager.svelte';
 	import ProjectManager from '$lib/components/ProjectManager.svelte';
-import { List, CalendarDays, Columns3, Table, GanttChart, UsersRound, Filter, Search, Plus, Users, Folder, Sparkles, MessageSquareQuote, Settings2, Flag, FileText, FileSpreadsheet, Image as ImageIcon, Video, Presentation, CheckCircle, Moon, Sun, Bookmark, Play, ListTodo, ChevronLeft, ChevronRight } from 'lucide-svelte';
+import { List, CalendarDays, Columns3, Table, GanttChart, UsersRound, Filter, Search, Plus, Users, Folder, Sparkles, MessageSquareQuote, Settings2, Flag, FileText, FileSpreadsheet, Image as ImageIcon, Video, Presentation, CheckCircle, Moon, Sun, Bookmark, Play, ChevronLeft, ChevronRight } from 'lucide-svelte';
 	import { initWasmSearch, indexTasks, clearSearch, searchQuery, wasmReady, wasmLoading } from '$lib/stores/search';
 	import { connectRealtime, disconnectRealtime, realtimeStatus, realtimePeers } from '$lib/stores/realtime';
 	import { user } from '$lib/stores/auth';
-	import { currentWorkspaceOwnerId, setWorkspaceId } from '$lib/stores/workspace';
+	import { currentWorkspaceOwnerId, setWorkspaceId, loadWorkspaceData } from '$lib/stores/workspace';
 	import { tabSettings, type TabId } from '$lib/stores/tabSettings';
 	import { theme } from '$lib/stores/theme';
 	import TabSettings from '$lib/components/TabSettings.svelte';
@@ -38,10 +40,11 @@ import { List, CalendarDays, Columns3, Table, GanttChart, UsersRound, Filter, Se
 	import * as XLSX from 'xlsx';
 	import PptxGenJS from 'pptxgenjs';
 	import DailyReflect from '$lib/components/DailyReflect.svelte';
-	import { formatDateISO, formatExportTimestamp, downloadBlob, buildCsvFromSnapshot, buildPostgresSqlFromSnapshot } from '$lib/utils/export-csv-sql';
-	import { sanitizeMarkdownText, escapeMarkdownInline, normalizeTaskDate, sortTasksForReport, buildTaskReportHtml } from '$lib/utils/export-report';
-	import { type VideoSlide, drawRoundedRect, wrapText, renderVideoSlide, loadImage, composeMonthlyReportImage, createRoyaltyFreeAudioBed } from '$lib/utils/export-canvas-video';
-	import { type MonthlySummary, isWithinLastDays, buildMonthlySummary } from '$lib/utils/monthly-summary';
+import { formatDateISO, formatExportTimestamp, downloadBlob, buildCsvFromSnapshot, buildPostgresSqlFromSnapshot } from '$lib/utils/export-csv-sql';
+import { sanitizeMarkdownText, escapeMarkdownInline, normalizeTaskDate, sortTasksForReport, buildTaskReportHtml } from '$lib/utils/export-report';
+import { type VideoSlide, drawRoundedRect, wrapText, renderVideoSlide, loadImage, composeMonthlyReportImage, createRoyaltyFreeAudioBed } from '$lib/utils/export-canvas-video';
+import { type MonthlySummary, isWithinLastDays, buildMonthlySummary } from '$lib/utils/monthly-summary';
+import { createWorkspaceActions } from '$lib/stores/workspaceActions';
 
 	const FILTER_STORAGE_KEY = 'task-filters';
 	const DEFAULT_FILTERS: FilterOptions = {
@@ -86,7 +89,7 @@ import { List, CalendarDays, Columns3, Table, GanttChart, UsersRound, Filter, Se
 		}
 	});
 
-	function savePageSize() {
+		function savePageSize() {
 		pageSize = newPageSize;
 		localStorage.setItem('khunphaen-page-size', String(pageSize));
 		showPageSizeModal = false;
@@ -874,130 +877,27 @@ async function loadData() {
 		loadingData = true;
 		
 		try {
-			// Start all independent API calls immediately (fully parallel on refresh)
-			const sprintListPromise = sprints.refresh();
-			const allTasksPromise = getTasks({ includeArchived: true, limit: 1000 }); // For charts/stats
-			const categoriesPromise = getCategories();
-			const projectsPromise = getProjects();
-			const assigneesPromise = getAssignees(true);
-			const workerStatsPromise = getAssigneeStats();
-			const projectListPromise = getProjectsList();
+			const result = await loadWorkspaceData({
+				filters,
+				currentPage,
+				pageSize,
+			});
 
-			// If a specific sprint is selected that is completed, include archived tasks
-			const taskFilters = { ...filters };
-			const preset = filters.dueDatePreset || 'all';
-			const today = new Date();
-			const todayYmd = today.toISOString().split('T')[0];
-			taskFilters.dueStartDate = '';
-			taskFilters.dueEndDate = '';
-			taskFilters.dueDatePreset = preset;
-			if (preset === 'next_day') {
-				taskFilters.dueStartDate = todayYmd;
-				taskFilters.dueEndDate = addDays(today, 1).toISOString().split('T')[0];
-			}
-			if (preset === 'next_week') {
-				taskFilters.dueStartDate = todayYmd;
-				taskFilters.dueEndDate = addDays(today, 7).toISOString().split('T')[0];
-			}
-			if (preset === 'next_month') {
-				taskFilters.dueStartDate = todayYmd;
-				taskFilters.dueEndDate = addDays(today, 30).toISOString().split('T')[0];
-			}
-			if (filters.sprint_id && filters.sprint_id !== 'all') {
-				const selectedSprint = $sprints.find(s => String(s.id) === String(filters.sprint_id));
-				if (selectedSprint?.status === 'completed') {
-					taskFilters.includeArchived = true;
-				}
-			}
+			tasks = result.paginatedTasks;
+			totalTasks = result.totalTasks;
+			totalPages = result.totalPages;
+			allTasksIncludingArchived = result.allTasks;
+			monthlySummaryTasks = result.monthlySummaryTasks;
 
-			// Add pagination
-			taskFilters.page = currentPage;
-			taskFilters.limit = pageSize;
+			if (result.categories) categories = result.categories;
+			if (result.projects) projects = result.projects;
+			if (result.projectList) projectList = result.projectList as Project[];
+			if (result.assignees) assignees = result.assignees as Assignee[];
+			if (result.workerStats) workerStats = result.workerStats;
+			if (result.stats) stats = result.stats;
 
-			// Fetch paginated tasks and await all in parallel
-			const paginatedPromise = getTasks(taskFilters);
-			const [sprintListRes, paginatedRes, allRes, categoriesRes, projectsRes, assigneesRes, workerStatsRes, projectListRes] = await Promise.allSettled([
-				sprintListPromise,
-				paginatedPromise,
-				allTasksPromise,
-				categoriesPromise,
-				projectsPromise,
-				assigneesPromise,
-				workerStatsPromise,
-				projectListPromise,
-			]);
-			const failedApis: string[] = [];
-
-			if (sprintListRes.status === 'rejected') {
-				failedApis.push('sprints');
-				console.warn('⚠️ sprint refresh failed:', sprintListRes.reason);
-			}
-
-			if (categoriesRes.status === 'fulfilled') {
-				categories = categoriesRes.value;
-			} else {
-				failedApis.push('categories');
-				console.warn('⚠️ getCategories failed:', categoriesRes.reason);
-			}
-
-			if (projectsRes.status === 'fulfilled') {
-				projects = projectsRes.value;
-			} else {
-				failedApis.push('projects');
-				console.warn('⚠️ getProjects failed:', projectsRes.reason);
-			}
-
-			if (projectListRes.status === 'fulfilled') {
-				projectList = projectListRes.value;
-			} else {
-				failedApis.push('project list');
-				console.warn('⚠️ getProjectsList failed:', projectListRes.reason);
-			}
-
-			if (assigneesRes.status === 'fulfilled') {
-				assignees = assigneesRes.value;
-			} else {
-				failedApis.push('assignees');
-				console.warn('⚠️ getAssignees failed:', assigneesRes.reason);
-			}
-
-			if (workerStatsRes.status === 'fulfilled') {
-				workerStats = workerStatsRes.value;
-			} else {
-				failedApis.push('assignee stats');
-				console.warn('⚠️ getAssigneeStats failed:', workerStatsRes.reason);
-			}
-
-			if (paginatedRes.status === 'fulfilled') {
-				const paginated = paginatedRes.value;
-				if (!Array.isArray(paginated)) {
-					tasks = paginated.tasks;
-					totalTasks = paginated.total;
-					totalPages = paginated.pages;
-				} else {
-					tasks = paginated;
-					totalTasks = paginated.length;
-					totalPages = Math.ceil(totalTasks / pageSize) || 1;
-				}
-			} else {
-				failedApis.push('tasks');
-				console.warn('⚠️ getTasks(paginated) failed:', paginatedRes.reason);
-			}
-
-			if (allRes.status === 'fulfilled') {
-				const all = allRes.value;
-				const allTasks = Array.isArray(all) ? all : all.tasks;
-				allTasksIncludingArchived = allTasks;
-				monthlySummaryTasks = allTasks;
-				// Process stats locally from existing data
-				stats = getStatsFromTasks(allTasks);
-			} else {
-				failedApis.push('all tasks');
-				console.warn('⚠️ getTasks(all) failed:', allRes.reason);
-			}
-
-			if (failedApis.length > 0) {
-				showMessage(`โหลดข้อมูลบางส่วนไม่สำเร็จ: ${failedApis.join(', ')}`, 'error');
+			if (result.failedApis.length > 0) {
+				showMessage(`โหลดข้อมูลบางส่วนไม่สำเร็จ: ${result.failedApis.join(', ')}`, 'error');
 			}
 
 			// No manual sprintManagerTasks update - it's handled reactively now
@@ -1089,89 +989,37 @@ async function loadData() {
 		}
 	}
 
+	const workspaceActions = createWorkspaceActions({
+		loadData,
+		notify: showMessage,
+		t: (key: string, options?: any) => $_(key, options) as string,
+		trackRealtime: queueRealtimeSync,
+	});
+
 	// Worker Management Functions
 	async function handleAddWorker(event: CustomEvent<{ name: string; color: string; user_id?: string }>) {
-		try {
-			await addAssigneeDB({ 
-				name: event.detail.name, 
-				color: event.detail.color,
-				user_id: event.detail.user_id
-			});
-			await loadData();
-			showMessage($_('page__add_worker_success'));
-			queueRealtimeSync('add-worker');
-		} catch (e: any) {
-			console.error(e);
-			showMessage(`${$_('page__add_worker_error')}: ${e.message}`, 'error');
-		}
+		await workspaceActions.handleAddWorker(event);
 	}
 	
 	async function handleUpdateWorker(event: CustomEvent<{ id: string | number; name: string; color: string; user_id?: string }>) {
-		try {
-			await updateAssignee(event.detail.id, { 
-				name: event.detail.name, 
-				color: event.detail.color,
-				user_id: event.detail.user_id
-			});
-			await loadData();
-			showMessage($_('page__update_worker_success'));
-			queueRealtimeSync('update-worker');
-		} catch (e: any) {
-			console.error(e);
-			showMessage(`${$_('page__update_worker_error')}: ${e.message}`, 'error');
-		}
+		await workspaceActions.handleUpdateWorker(event);
 	}
 	
 	async function handleDeleteWorker(event: CustomEvent<string | number>) {
-		try {
-			await deleteAssignee(event.detail);
-			await loadData();
-			showMessage($_('page__delete_worker_success'));
-			queueRealtimeSync('delete-worker');
-		} catch (e: any) {
-			console.error(e);
-			showMessage(`${$_('page__delete_worker_error')}: ${e.message}`, 'error');
-		}
+		await workspaceActions.handleDeleteWorker(event);
 	}
 	
 	// Project Management Functions
 	async function handleAddProject(event: CustomEvent<{ name: string; repo_url?: string }>) {
-		try {
-			await addProject({ 
-				name: event.detail.name,
-				repo_url: event.detail.repo_url
-			});
-			await loadData();
-			showMessage($_('page__add_project_success'));
-			queueRealtimeSync('add-project');
-		} catch (e) {
-			showMessage($_('page__add_project_error'), 'error');
-		}
+		await workspaceActions.handleAddProject(event);
 	}
 	
 	async function handleUpdateProject(event: CustomEvent<{ id: number; name: string; repo_url?: string }>) {
-		try {
-			await updateProject(event.detail.id, { 
-				name: event.detail.name,
-				repo_url: event.detail.repo_url
-			});
-			await loadData();
-			showMessage($_('page__update_project_success'));
-			queueRealtimeSync('update-project');
-		} catch (e) {
-			showMessage($_('page__update_project_error'), 'error');
-		}
+		await workspaceActions.handleUpdateProject(event as CustomEvent<{ id: string | number; name: string; repo_url?: string }>);
 	}
 	
 	async function handleDeleteProject(event: CustomEvent<number>) {
-		try {
-			await deleteProject(event.detail);
-			await loadData();
-			showMessage($_('page__delete_project_success'));
-			queueRealtimeSync('delete-project');
-		} catch (e) {
-			showMessage($_('page__delete_project_error'), 'error');
-		}
+		await workspaceActions.handleDeleteProject(event as CustomEvent<string | number>);
 	}
 	
 	function showMessage(msg: string, type: 'success' | 'error' = 'success') {
@@ -3168,21 +3016,9 @@ async function loadData() {
 	<!-- Views -->
 	<div class="mt-8">
 		{#if loadingData}
-			<div class="min-h-[360px] flex flex-col items-center justify-center gap-4 bg-white/5 dark:bg-gray-800/20 rounded-3xl border border-dashed border-gray-200 dark:border-gray-700">
-				<div class="w-12 h-12 border-4 border-indigo-200/60 dark:border-indigo-500/20 border-t-indigo-600 dark:border-t-indigo-400 rounded-full animate-spin"></div>
-				<p class="text-sm font-semibold text-gray-600 dark:text-gray-300">Loading tasks...</p>
-			</div>
+			<TaskViewPlaceholder loading={true} />
 		{:else if filteredTasks.length === 0}
-			<div class="flex flex-col items-center justify-center py-32 bg-white/5 dark:bg-gray-800/20 rounded-3xl border border-dashed border-gray-200 dark:border-gray-700 space-y-6">
-				<div class="w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center">
-					<ListTodo size={48} class="text-gray-300 dark:text-gray-600" />
-				</div>
-				<div class="text-center">
-					<h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">No tasks at this time</h3>
-					<p class="text-gray-500 dark:text-gray-400">Try adding a new task!</p>
-				</div>
-			
-			</div>
+			<TaskViewPlaceholder loading={false} />
 		{:else if currentView === 'kanban'}
 			<div class="animate-fade-in">
 				<KanbanBoard 
@@ -3254,64 +3090,15 @@ async function loadData() {
 		{/if}
 	</div>
 
-	<!-- Page Size Modal -->
-	{#if showPageSizeModal}
-		<div class="fixed inset-0 bg-black/55 backdrop-blur-sm z-[30000] flex items-center justify-center p-4" on:click|self={() => showPageSizeModal = false}>
-			<div class="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-modal-in border border-gray-100 dark:border-gray-700">
-				<div class="px-8 pt-8 pb-6">
-					<div class="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mb-6">
-						<Settings2 size={32} class="text-primary" />
-					</div>
-					<h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">กำหนดจำนวนงาน</h3>
-					<p class="text-gray-500 dark:text-gray-400 mb-8">จำนวนงานที่จะแสดงผลต่อหน้าในโปรเจกต์นี้</p>
-					
-					<div class="space-y-4">
-						<div class="flex flex-wrap gap-2">
-							{#each [10, 20, 50, 100] as size}
-								<button
-									on:click={() => newPageSize = size}
-									class="flex-1 py-3 rounded-2xl border-2 transition-all font-bold
-										{newPageSize === size 
-											? 'border-primary bg-primary/5 text-primary scale-[1.02]' 
-											: 'border-gray-100 dark:border-gray-700 text-gray-400 hover:border-gray-200 dark:hover:border-gray-600'}"
-								>
-									{size}
-								</button>
-							{/each}
-						</div>
-						
-						<div class="pt-2">
-							<label class="text-xs font-bold text-gray-400 uppercase tracking-widest pl-1 mb-2 block">ระบุจำนวนเอง</label>
-							<div class="relative">
-								<input
-									type="number"
-									bind:value={newPageSize}
-									min="1"
-									max="500"
-									class="w-full h-14 bg-gray-50 dark:bg-gray-900/50 border-2 border-gray-100 dark:border-gray-800 rounded-2xl px-6 focus:border-primary focus:ring-0 transition-all font-bold text-lg dark:text-white"
-								/>
-							</div>
-						</div>
-					</div>
-				</div>
-				
-				<div class="px-8 py-6 bg-gray-50/80 dark:bg-gray-900/50 flex gap-3">
-					<button
-						on:click={() => showPageSizeModal = false}
-						class="flex-1 py-4 text-gray-500 font-bold hover:text-gray-700 transition-colors"
-					>
-						ยกเลิก
-					</button>
-					<button
-						on:click={savePageSize}
-						class="flex-1 py-4 bg-primary hover:bg-primary-dark text-white rounded-2xl font-bold shadow-lg shadow-primary/30 transition-all active:scale-95"
-					>
-						บันทึก
-					</button>
-				</div>
-			</div>
-		</div>
-	{/if}
+	<PageSizeModal
+		show={showPageSizeModal}
+		value={newPageSize}
+		on:close={() => (showPageSizeModal = false)}
+		on:save={(e) => {
+			newPageSize = e.detail.value;
+			savePageSize();
+		}}
+	/>
 
 		{#if showMonthlySummary}
 			<div
