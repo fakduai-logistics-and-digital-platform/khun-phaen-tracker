@@ -68,7 +68,7 @@ import { List, CalendarDays, Columns3, Table, GanttChart, UsersRound, Filter, Se
 	}));
 	let assignees: Assignee[] = [];
 	$: myAssigneeId = assignees.find(a => a.user_id === $user?.id || a.user_id === $user?.user_id)?.id;
-	let workerStats: { id: number; taskCount: number }[] = [];
+	let workerStats: { id: string | number; taskCount: number }[] = [];
 	let stats = { total: 0, todo: 0, in_progress: 0, in_test: 0, done: 0, total_minutes: 0 };
 	const VIEW_MODE_STORAGE_KEY = 'khunphaen-view-mode';
 	let pageSize = 20;
@@ -908,12 +908,13 @@ async function loadData() {
 
 			// 2. Fetch everything else in parallel
 			// For allTasksIncludingArchived, we might need a higher limit for charts/stats
-			const [paginated, all, , , loadedAssignees] = await Promise.all([
+			const [paginated, all, , , loadedAssignees, loadedWorkerStats] = await Promise.all([
 				getTasks(taskFilters),
 				getTasks({ includeArchived: true, limit: 1000 }), // Higher limit for background calculations
 				getCategories().then(c => { categories = c; }),
 				getProjects().then(p => { projects = p; }),
 				getAssignees(),
+				getAssigneeStats(),
 			]);
 			// Also load project list (non-critical)
 			getProjectsList().then(pl => { projectList = pl; });
@@ -935,6 +936,7 @@ async function loadData() {
 			allTasksIncludingArchived = allTasks;
 			monthlySummaryTasks = allTasks;
 			assignees = loadedAssignees;
+			workerStats = loadedWorkerStats;
 			
 			// Process stats locally from existing data
 			stats = getStatsFromTasks(allTasks);

@@ -1175,6 +1175,55 @@ pub async fn list_assignees(
     }
 }
 
+pub async fn get_assignee_stats(
+    State(state): State<SharedState>,
+    Path(ws_id): Path<String>,
+    headers: HeaderMap,
+    jar: CookieJar,
+) -> axum::response::Response {
+    let ws_oid = match verify_workspace_access(&state, &headers, &jar, &ws_id).await {
+        Ok(id) => id,
+        Err(resp) => return resp,
+    };
+
+    let repo = DataRepository::new(&state.db);
+    let assignees = match repo.find_assignees(&ws_oid).await {
+        Ok(rows) => rows,
+        Err(e) => {
+            return (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                axum::Json(serde_json::json!({ "error": format!("{}", e) })),
+            )
+                .into_response()
+        }
+    };
+
+    let assignee_ids: Vec<String> = assignees
+        .iter()
+        .filter_map(|a| a.id.map(|id| id.to_hex()))
+        .collect();
+
+    match repo.count_tasks_by_assignee_ids(&ws_oid, &assignee_ids).await {
+        Ok(counts) => {
+            let stats: Vec<serde_json::Value> = assignee_ids
+                .into_iter()
+                .map(|id| {
+                    serde_json::json!({
+                        "id": id,
+                        "taskCount": counts.get(&id).copied().unwrap_or(0)
+                    })
+                })
+                .collect();
+            axum::Json(serde_json::json!({ "success": true, "stats": stats })).into_response()
+        }
+        Err(e) => (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            axum::Json(serde_json::json!({ "error": format!("{}", e) })),
+        )
+            .into_response(),
+    }
+}
+
 pub async fn create_assignee(
     State(state): State<SharedState>,
     Path(ws_id): Path<String>,

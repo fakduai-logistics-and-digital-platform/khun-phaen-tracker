@@ -288,6 +288,10 @@ async fn main() {
             get(handlers::data_handler::list_assignees),
         )
         .route(
+            "/api/workspaces/:ws_id/assignees/stats",
+            get(handlers::data_handler::get_assignee_stats),
+        )
+        .route(
             "/api/workspaces/:ws_id/assignees",
             post(handlers::data_handler::create_assignee),
         )

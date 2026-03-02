@@ -607,17 +607,12 @@ export async function getAssignees(): Promise<Assignee[]> {
 export async function getAssigneeStats(): Promise<
   { id: string; taskCount: number }[]
 > {
-  const assignees = await getAssignees();
-  const result = await getTasks({
-    includeArchived: true,
-    limit: 1000,
-  });
-  const tasks = Array.isArray(result) ? result : result.tasks;
-  return assignees.map((a) => ({
-    id: String(a.id),
-    taskCount: tasks.filter((t: Task) =>
-      t.assignee_ids?.map(String).includes(String(a.id)),
-    ).length,
+  const res = await api.data.assignees.stats(wsId());
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Failed to fetch assignee stats");
+  return (data.stats || []).map((s: any) => ({
+    id: String(s.id),
+    taskCount: Number(s.taskCount || 0),
   }));
 }
 

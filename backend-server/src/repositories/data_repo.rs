@@ -8,6 +8,7 @@ use mongodb::{
     options::IndexOptions,
     Collection, Database, IndexModel,
 };
+use std::collections::HashMap;
 
 #[derive(Clone)]
 pub struct DataRepository {
@@ -587,6 +588,31 @@ impl DataRepository {
             }
         }
         Ok(assignees)
+    }
+
+    pub async fn count_tasks_by_assignee_ids(
+        &self,
+        workspace_id: &ObjectId,
+        assignee_ids: &[String],
+    ) -> mongodb::error::Result<HashMap<String, u64>> {
+        let mut result = HashMap::new();
+        for assignee_id in assignee_ids {
+            let count = self
+                .tasks
+                .count_documents(
+                    doc! {
+                        "workspace_id": workspace_id,
+                        "$or": [
+                            { "assignee_ids": { "$in": [assignee_id] } },
+                            { "assignee_id": assignee_id }
+                        ]
+                    },
+                    None,
+                )
+                .await?;
+            result.insert(assignee_id.clone(), count);
+        }
+        Ok(result)
     }
 
     pub async fn count_tasks_by_workspaces(
