@@ -81,8 +81,8 @@ pub struct TaskDocument {
     pub duration_minutes: i64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub start_date: Option<String>,
-    #[serde(default)]
-    pub date: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub date: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub end_date: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

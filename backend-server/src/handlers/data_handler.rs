@@ -222,7 +222,7 @@ pub async fn create_task(
         project: payload.project,
         duration_minutes: payload.duration_minutes,
         start_date: Some(resolved_start_date.clone()),
-        date: resolved_start_date,
+        date: Some(resolved_start_date),
         end_date: resolved_due_date.clone(),
         due_date: resolved_due_date,
         status: payload.status,
