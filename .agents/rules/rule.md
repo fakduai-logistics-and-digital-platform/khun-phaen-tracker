@@ -22,4 +22,4 @@ frontend
 - ลบ TODO_<id_task>.md
 - clean code แต่ละไฟล์ให้เบาที่สุด อะไรที่แยกเป็น component ได้ ไฟล์แต่ละไฟล์โค้ดไม่ควรเกิน 500 line
 - ในการทำ UI ให้ใช้ design token ตามธีมที่ทำไว้ด้วยหล่ะ
-- ใช้คำสั่ง npm run check ตรวจสอบ error ทุกครั้งที่ implement และแก้จนกว่าจะไม่มี error
+- ใช้คำสั่ง npm run check ตรวจสอบ error ทุกครั้งที่ implement และแก้จนกว่าจะไม่มี error และ แก้พวก warining ต่างๆด้วย
