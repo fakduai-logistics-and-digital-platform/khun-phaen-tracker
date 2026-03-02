@@ -88,11 +88,16 @@ mod optional_datetime_rfc3339_or_bson {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NotificationConfig {
     pub discord_webhook_url: Option<String>,
+    pub line_notify_token: Option<String>,
     pub enabled: bool,
     pub days: Vec<u8>, // 0=Sun, 1=Mon, ..., 6=Sat
     pub time: String,  // "HH:MM"
     #[serde(with = "optional_datetime_rfc3339_or_bson")]
     pub last_sent_at: Option<chrono::DateTime<chrono::Utc>>,
+    #[serde(default)]
+    pub notify_on_create: bool,
+    #[serde(default)]
+    pub notify_on_status_change: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -126,7 +131,10 @@ pub struct UpdateWorkspaceRequest {
 #[derive(Deserialize)]
 pub struct UpdateNotificationConfigRequest {
     pub discord_webhook_url: Option<String>,
+    pub line_notify_token: Option<String>,
     pub enabled: bool,
     pub days: Vec<u8>,
     pub time: String,
+    pub notify_on_create: bool,
+    pub notify_on_status_change: Vec<String>,
 }

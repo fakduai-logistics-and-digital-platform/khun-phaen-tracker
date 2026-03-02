@@ -52,6 +52,7 @@ pub enum ServerMessage {
     Pong,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub enum SystemEvent {
     RoomCreated { room_id: String },

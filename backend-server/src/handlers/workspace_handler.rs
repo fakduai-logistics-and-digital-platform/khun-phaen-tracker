@@ -471,9 +471,12 @@ pub async fn update_notification_config_handler(
 
     let config = crate::models::workspace::NotificationConfig {
         discord_webhook_url: payload.discord_webhook_url,
+        line_notify_token: payload.line_notify_token,
         enabled: payload.enabled,
         days: payload.days,
         time: payload.time,
+        notify_on_create: payload.notify_on_create,
+        notify_on_status_change: payload.notify_on_status_change,
         last_sent_at: None, // Preserve existing value if possible? Better lookup first.
     };
 

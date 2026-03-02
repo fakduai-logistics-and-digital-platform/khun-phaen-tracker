@@ -179,7 +179,6 @@ export async function loadWorkspaceData(params: {
   currentPage: number;
   pageSize: number;
 }): Promise<WorkspaceDataLoadResult> {
-  const sprintListPromise = sprints.refresh();
   const allTasksPromise = getTasks({ includeArchived: true, limit: 1000 });
   const categoriesPromise = getCategories();
   const projectsPromise = getProjects();
@@ -196,7 +195,6 @@ export async function loadWorkspaceData(params: {
   const paginatedPromise = getTasks(taskFilters);
 
   const [
-    sprintListRes,
     paginatedRes,
     allRes,
     categoriesRes,
@@ -205,7 +203,6 @@ export async function loadWorkspaceData(params: {
     workerStatsRes,
     projectListRes,
   ] = await Promise.allSettled([
-    sprintListPromise,
     paginatedPromise,
     allTasksPromise,
     categoriesPromise,
@@ -216,20 +213,19 @@ export async function loadWorkspaceData(params: {
   ]);
 
   const failedApis: string[] = [];
-  if (sprintListRes.status === "rejected") failedApis.push("sprints");
 
   let paginatedTasks: Task[] = [];
   let totalTasks = 0;
   let totalPages = 1;
   if (paginatedRes.status === "fulfilled") {
-    const value = paginatedRes.value;
-    if (!Array.isArray(value)) {
-      paginatedTasks = value.tasks;
-      totalTasks = value.total;
-      totalPages = value.pages;
+    const valueAny: any = paginatedRes.value;
+    if (!Array.isArray(valueAny)) {
+      paginatedTasks = valueAny.tasks;
+      totalTasks = valueAny.total;
+      totalPages = valueAny.pages;
     } else {
-      paginatedTasks = value;
-      totalTasks = value.length;
+      paginatedTasks = valueAny;
+      totalTasks = valueAny.length;
       totalPages = Math.ceil(totalTasks / params.pageSize) || 1;
     }
   } else {

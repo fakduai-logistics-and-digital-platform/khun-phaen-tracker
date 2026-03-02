@@ -309,6 +309,7 @@ impl DataRepository {
         Ok(res.deleted_count > 0)
     }
 
+    #[allow(dead_code)]
     pub async fn delete_all_tasks(&self, workspace_id: &ObjectId) -> mongodb::error::Result<u64> {
         let res = self
             .tasks
@@ -761,6 +762,7 @@ impl DataRepository {
 
     // ===== CLEANUP (when workspace is deleted) =====
 
+    #[allow(dead_code)]
     pub async fn delete_all_workspace_data(
         &self,
         workspace_id: &ObjectId,

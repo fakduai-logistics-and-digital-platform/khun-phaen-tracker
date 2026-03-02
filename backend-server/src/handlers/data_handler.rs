@@ -240,6 +240,12 @@ pub async fn create_task(
     let repo = DataRepository::new(&state.db);
     match repo.create_task(task).await {
         Ok(created) => {
+            // Trigger notification
+            let ws_repo = WorkspaceRepository::new(&state.db);
+            if let Ok(Some(ws)) = ws_repo.find_by_id(&ws_oid).await {
+                crate::services::notification_service::notify_task_created(&state, &ws, &created).await;
+            }
+
             axum::Json(serde_json::json!({ "success": true, "task": created })).into_response()
         }
         Err(e) => (
@@ -302,7 +308,7 @@ pub async fn update_task(
         updates.insert("due_date", v.clone());
         updates.insert("end_date", v);
     }
-    if let Some(v) = payload.status {
+    if let Some(v) = payload.status.clone() {
         updates.insert("status", v);
     }
     if let Some(v) = payload.category {
@@ -352,13 +358,15 @@ pub async fn update_task(
     }
 
     let repo = DataRepository::new(&state.db);
+    
+    // Fetch old task before update to know what changed
+    let old_task = match repo.find_task_by_id(&task_oid).await {
+        Ok(Some(t)) if t.workspace_id == ws_oid => Some(t),
+        _ => None,
+    };
+    
     let should_purge_comments_after_archive = if archive_flag == Some(true) {
-        match repo.find_task_by_id(&task_oid).await {
-            Ok(Some(task)) if task.workspace_id == ws_oid => !task.is_archived,
-            Ok(Some(_)) => false,
-            Ok(None) => false,
-            Err(_) => false,
-        }
+        old_task.as_ref().map(|t| !t.is_archived).unwrap_or(false)
     } else {
         false
     };
@@ -374,6 +382,20 @@ pub async fn update_task(
                     );
                 }
             }
+            
+            // Check status change & trigger notification
+            if let (Some(old_t), Some(new_status)) = (&old_task, &payload.status) {
+                if old_t.status != *new_status {
+                    let ws_repo = WorkspaceRepository::new(&state.db);
+                    if let Ok(Some(ws)) = ws_repo.find_by_id(&ws_oid).await {
+                        // Quick re-fetch to get complete updated task fields
+                        if let Ok(Some(updated_t)) = repo.find_task_by_id(&task_oid).await {
+                            crate::services::notification_service::notify_task_status_changed(&state, &ws, &updated_t).await;
+                        }
+                    }
+                }
+            }
+
             axum::Json(serde_json::json!({ "success": true })).into_response()
         }
         Ok(false) => (

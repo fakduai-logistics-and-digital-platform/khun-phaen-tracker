@@ -9,6 +9,7 @@
     Flag,
     CalendarDays,
     MessageSquareQuote,
+    Settings,
   } from "lucide-svelte";
   import ExportImport from "./ExportImport.svelte";
 
@@ -79,6 +80,10 @@
     dispatch("importCSV", event.detail);
   }
 
+  function openWorkspaceSettings() {
+    dispatch("openWorkspaceSettings");
+  }
+
   function showMessage(msg: string) {
     dispatch("showMessage", msg);
   }
@@ -134,6 +139,16 @@
     >
       <Users size={20} />
     </button>
+
+    {#if isOwner}
+      <button
+        on:click={openWorkspaceSettings}
+        class="flex items-center justify-center w-12 h-12 shrink-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-all shadow-sm"
+        title="Workspace Settings"
+      >
+        <Settings size={20} />
+      </button>
+    {/if}
 
     <div
       class="h-8 w-px bg-gray-200 dark:bg-gray-700 mx-1 hidden md:block"

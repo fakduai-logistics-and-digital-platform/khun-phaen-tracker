@@ -26,7 +26,7 @@ bcrypt = "0.16.0"
 axum-extra = { version = "0.9.0", features = ["cookie"] }
 serde_with = "3.12.0"
 time = { version = "0.3.36", features = ["formatting", "macros"] }
-reqwest = { version = "0.13.2", features = ["json"] }
+reqwest = { version = "0.13.2", features = ["form", "json"] }
 aws-config = "1.8.14"
 aws-sdk-s3 = "1.124.0"
 tokio-util = { version = "0.7.18", features = ["io"] }

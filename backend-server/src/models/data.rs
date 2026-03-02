@@ -51,6 +51,7 @@ pub struct CommentDocument {
     pub updated_at: Option<String>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Default)]
 pub struct CreateCommentMultipart {
     pub content: String,

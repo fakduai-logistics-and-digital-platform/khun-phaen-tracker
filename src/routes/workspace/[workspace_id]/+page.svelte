@@ -154,6 +154,7 @@
         connectRealtime(urlRoom, (payload) =>
           workspaceActions.handleRealtimeUpdate(payload),
         );
+        await sprints.refresh();
         filters.set(restoreFilters($sprints));
         initWasmSearch();
       }
@@ -212,6 +213,7 @@
       on:openSprintManager={() => uiActions.openModal("sprintManager")}
       on:openMonthlySummary={() => uiActions.openModal("monthlySummary")}
       on:openDailyReflect={() => uiActions.openModal("dailyReflect")}
+      on:openWorkspaceSettings={() => uiActions.openModal("workspaceSettings")}
       on:exportCSV={() => exportActions.handleExportCSV()}
       on:exportPDF={() => exportActions.handleExportPDF()}
       on:exportMarkdown={(e) => exportActions.handleExportMarkdown(e)}

@@ -25,7 +25,8 @@ export type ModalName =
   | "qrExport"
   | "commandPalette"
   | "dailyReflect"
-  | "pageSize";
+  | "pageSize"
+  | "workspaceSettings";
 
 export type ModalState = {
   form: boolean;
@@ -40,6 +41,7 @@ export type ModalState = {
   commandPalette: boolean;
   dailyReflect: boolean;
   pageSize: boolean;
+  workspaceSettings: boolean;
 };
 
 const initialModalState: ModalState = {
@@ -55,6 +57,7 @@ const initialModalState: ModalState = {
   commandPalette: false,
   dailyReflect: false,
   pageSize: false,
+  workspaceSettings: false,
 };
 
 export const modals = writable<ModalState>(initialModalState);

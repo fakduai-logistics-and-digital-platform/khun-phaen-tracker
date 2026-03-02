@@ -1,4 +1,3 @@
-
 use crate::repositories::data_repo::DataRepository;
 use crate::repositories::user_repo::UserRepository;
 use crate::repositories::workspace_repo::WorkspaceRepository;
@@ -9,6 +8,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::time::{sleep, Duration};
 use tracing::{error, info};
+use crate::models::workspace::Workspace;
+use crate::models::data::TaskDocument;
 
 pub fn spawn_notification_service_task(state: Arc<AppState>) {
     tokio::spawn(async move {
@@ -291,4 +292,122 @@ fn normalize_discord_mention_id(raw: &str) -> String {
         .trim_start_matches('!')
         .trim_end_matches('>')
         .to_string()
+}
+
+// -----------------------------------------------------------------------------
+// EVENT-DRIVEN NOTIFICATIONS
+// -----------------------------------------------------------------------------
+
+pub async fn notify_task_created(
+    state: &Arc<AppState>,
+    workspace: &Workspace,
+    task: &TaskDocument,
+) {
+    if let Some(config) = &workspace.notification_config {
+        if !config.enabled || !config.notify_on_create {
+            return;
+        }
+        send_event_notification(state, workspace, task, "🆕 **New Task Created**").await;
+    }
+}
+
+pub async fn notify_task_status_changed(
+    state: &Arc<AppState>,
+    workspace: &Workspace,
+    task: &TaskDocument,
+) {
+    if let Some(config) = &workspace.notification_config {
+        if !config.enabled {
+            return;
+        }
+        if !config.notify_on_status_change.contains(&task.status) {
+            return;
+        }
+        let title = format!("🔄 **Task Status Changed to `{}`**", task.status);
+        send_event_notification(state, workspace, task, &title).await;
+    }
+}
+
+async fn send_event_notification(
+    state: &Arc<AppState>,
+    workspace: &Workspace,
+    task: &TaskDocument,
+    event_title: &str,
+) {
+    let config = if let Some(c) = &workspace.notification_config {
+        c
+    } else {
+        return;
+    };
+
+    let user_repo = UserRepository::new(&state.db);
+    let data_repo = DataRepository::new(&state.db);
+    
+    // Attempt to format assignees
+    let assignee_map: HashMap<String, crate::models::data::AssigneeDocument> = 
+        if let Some(ws_id) = workspace.id {
+            let assignees = data_repo.find_assignees(&ws_id).await.unwrap_or_default();
+            assignees.into_iter().filter_map(|a| a.id.map(|id| (id.to_hex(), a))).collect()
+        } else {
+            HashMap::new()
+        };
+    
+    let user_discord_map = build_user_discord_map(&assignee_map, &user_repo).await;
+    let assignees_str = format_task_assignees(task, &assignee_map, &user_discord_map);
+
+    let description = format!(
+        "{}\n\n**Task:** {}\n**Project:** {}\n**Assignees:** {}\n",
+        event_title,
+        task.title,
+        if task.project.is_empty() { "None" } else { &task.project },
+        if assignees_str.is_empty() { "Unassigned" } else { assignees_str.trim_start_matches(" — 👤 ") }
+    );
+
+    // 1. Send to Discord/Slack Webhook
+    if let Some(url) = &config.discord_webhook_url {
+        if !url.trim().is_empty() {
+            let payload = serde_json::json!({
+                "username": "Khun Phaen Alerts",
+                "embeds": [{
+                    "title": format!("Alert for Workspace: {}", workspace.name),
+                    "description": description,
+                    "color": 0x4F46E5,
+                }]
+            });
+            let client = reqwest::Client::new();
+            if let Err(e) = client.post(url).json(&payload).send().await {
+                error!("❌ Failed to send Discord/Slack event alert: {}", e);
+            }
+        }
+    }
+
+    // 2. Send to LINE Notify
+    if let Some(token) = &config.line_notify_token {
+        if !token.trim().is_empty() {
+            let client = reqwest::Client::new();
+            let mut params = HashMap::new();
+            
+            // Format for LINE (plain text)
+            let line_msg = format!(
+                "\n[{}]\n{}\nTask: {}\nProject: {}\nAssignees: {}",
+                workspace.name,
+                event_title.replace("**", "").replace("`", ""),
+                task.title,
+                if task.project.is_empty() { "None" } else { &task.project },
+                if assignees_str.is_empty() { "Unassigned" } else { assignees_str.trim_start_matches(" — 👤 ") }
+            );
+            
+            params.insert("message", line_msg);
+            
+            if let Err(e) = client
+                .post("https://notify-api.line.me/api/notify")
+                .header("Authorization", format!("Bearer {}", token))
+                .form(&params)
+                .send()
+                .await
+            {
+                error!("❌ Failed to send LINE Notify event alert: {}", e);
+            }
+        }
+    }
 }

@@ -7,6 +7,7 @@
   import ProjectManager from "./ProjectManager.svelte";
   import QRExportModal from "./QRExportModal.svelte";
   import MonthlySummaryModal from "./MonthlySummaryModal.svelte";
+  import WorkspaceSettings from "./WorkspaceSettings.svelte";
   import type { Task, Project, Assignee, ChecklistItem } from "$lib/types";
   import type { Sprint } from "$lib/stores/sprintStore";
 
@@ -184,3 +185,11 @@
   selectedTasks={qrExportTasks}
   on:close={() => dispatch("closeModal", "qrExport")}
 />
+
+{#if modals.workspaceSettings}
+  <WorkspaceSettings
+    {workspaceId}
+    on:close={() => dispatch("closeModal", "workspaceSettings")}
+    on:workspaceUpdated={() => dispatch("workspaceUpdated")}
+  />
+{/if}

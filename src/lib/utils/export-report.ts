@@ -1,37 +1,45 @@
-import type { Task } from '$lib/types';
-import { formatDateISO } from './export-csv-sql';
+import type { Task } from "$lib/types";
+import { formatDateISO } from "./export-csv-sql";
 
 export function sanitizeMarkdownText(text: string): string {
-	return text.replace(/\r?\n/g, ' ').trim();
+  return text.replace(/\r?\n/g, " ").trim();
 }
 
 export function escapeMarkdownInline(text: string): string {
-	return text.replace(/([\\`*_{}[\]()#+\-.!|>~])/g, '\\$1');
+  return text.replace(/([\\`*_{}[\]()#+\-.!|>~])/g, "\\$1");
 }
 
 export function normalizeTaskDate(dateText: string | undefined): string {
-	if (!dateText) return '-';
-	const isoMatch = dateText.match(/^(\d{4}-\d{2}-\d{2})/);
-	if (isoMatch) return isoMatch[1];
-	const parsed = new Date(dateText);
-	return Number.isNaN(parsed.getTime()) ? '-' : formatDateISO(parsed);
+  if (!dateText) return "-";
+  const isoMatch = dateText.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (isoMatch) return isoMatch[1];
+  const parsed = new Date(dateText);
+  return Number.isNaN(parsed.getTime()) ? "-" : formatDateISO(parsed);
 }
 
 export function sortTasksForReport(list: Task[]): Task[] {
-	return [...list].sort((a, b) => {
-		const dateCompare = normalizeTaskDate(a.date).localeCompare(normalizeTaskDate(b.date));
-		if (dateCompare !== 0) return dateCompare;
-		const idA = a.id ?? Number.MAX_SAFE_INTEGER;
-		const idB = b.id ?? Number.MAX_SAFE_INTEGER;
-		if (idA !== idB) return idA - idB;
-		return (a.title || '').localeCompare(b.title || '', 'th');
-	});
+  return [...list].sort((a, b) => {
+    const dateCompare = normalizeTaskDate(a.date).localeCompare(
+      normalizeTaskDate(b.date),
+    );
+    if (dateCompare !== 0) return dateCompare;
+    const idA = a.id ?? Number.MAX_SAFE_INTEGER;
+    const idB = b.id ?? Number.MAX_SAFE_INTEGER;
+    if (idA !== idB) return Number(idA) - Number(idB);
+    return (a.title || "").localeCompare(b.title || "", "th");
+  });
 }
 
-export function buildTaskReportHtml(taskSnapshot: Task[], scopeLabel: string): string {
-	const totalMinutes = taskSnapshot.reduce((sum, task) => sum + (task.duration_minutes || 0), 0);
-	const totalTasks = taskSnapshot.length;
-	return `
+export function buildTaskReportHtml(
+  taskSnapshot: Task[],
+  scopeLabel: string,
+): string {
+  const totalMinutes = taskSnapshot.reduce(
+    (sum, task) => sum + (task.duration_minutes || 0),
+    0,
+  );
+  const totalTasks = taskSnapshot.length;
+  return `
 		<!DOCTYPE html>
 		<html>
 		<head>
@@ -56,7 +64,7 @@ export function buildTaskReportHtml(taskSnapshot: Task[], scopeLabel: string): s
 		<body>
 			<div class="header">
 				<h1>รายงานงาน (Task Report)</h1>
-				<div class="meta">ช่วงข้อมูล: ${scopeLabel}<br>สร้างเมื่อ: ${new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+				<div class="meta">ช่วงข้อมูล: ${scopeLabel}<br>สร้างเมื่อ: ${new Date().toLocaleDateString("th-TH", { year: "numeric", month: "long", day: "numeric" })}</div>
 			</div>
 			<div class="stats">
 				<div class="stat"><div class="stat-label">จำนวนงานทั้งหมด</div><div class="stat-value">${totalTasks} งาน</div></div>
@@ -68,13 +76,23 @@ export function buildTaskReportHtml(taskSnapshot: Task[], scopeLabel: string): s
 					<tr><th>#</th><th>ชื่องาน</th><th>โปรเจค</th><th>ผู้รับผิดชอบ</th><th>สถานะ</th><th>วันที่</th><th>เวลา</th></tr>
 				</thead>
 				<tbody>
-					${taskSnapshot.map((task, i) => {
-						const hours = Math.floor((task.duration_minutes || 0) / 60);
-						const mins = (task.duration_minutes || 0) % 60;
-						const timeStr = task.duration_minutes > 0 ? `${hours > 0 ? `${hours}ชม ` : ''}${mins > 0 ? `${mins}น` : ''}` : '-';
-						const statusText = task.status === 'done' ? 'เสร็จแล้ว' : task.status === 'in-progress' ? 'กำลังทำ' : 'รอดำเนินการ';
-						return `<tr><td>${i + 1}</td><td>${task.title || '-'}</td><td>${task.project || '-'}</td><td>${task.assignee?.name || '-'}</td><td>${statusText}</td><td>${normalizeTaskDate(task.date)}</td><td>${timeStr}</td></tr>`;
-					}).join('')}
+					${taskSnapshot
+            .map((task, i) => {
+              const hours = Math.floor((task.duration_minutes || 0) / 60);
+              const mins = (task.duration_minutes || 0) % 60;
+              const timeStr =
+                task.duration_minutes > 0
+                  ? `${hours > 0 ? `${hours}ชม ` : ""}${mins > 0 ? `${mins}น` : ""}`
+                  : "-";
+              const statusText =
+                task.status === "done"
+                  ? "เสร็จแล้ว"
+                  : task.status === "in-progress"
+                    ? "กำลังทำ"
+                    : "รอดำเนินการ";
+              return `<tr><td>${i + 1}</td><td>${task.title || "-"}</td><td>${task.project || "-"}</td><td>${task.assignee?.name || "-"}</td><td>${statusText}</td><td>${normalizeTaskDate(task.date)}</td><td>${timeStr}</td></tr>`;
+            })
+            .join("")}
 				</tbody>
 			</table>
 		</body>
