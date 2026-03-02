@@ -5,15 +5,25 @@ import {
   addAssignee as addAssigneeDB,
   updateAssignee,
   deleteAssignee,
+  getStats,
 } from "$lib/db";
+import type { Project, Assignee } from "$lib/types";
 
 type NotifyType = "success" | "error";
 
 type WorkspaceActionDeps = {
   loadData: () => Promise<void>;
+  debouncedLoadData: () => void;
   notify: (message: string, type?: NotifyType) => void;
   t: (key: string, options?: any) => string;
   trackRealtime: (reason: string) => void;
+  getAssignees: () => Assignee[];
+  setAssignees: (assignees: Assignee[]) => void;
+  getProjectList: () => Project[];
+  setProjectList: (projects: Project[]) => void;
+  getProjects: () => string[];
+  setProjects: (projects: string[]) => void;
+  setStats: (stats: any) => void;
 };
 
 export function createWorkspaceActions(deps: WorkspaceActionDeps) {
@@ -93,7 +103,11 @@ export function createWorkspaceActions(deps: WorkspaceActionDeps) {
   }
 
   async function handleUpdateProject(
-    event: CustomEvent<{ id: string | number; name: string; repo_url?: string }>,
+    event: CustomEvent<{
+      id: string | number;
+      name: string;
+      repo_url?: string;
+    }>,
   ) {
     try {
       await updateProject(event.detail.id, {
@@ -119,6 +133,84 @@ export function createWorkspaceActions(deps: WorkspaceActionDeps) {
     }
   }
 
+  async function handleRealtimeUpdate(payload: any) {
+    const { entity, action, id, data } = payload;
+    let statNeedsUpdate = false;
+
+    if (entity === "task") {
+      statNeedsUpdate = true;
+      deps.debouncedLoadData();
+    } else if (entity === "assignee") {
+      let currentAssignees = deps.getAssignees();
+      if (action === "create" && data) {
+        if (!currentAssignees.find((a) => a.id === data.id)) {
+          deps.setAssignees([...currentAssignees, data]);
+        }
+      } else if (action === "update" && id && data) {
+        deps.setAssignees(
+          currentAssignees.map((a) =>
+            String(a.id) === String(id) ? { ...a, ...data } : a,
+          ),
+        );
+      } else if (action === "delete" && id) {
+        deps.setAssignees(
+          currentAssignees.filter((a) => String(a.id) !== String(id)),
+        );
+      }
+      deps.debouncedLoadData();
+    } else if (entity === "project") {
+      let currentProjectList = deps.getProjectList();
+      let currentProjects = deps.getProjects();
+
+      if (action === "create" && data) {
+        if (!currentProjectList.find((p) => p.id === data.id)) {
+          deps.setProjectList([...currentProjectList, data]);
+        }
+        if (!currentProjects.includes(data.name)) {
+          deps.setProjects([...currentProjects, data.name]);
+        }
+      } else if (action === "update" && id && data) {
+        const oldProject = currentProjectList.find(
+          (p) => String(p.id) === String(id),
+        );
+        deps.setProjectList(
+          currentProjectList.map((p) =>
+            String(p.id) === String(id) ? { ...p, ...data } : p,
+          ),
+        );
+        if (oldProject && data.name && oldProject.name !== data.name) {
+          deps.setProjects(
+            currentProjects.map((name) =>
+              name === oldProject.name ? data.name : name,
+            ),
+          );
+          deps.debouncedLoadData();
+        }
+      } else if (action === "delete" && id) {
+        const deletedProject = currentProjectList.find(
+          (p) => String(p.id) === String(id),
+        );
+        deps.setProjectList(
+          currentProjectList.filter((p) => String(p.id) !== String(id)),
+        );
+        if (deletedProject) {
+          deps.setProjects(
+            currentProjects.filter((name) => name !== deletedProject.name),
+          );
+        }
+      }
+    }
+
+    if (statNeedsUpdate) {
+      try {
+        const stats = await getStats();
+        deps.setStats(stats);
+      } catch (e) {
+        console.warn("⚠️ getStats failed:", e);
+      }
+    }
+  }
+
   return {
     handleAddWorker,
     handleUpdateWorker,
@@ -126,5 +218,6 @@ export function createWorkspaceActions(deps: WorkspaceActionDeps) {
     handleAddProject,
     handleUpdateProject,
     handleDeleteProject,
+    handleRealtimeUpdate,
   };
 }

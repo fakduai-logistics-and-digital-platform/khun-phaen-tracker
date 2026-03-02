@@ -155,3 +155,15 @@ export const CATEGORIES = [
   "เรียนรู้",
   "อื่นๆ",
 ] as const;
+
+export interface CommandPaletteItem {
+  id: string;
+  label: string;
+  description: string;
+  keywords: string[];
+  category: "command" | "task" | "project" | "assignee" | "sprint" | "search";
+  icon?: any;
+  run: () => void | Promise<void>;
+  project?: string;
+  status?: string;
+}
