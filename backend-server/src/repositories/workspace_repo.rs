@@ -1,7 +1,7 @@
 use crate::models::workspace::Workspace;
 use futures::stream::StreamExt;
 use mongodb::{
-    bson::{doc, oid::ObjectId},
+    bson::{doc, oid::ObjectId, Bson, Document},
     Collection, Database,
 };
 
@@ -97,14 +97,18 @@ impl WorkspaceRepository {
     }
 
     pub async fn find_all_notifications(&self) -> mongodb::error::Result<Vec<Workspace>> {
-        let mut cursor = self
-            .collection
+        let raw = self.collection.clone_with_type::<Document>();
+        let mut cursor = raw
             .find(doc! { "notification_config.enabled": true }, None)
             .await?;
         let mut workspaces = Vec::new();
         while let Some(result) = cursor.next().await {
             match result {
-                Ok(doc) => workspaces.push(doc),
+                Ok(doc) => {
+                    if let Some(ws) = Self::workspace_from_document(&doc) {
+                        workspaces.push(ws);
+                    }
+                }
                 Err(e) => return Err(e),
             }
         }
@@ -134,5 +138,87 @@ impl WorkspaceRepository {
         self.collection
             .find_one(doc! { "room_code": room_code }, None)
             .await
+    }
+
+    fn workspace_from_document(doc: &Document) -> Option<Workspace> {
+        let id = doc.get_object_id("_id").ok();
+        let owner_id = doc.get_object_id("owner_id").ok()?;
+        let name = doc.get_str("name").ok()?.to_string();
+        let room_code = doc.get_str("room_code").ok()?.to_string();
+        let color = doc.get_str("color").ok().map(|s| s.to_string());
+        let icon = doc.get_str("icon").ok().map(|s| s.to_string());
+        let created_at = doc
+            .get("created_at")
+            .and_then(Self::parse_utc_datetime)
+            .unwrap_or_else(chrono::Utc::now);
+
+        let notification_config = doc
+            .get_document("notification_config")
+            .ok()
+            .map(|cfg| crate::models::workspace::NotificationConfig {
+                discord_webhook_url: cfg
+                    .get_str("discord_webhook_url")
+                    .ok()
+                    .map(|s| s.to_string()),
+                enabled: cfg.get_bool("enabled").unwrap_or(false),
+                days: cfg
+                    .get_array("days")
+                    .ok()
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|v| match v {
+                                Bson::Int32(i) => u8::try_from(*i).ok(),
+                                Bson::Int64(i) => u8::try_from(*i).ok(),
+                                _ => None,
+                            })
+                            .collect::<Vec<u8>>()
+                    })
+                    .unwrap_or_default(),
+                time: cfg.get_str("time").unwrap_or("00:00").to_string(),
+                last_sent_at: cfg.get("last_sent_at").and_then(Self::parse_utc_datetime),
+            });
+
+        Some(Workspace {
+            id,
+            name,
+            color,
+            icon,
+            owner_id,
+            room_code,
+            notification_config,
+            created_at,
+        })
+    }
+
+    fn parse_utc_datetime(value: &Bson) -> Option<chrono::DateTime<chrono::Utc>> {
+        match value {
+            Bson::DateTime(dt) => Some(dt.to_chrono()),
+            Bson::String(s) => chrono::DateTime::parse_from_rfc3339(s)
+                .ok()
+                .map(|dt| dt.with_timezone(&chrono::Utc)),
+            Bson::Document(d) => {
+                if let Some(Bson::DateTime(dt)) = d.get("$date") {
+                    return Some(dt.to_chrono());
+                }
+                if let Some(Bson::String(s)) = d.get("$date") {
+                    return chrono::DateTime::parse_from_rfc3339(s)
+                        .ok()
+                        .map(|dt| dt.with_timezone(&chrono::Utc));
+                }
+                if let Some(Bson::Document(d2)) = d.get("$date") {
+                    if let Some(Bson::String(ms)) = d2.get("$numberLong") {
+                        if let Ok(ms) = ms.parse::<i64>() {
+                            return mongodb::bson::DateTime::from_millis(ms)
+                                .try_to_rfc3339_string()
+                                .ok()
+                                .and_then(|s| chrono::DateTime::parse_from_rfc3339(&s).ok())
+                                .map(|dt| dt.with_timezone(&chrono::Utc));
+                        }
+                    }
+                }
+                None
+            }
+            _ => None,
+        }
     }
 }
