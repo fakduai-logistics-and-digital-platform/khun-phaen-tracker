@@ -1025,12 +1025,11 @@ async function loadData() {
 	}
 
 	// Worker Management Functions
-	async function handleAddWorker(event: CustomEvent<{ name: string; color: string; discord_id?: string; user_id?: string }>) {
+	async function handleAddWorker(event: CustomEvent<{ name: string; color: string; user_id?: string }>) {
 		try {
 			await addAssigneeDB({ 
 				name: event.detail.name, 
 				color: event.detail.color,
-				discord_id: event.detail.discord_id,
 				user_id: event.detail.user_id
 			});
 			await loadData();
@@ -1042,12 +1041,11 @@ async function loadData() {
 		}
 	}
 	
-	async function handleUpdateWorker(event: CustomEvent<{ id: string | number; name: string; color: string; discord_id?: string; user_id?: string }>) {
+	async function handleUpdateWorker(event: CustomEvent<{ id: string | number; name: string; color: string; user_id?: string }>) {
 		try {
 			await updateAssignee(event.detail.id, { 
 				name: event.detail.name, 
 				color: event.detail.color,
-				discord_id: event.detail.discord_id,
 				user_id: event.detail.user_id
 			});
 			await loadData();

@@ -39,8 +39,8 @@ import { Calendar, Check, CheckCircle, ChevronLeft, ChevronRight, Copy, Download
 	let status: Task['status'] = 'todo';
 	let category = 'งานหลัก';
 	let notes = '';
-	let assignee_ids: number[] = [];
-	let assignee_id_to_add: number | null = null;
+	let assignee_ids: (string | number)[] = [];
+	let assignee_id_to_add: string | number | null = null;
 	let sprint_id: string | number | null = null;
 	let checklist: ChecklistItem[] = [];
 	let showBranchDialog = false;
@@ -89,6 +89,8 @@ import { Calendar, Check, CheckCircle, ChevronLeft, ChevronRight, Copy, Download
 	const commentReactionEmojis = ['👍', '❤️', '🔥', '🎉', '😂', '😮', '😢', '👀', '✅', '🚀'];
 
 	$: activeSprint = sprints.find((s) => s.status === 'active');
+	const isSameId = (a: string | number | null | undefined, b: string | number | null | undefined) =>
+		a !== null && a !== undefined && b !== null && b !== undefined && String(a) === String(b);
 	$: currentProjectRepoUrl = (() => {
 		if (!project) return '';
 		const matched = projects.find((p) => p.name === project);
@@ -112,8 +114,7 @@ import { Calendar, Check, CheckCircle, ChevronLeft, ChevronRight, Copy, Download
 			category = editingTask.category || 'งานหลัก';
 			notes = editingTask.notes || '';
 			assignee_ids = (editingTask.assignee_ids || (editingTask.assignee_id ? [editingTask.assignee_id] : []))
-				.map((id) => Number(id))
-				.filter((id) => !Number.isNaN(id));
+				.filter((id) => id !== null && id !== undefined && String(id).trim() !== '');
 			sprint_id = editingTask.sprint_id || null;
 			checklist = editingTask.checklist ? [...editingTask.checklist] : [];
 		} else {
@@ -124,7 +125,7 @@ import { Calendar, Check, CheckCircle, ChevronLeft, ChevronRight, Copy, Download
 			status = 'todo';
 			category = $taskDefaults.category || 'งานหลัก';
 			notes = '';
-			assignee_ids = $taskDefaults.assignee_id ? [$taskDefaults.assignee_id] : [];
+			assignee_ids = $taskDefaults.assignee_id ? [String($taskDefaults.assignee_id)] : [];
 			sprint_id = activeSprint?.id || null;
 			checklist = [];
 		}
@@ -756,13 +757,14 @@ import { Calendar, Check, CheckCircle, ChevronLeft, ChevronRight, Copy, Download
 	function handleSubmit() {
 		if (!title.trim()) return;
 		if (!date) return;
-		if (assignee_id_to_add !== null && !assignee_ids.includes(assignee_id_to_add)) {
+		if (assignee_id_to_add !== null && !assignee_ids.some((id) => isSameId(id, assignee_id_to_add))) {
 			assignee_ids = [...assignee_ids, assignee_id_to_add];
 		}
 		if (!editingTask) {
+			const firstAssigneeAsNumber = assignee_ids.length > 0 ? Number(assignee_ids[0]) : null;
 			taskDefaults.set({
 				project: project.trim(),
-				assignee_id: assignee_ids.length > 0 ? assignee_ids[0] : null,
+				assignee_id: firstAssigneeAsNumber !== null && !Number.isNaN(firstAssigneeAsNumber) ? firstAssigneeAsNumber : null,
 				category
 			});
 		}
@@ -783,6 +785,8 @@ import { Calendar, Check, CheckCircle, ChevronLeft, ChevronRight, Copy, Download
 			sprint_id,
 			checklist: checklist.length > 0 ? checklist : undefined
 		});
+		// Close immediately for optimistic UX; parent continues async save.
+		dispatch('close');
 	}
 
 	function handleClose() {

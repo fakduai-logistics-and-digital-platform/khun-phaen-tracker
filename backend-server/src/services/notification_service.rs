@@ -1,8 +1,11 @@
 use crate::models::data::TaskFilterQuery;
 use crate::repositories::data_repo::DataRepository;
+use crate::repositories::user_repo::UserRepository;
 use crate::repositories::workspace_repo::WorkspaceRepository;
 use crate::state::AppState;
 use chrono::{Datelike, FixedOffset, Timelike, Utc};
+use mongodb::bson::oid::ObjectId;
+use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::time::{sleep, Duration};
 use tracing::{error, info};
@@ -21,6 +24,7 @@ pub fn spawn_notification_service_task(state: Arc<AppState>) {
 async fn check_and_send_notifications(state: &Arc<AppState>) {
     let workspace_repo = WorkspaceRepository::new(&state.db);
     let data_repo = DataRepository::new(&state.db);
+    let user_repo = UserRepository::new(&state.db);
 
     // Use Thailand Time (UTC+7)
     let offset = FixedOffset::east_opt(7 * 3600).unwrap();
@@ -72,6 +76,7 @@ async fn check_and_send_notifications(state: &Arc<AppState>) {
                     &ws.name,
                     config.discord_webhook_url.as_deref(),
                     &data_repo,
+                    &user_repo,
                 )
                 .await
                 {
@@ -93,6 +98,7 @@ async fn send_daily_summary_to_discord(
     workspace_name: &str,
     webhook_url: Option<&str>,
     data_repo: &DataRepository,
+    user_repo: &UserRepository,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let url = match webhook_url {
         Some(u) => u,
@@ -101,6 +107,12 @@ async fn send_daily_summary_to_discord(
 
     // Fetch specifically for daily report
     let tasks = data_repo.find_daily_report_tasks(workspace_id).await?;
+    let assignees = data_repo.find_assignees(workspace_id).await.unwrap_or_default();
+    let assignee_map: HashMap<String, crate::models::data::AssigneeDocument> = assignees
+        .into_iter()
+        .filter_map(|a| a.id.map(|id| (id.to_hex(), a)))
+        .collect();
+    let user_discord_map = build_user_discord_map(&assignee_map, user_repo).await;
 
     if tasks.is_empty() {
         return Ok(()); // Nothing to report
@@ -151,7 +163,11 @@ async fn send_daily_summary_to_discord(
     if !done_tasks.is_empty() {
         description.push_str("🎯 **Recently Completed**\n");
         for t in done_tasks.iter().take(10) {
-            description.push_str(&format!("• ✅ {}\n", t.title));
+            description.push_str(&format!(
+                "• ✅ {}{}\n",
+                t.title,
+                format_task_assignees(t, &assignee_map, &user_discord_map)
+            ));
         }
         if done_tasks.len() > 10 {
             description.push_str(&format!("*... and {} more*\n", done_tasks.len() - 10));
@@ -168,7 +184,12 @@ async fn send_daily_summary_to_discord(
                 "in-test" => "🧪",
                 _ => "📝",
             };
-            description.push_str(&format!("• {} {}\n", icon, t.title));
+            description.push_str(&format!(
+                "• {} {}{}\n",
+                icon,
+                t.title,
+                format_task_assignees(t, &assignee_map, &user_discord_map)
+            ));
         }
         if pending_tasks.len() > 10 {
             description.push_str(&format!("*... and {} more*\n", pending_tasks.len() - 10));
@@ -200,4 +221,76 @@ async fn send_daily_summary_to_discord(
     }
 
     Ok(())
+}
+
+fn format_task_assignees(
+    task: &crate::models::data::TaskDocument,
+    assignee_map: &HashMap<String, crate::models::data::AssigneeDocument>,
+    user_discord_map: &HashMap<String, String>,
+) -> String {
+    let ids = match &task.assignee_ids {
+        Some(v) if !v.is_empty() => v,
+        _ => return String::new(),
+    };
+
+    let mut parts: Vec<String> = Vec::new();
+    for id in ids {
+        if let Some(assignee) = assignee_map.get(id) {
+            if let Some(discord_id) = assignee.discord_id.as_deref() {
+                let mention_id = normalize_discord_mention_id(discord_id);
+                if !mention_id.is_empty() {
+                    parts.push(format!("<@{}>", mention_id));
+                    continue;
+                }
+            }
+            if let Some(user_id_hex) = assignee.user_id.as_deref() {
+                if let Some(discord_id) = user_discord_map.get(user_id_hex) {
+                    let mention_id = normalize_discord_mention_id(discord_id);
+                    if !mention_id.is_empty() {
+                        parts.push(format!("<@{}>", mention_id));
+                        continue;
+                    }
+                }
+            }
+            parts.push(assignee.name.clone());
+        }
+    }
+
+    if parts.is_empty() {
+        String::new()
+    } else {
+        format!(" — 👤 {}", parts.join(", "))
+    }
+}
+
+async fn build_user_discord_map(
+    assignee_map: &HashMap<String, crate::models::data::AssigneeDocument>,
+    user_repo: &UserRepository,
+) -> HashMap<String, String> {
+    let mut user_discord_map = HashMap::new();
+    let mut user_ids: Vec<String> = assignee_map
+        .values()
+        .filter_map(|a| a.user_id.clone())
+        .collect();
+    user_ids.sort();
+    user_ids.dedup();
+
+    for user_id_hex in user_ids {
+        if let Ok(user_oid) = ObjectId::parse_str(&user_id_hex) {
+            if let Ok(Some(user)) = user_repo.find_by_id(&user_oid).await {
+                if let Some(discord_id) = user.discord_id {
+                    user_discord_map.insert(user_id_hex, discord_id);
+                }
+            }
+        }
+    }
+    user_discord_map
+}
+
+fn normalize_discord_mention_id(raw: &str) -> String {
+    raw.trim()
+        .trim_start_matches("<@")
+        .trim_start_matches('!')
+        .trim_end_matches('>')
+        .to_string()
 }

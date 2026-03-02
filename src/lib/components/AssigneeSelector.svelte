@@ -10,8 +10,8 @@
 	}>();
 
 	export let assignees: Assignee[] = [];
-	export let assignee_ids: number[] = [];
-	export let assignee_id_to_add: number | null = null;
+	export let assignee_ids: (string | number)[] = [];
+	export let assignee_id_to_add: string | number | null = null;
 	export let readonly = false;
 	let showAddAssigneeForm = false;
 	let newAssigneeName = '';
@@ -24,18 +24,23 @@
 		'#F43F5E', '#78716C', '#6B7280', '#4B5563', '#1F2937'
 	];
 
-	$: selectedAssignees = assignee_ids.map(id => assignees.find(a => a.id === id)).filter(Boolean) as Assignee[];
-	$: availableAssignees = assignees.filter(a => a.id && !assignee_ids.includes(a.id));
+	const isSameId = (a: string | number | null | undefined, b: string | number | null | undefined) =>
+		a !== null && a !== undefined && b !== null && b !== undefined && String(a) === String(b);
+
+	$: selectedAssignees = assignee_ids
+		.map((id) => assignees.find((a) => isSameId(a.id, id)))
+		.filter(Boolean) as Assignee[];
+	$: availableAssignees = assignees.filter((a) => a.id != null && !assignee_ids.some((id) => isSameId(a.id, id)));
 
 	function addAssigneeToTask() {
-		if (assignee_id_to_add !== null && !assignee_ids.includes(assignee_id_to_add)) {
+		if (assignee_id_to_add !== null && !assignee_ids.some((id) => isSameId(id, assignee_id_to_add))) {
 			assignee_ids = [...assignee_ids, assignee_id_to_add];
 			assignee_id_to_add = null;
 		}
 	}
 
-	function removeAssigneeFromTask(id: number) {
-		assignee_ids = assignee_ids.filter(assigneeId => assigneeId !== id);
+	function removeAssigneeFromTask(id: string | number) {
+		assignee_ids = assignee_ids.filter((assigneeId) => !isSameId(assigneeId, id));
 	}
 
 	function handleAddAssignee() {
@@ -132,7 +137,9 @@
 						{#if !readonly}
 							<button
 								type="button"
-								on:click={() => removeAssigneeFromTask(assignee.id!)}
+								on:click={() => {
+									if (assignee.id != null) removeAssigneeFromTask(assignee.id);
+								}}
 								class="text-gray-400 hover:text-red-500 transition-colors"
 								title="Remove assignee"
 							>
@@ -153,9 +160,9 @@
 						options={[
 							{ value: null, label: $_('taskForm__assignee_placeholder') },
 							...availableAssignees
-							.filter((assignee): assignee is typeof assignee & { id: number } => assignee.id !== undefined)
+							.filter((assignee) => assignee.id !== undefined)
 							.map(assignee => ({
-								value: assignee.id,
+								value: assignee.id!,
 								label: assignee.name,
 								badge: true,
 								badgeColor: assignee.color

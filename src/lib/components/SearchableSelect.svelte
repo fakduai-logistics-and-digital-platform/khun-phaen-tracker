@@ -23,11 +23,15 @@
 	// Show all filtered options (remove slice to ensure "Me" is always visible at the top)
 	$: displayOptions = filteredOptions;
 	$: hasMore = false;
+	const isSameValue = (a: string | number | null, b: string | number | null) => {
+		if (a === null || b === null) return a === b;
+		return String(a) === String(b);
+	};
 
 	// Get selected label
-	$: selectedLabel = options.find(opt => opt.value === value)?.label || 'ทั้งหมด';
-	$: selectedBadge = options.find(opt => opt.value === value)?.badge;
-	$: selectedBadgeColor = options.find(opt => opt.value === value)?.badgeColor;
+	$: selectedLabel = options.find(opt => isSameValue(opt.value, value))?.label || 'ทั้งหมด';
+	$: selectedBadge = options.find(opt => isSameValue(opt.value, value))?.badge;
+	$: selectedBadgeColor = options.find(opt => isSameValue(opt.value, value))?.badgeColor;
 
 	function selectOption(optionValue: string | number | null) {
 		value = optionValue;
@@ -69,7 +73,7 @@
 			{#if selectedBadge}
 				<span class="shrink-0 w-2 h-2 rounded-full {selectedBadgeColor || 'bg-gray-400'}"></span>
 			{/if}
-			<span class={value === 'all' || value === null ? 'text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-gray-100'}>
+			<span class={String(value) === 'all' || value === null ? 'text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-gray-100'}>
 				{selectedLabel}
 			</span>
 		</span>
@@ -109,7 +113,7 @@
 					{#each displayOptions as option}
 						<button
 							type="button"
-							class="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 transition-colors {value === option.value ? 'bg-primary/10 text-primary font-medium' : 'text-gray-900 dark:text-gray-100'}"
+							class="w-full px-4 py-2.5 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 transition-colors {isSameValue(value, option.value) ? 'bg-primary/10 text-primary font-medium' : 'text-gray-900 dark:text-gray-100'}"
 							on:click={() => selectOption(option.value)}
 						>
 							{#if option.badge}
@@ -120,7 +124,7 @@
 							{/if}
 						{/if}
 						<span class="truncate flex-1">{option.label}</span>
-						{#if value === option.value}
+						{#if isSameValue(value, option.value)}
 							<svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
 							</svg>

@@ -8,8 +8,8 @@
 	
 	const dispatch = createEventDispatcher<{
 		close: void;
-		add: { name: string; color: string; discord_id?: string; user_id?: string };
-		update: { id: string | number; name: string; color: string; discord_id?: string; user_id?: string };
+		add: { name: string; color: string; user_id?: string };
+		update: { id: string | number; name: string; color: string; user_id?: string };
 		delete: string | number;
 	}>();
 	
@@ -20,8 +20,8 @@
 	
 	let showAddForm = false;
 	let editingWorker: Assignee | null = null;
+	let contentScrollEl: HTMLDivElement | null = null;
 	let newWorkerName = '';
-	let newWorkerDiscordId = '';
 	let newWorkerColor = '#6366F1';
 	let newWorkerUserId = ''; // For linking with system user
 	let deleteConfirmId: string | number | null = null;
@@ -59,7 +59,6 @@
 		showAddForm = true;
 		editingWorker = null;
 		newWorkerName = '';
-		newWorkerDiscordId = '';
 		newWorkerColor = '#6366F1';
 		newWorkerUserId = '';
 	}
@@ -67,8 +66,8 @@
 	function startEdit(worker: Assignee) {
 		editingWorker = worker;
 		showAddForm = true;
+		contentScrollEl?.scrollTo({ top: 0, behavior: 'smooth' });
 		newWorkerName = worker.name;
-		newWorkerDiscordId = worker.discord_id || '';
 		newWorkerColor = worker.color || '#6366F1';
 		newWorkerUserId = worker.user_id || '';
 	}
@@ -77,7 +76,6 @@
 		showAddForm = false;
 		editingWorker = null;
 		newWorkerName = '';
-		newWorkerDiscordId = '';
 		newWorkerColor = '#6366F1';
 		newWorkerUserId = '';
 	}
@@ -90,9 +88,6 @@
 				if (!editingWorker) {
 					if (!newWorkerName) {
 						newWorkerName = user.nickname || user.first_name || user.email.split('@')[0];
-					}
-					if ((user.discord_id || user.profile?.discord_id) && !newWorkerDiscordId) {
-						newWorkerDiscordId = user.discord_id || user.profile?.discord_id || '';
 					}
 				}
 			}
@@ -113,14 +108,12 @@
 				id: editingWorker.id!,
 				name: newWorkerName.trim(),
 				color: newWorkerColor,
-				discord_id: newWorkerDiscordId.trim() || undefined,
 				user_id: newWorkerUserId || undefined
 			});
 		} else {
 			dispatch('add', {
 				name: newWorkerName.trim(),
 				color: newWorkerColor,
-				discord_id: newWorkerDiscordId.trim() || undefined,
 				user_id: newWorkerUserId || undefined
 			});
 		}
@@ -146,6 +139,14 @@
 		if (!userId) return null;
 		return systemUsers.find(u => u.id === userId);
 	}
+
+	$: usedUserIds = new Set(
+		assignees
+			.map((a) => a.user_id)
+			.filter((id): id is string => !!id && id !== newWorkerUserId)
+	);
+
+	$: availableSystemUsers = systemUsers.filter((u) => !usedUserIds.has(u.id));
 	
 	function handleBackdropClick(e: MouseEvent) {
 		if (e.target === e.currentTarget) {
@@ -184,7 +185,7 @@
 		</div>
 
 		<!-- Content -->
-		<div class="flex-1 overflow-y-auto p-6">
+		<div class="flex-1 overflow-y-auto p-6" bind:this={contentScrollEl}>
 			<!-- Add/Edit Form -->
 			{#if showAddForm && isOwner}
 				<div class="bg-gray-50 dark:bg-gray-700 rounded-xl p-4 mb-6 space-y-4">
@@ -199,7 +200,7 @@
 								bind:value={newWorkerUserId}
 								options={[
 									{ value: '', label: '-- ' + $_('workerManager__link_user_placeholder') + ' --' },
-									...systemUsers.map(user => ({
+									...availableSystemUsers.map(user => ({
 										value: user.id,
 										label: `${user.nickname || user.first_name || user.email.split('@')[0]} (${user.email})`,
 										badge: user.is_active !== undefined,
@@ -216,7 +217,7 @@
 						{/if}
 					</div>
 
-					<div class="grid grid-cols-2 gap-4">
+					<div>
 						<div>
 							<label for="worker-name-input" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
 								{editingWorker ? $_('workerManager__edit_name') : $_('workerManager__name_label')}
@@ -226,19 +227,6 @@
 								type="text"
 								bind:value={newWorkerName}
 								placeholder={$_('workerManager__name_placeholder')}
-								class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none"
-							/>
-						</div>
-
-						<div>
-							<label for="worker-discord-input" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-								{$_('users__form_discord_id')}
-							</label>
-							<input
-								id="worker-discord-input"
-								type="text"
-								bind:value={newWorkerDiscordId}
-								placeholder="1234..."
 								class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none"
 							/>
 						</div>
@@ -322,6 +310,7 @@
 				{:else}
 					{#each assignees as worker (worker.id)}
 						{@const linkedUser = getLinkedUser(worker.user_id)}
+						{@const linkedDiscordId = linkedUser?.discord_id || linkedUser?.profile?.discord_id}
 						<div class="flex items-center gap-3 p-3 bg-white dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700/50 rounded-2xl group hover:border-primary/30 hover:bg-gray-50 dark:hover:bg-white/5 transition-all shadow-sm">
 							<!-- Color Avatar -->
 							<div
@@ -346,8 +335,13 @@
 										<Briefcase size={10} />
 										<span>{getTaskCount(worker.id!)} {$_('workerManager__task_count_suffix')}</span>
 									</div>
-									{#if worker.discord_id}
+									{#if linkedDiscordId}
 										<div class="flex items-center gap-1 text-[11px] text-indigo-500/70 font-medium">
+											<Mail size={10} />
+											<span>{linkedDiscordId}</span>
+										</div>
+									{:else if worker.discord_id}
+										<div class="flex items-center gap-1 text-[11px] text-indigo-500/50 font-medium">
 											<Mail size={10} />
 											<span>{worker.discord_id}</span>
 										</div>
@@ -414,4 +408,3 @@
 		</div>
 	</div>
 </div>
-
