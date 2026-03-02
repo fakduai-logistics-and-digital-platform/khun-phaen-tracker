@@ -385,11 +385,11 @@
         <div class="glass-card w-80 overflow-hidden shadow-2xl flex flex-col">
           <!-- Top Bar with Status and Quick Controls -->
           <div
-            class="p-4 border-b border-white/10 flex items-center justify-between bg-black/20"
+            class="p-4 border-b border-black/5 dark:border-white/10 flex items-center justify-between bg-black/5 dark:bg-black/20"
           >
             <div class="flex flex-col">
               <span
-                class="text-[10px] font-bold uppercase tracking-widest text-white/50"
+                class="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-white/50"
               >
                 {timerMode === "countup"
                   ? $_("timer__mode_countup")
@@ -397,7 +397,9 @@
                     ? $_("timer__mode_pomodoro")
                     : $_("timer__mode_goal")}
               </span>
-              <span class="text-sm font-semibold text-white">
+              <span
+                class="text-sm font-semibold text-slate-800 dark:text-white"
+              >
                 {isRunning
                   ? $_("timer__status_active")
                   : $_("timer__status_paused")}
@@ -440,14 +442,16 @@
             class="p-4 space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar"
           >
             <!-- Mode Selection Grid -->
-            <div class="grid grid-cols-3 gap-1 bg-white/5 p-1 rounded-xl">
+            <div
+              class="grid grid-cols-3 gap-1 bg-black/5 dark:bg-white/5 p-1 rounded-xl"
+            >
               {#each ["countup", "pomodoro", "countdown"] as mode}
                 <button
                   onclick={() => setTimerMode(mode as TimerMode)}
                   class="flex flex-col items-center gap-1 py-2 px-1 rounded-lg transition-all {timerMode ===
                   mode
                     ? 'bg-primary text-white shadow-lg shadow-primary/20 scale-105'
-                    : 'text-white/40 hover:text-white hover:bg-white/5'}"
+                    : 'text-slate-500 dark:text-white/40 hover:text-slate-800 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5'}"
                 >
                   {#if mode === "countup"}<Timer size={14} />{/if}
                   {#if mode === "pomodoro"}<Settings2 size={14} />{/if}
@@ -471,36 +475,36 @@
                     <div class="space-y-1">
                       <label
                         for="pomodoro-work-minutes"
-                        class="text-[10px] font-bold uppercase text-white/40 ml-1"
+                        class="text-[10px] font-bold uppercase text-slate-500 dark:text-white/40 ml-1"
                         >{$_("timer__settings_work")}</label
                       >
                       <div
-                        class="flex items-center bg-white/5 border border-white/10 rounded-lg overflow-hidden focus-within:border-primary/50 transition-colors"
+                        class="flex items-center bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-lg overflow-hidden focus-within:border-primary/50 transition-colors"
                       >
                         <input
                           id="pomodoro-work-minutes"
                           type="number"
                           bind:value={pomodoroWorkMinutes}
                           onchange={() => startPomodoroPhase("work")}
-                          class="w-full bg-transparent px-3 py-1.5 text-sm text-white focus:outline-none"
+                          class="w-full bg-transparent px-3 py-1.5 text-sm text-slate-800 dark:text-white focus:outline-none"
                         />
                       </div>
                     </div>
                     <div class="space-y-1">
                       <label
                         for="pomodoro-break-minutes"
-                        class="text-[10px] font-bold uppercase text-white/40 ml-1"
+                        class="text-[10px] font-bold uppercase text-slate-500 dark:text-white/40 ml-1"
                         >{$_("timer__settings_break")}</label
                       >
                       <div
-                        class="flex items-center bg-white/5 border border-white/10 rounded-lg overflow-hidden focus-within:border-primary/50 transition-colors"
+                        class="flex items-center bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-lg overflow-hidden focus-within:border-primary/50 transition-colors"
                       >
                         <input
                           id="pomodoro-break-minutes"
                           type="number"
                           bind:value={pomodoroBreakMinutes}
                           onchange={() => startPomodoroPhase("work")}
-                          class="w-full bg-transparent px-3 py-1.5 text-sm text-white focus:outline-none"
+                          class="w-full bg-transparent px-3 py-1.5 text-sm text-slate-800 dark:text-white focus:outline-none"
                         />
                       </div>
                     </div>
@@ -509,10 +513,10 @@
                     {#each pomodoroPresets as min}
                       <button
                         onclick={() => setPomodoroPreset(min)}
-                        class="px-2.5 py-1 text-[10px] font-bold rounded-full border border-white/10 hover:border-primary/50 hover:bg-primary/10 transition-all {pomodoroWorkMinutes ===
+                        class="px-2.5 py-1 text-[10px] font-bold rounded-full border border-black/10 dark:border-white/10 hover:border-primary/50 hover:bg-primary/10 transition-all {pomodoroWorkMinutes ===
                         min
                           ? 'bg-primary/20 border-primary/50 text-primary'
-                          : 'text-white/40'}"
+                          : 'text-slate-500 dark:text-white/40'}"
                       >
                         {$_("timer__preset_short", { values: { min } })}
                       </button>
@@ -527,7 +531,7 @@
                   <div class="space-y-1">
                     <label
                       for="countdown-hours"
-                      class="text-[10px] font-bold uppercase text-white/40 ml-1"
+                      class="text-[10px] font-bold uppercase text-slate-500 dark:text-white/40 ml-1"
                       >{$_("timer__settings_hours")}</label
                     >
                     <input
@@ -535,13 +539,13 @@
                       type="number"
                       bind:value={targetHours}
                       onchange={setCountdownFromGoal}
-                      class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-primary/50"
+                      class="w-full bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-lg px-3 py-1.5 text-sm text-slate-800 dark:text-white focus:outline-none focus:border-primary/50"
                     />
                   </div>
                   <div class="space-y-1">
                     <label
                       for="countdown-minutes"
-                      class="text-[10px] font-bold uppercase text-white/40 ml-1"
+                      class="text-[10px] font-bold uppercase text-slate-500 dark:text-white/40 ml-1"
                       >{$_("timer__settings_minutes")}</label
                     >
                     <input
@@ -549,7 +553,7 @@
                       type="number"
                       bind:value={targetMinutes}
                       onchange={setCountdownFromGoal}
-                      class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-primary/50"
+                      class="w-full bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-lg px-3 py-1.5 text-sm text-slate-800 dark:text-white focus:outline-none focus:border-primary/50"
                     />
                   </div>
                 </div>
@@ -558,7 +562,7 @@
                   transition:fade={{ duration: 200 }}
                   class="py-4 text-center"
                 >
-                  <p class="text-xs text-white/30 italic">
+                  <p class="text-xs text-slate-400 dark:text-white/30 italic">
                     Session timer active.
                   </p>
                 </div>
@@ -569,7 +573,7 @@
             <div class="flex items-center gap-2 pt-2 border-t border-white/5">
               <button
                 onclick={stop}
-                class="flex-1 flex items-center justify-center gap-2 py-2 px-3 bg-white/5 hover:bg-white/10 text-white text-xs font-bold rounded-xl transition-all border border-white/5"
+                class="flex-1 flex items-center justify-center gap-2 py-2 px-3 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 text-slate-800 dark:text-white text-xs font-bold rounded-xl transition-all border border-black/5 dark:border-white/5"
               >
                 <RotateCcw size={14} />
                 {$_("timer__btn_reset")}
@@ -590,17 +594,18 @@
           {#if showLogs}
             <div
               transition:slide
-              class="bg-black/40 border-t border-white/10 p-4 space-y-3"
+              class="bg-black/5 dark:bg-black/40 border-t border-black/5 dark:border-white/10 p-4 space-y-3"
             >
               <div class="flex items-center justify-between">
                 <h3
-                  class="text-xs font-bold uppercase tracking-wider text-white/60"
+                  class="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-white/60"
                 >
                   {$_("timer__history_recent_title")}
                 </h3>
                 <button
                   onclick={() => (showLogs = false)}
-                  class="text-white/40 hover:text-white"><X size={14} /></button
+                  class="text-slate-500 dark:text-white/40 hover:text-slate-800 dark:hover:text-white"
+                  ><X size={14} /></button
                 >
               </div>
               <div
@@ -608,26 +613,29 @@
               >
                 {#each [...$timeLogs].reverse().slice(0, 5) as log}
                   <div
-                    class="flex items-center justify-between p-2 rounded-lg bg-white/5 text-[10px]"
+                    class="flex items-center justify-between p-2 rounded-lg bg-black/5 dark:bg-white/5 text-[10px]"
                   >
                     <div class="flex flex-col">
                       <span class="font-bold text-primary"
                         >{formatDuration(log.duration)}</span
                       >
-                      {#if log.note}<span class="text-white/40 truncate w-32"
+                      {#if log.note}<span
+                          class="text-slate-500 dark:text-white/40 truncate w-32"
                           >{log.note}</span
                         >{/if}
                     </div>
                     <button
                       onclick={() => timeLogs.remove(log.id)}
-                      class="text-white/20 hover:text-red-400"
+                      class="text-slate-400 dark:text-white/20 hover:text-red-500 dark:hover:text-red-400"
                     >
                       <X size={12} />
                     </button>
                   </div>
                 {/each}
                 {#if $timeLogs.length === 0}
-                  <p class="text-center py-4 text-[10px] text-white/20 italic">
+                  <p
+                    class="text-center py-4 text-[10px] text-slate-400 dark:text-white/20 italic"
+                  >
                     {$_("timer__empty_session")}
                   </p>
                 {/if}
@@ -655,7 +663,10 @@
           aria-labelledby="save-dialog-title"
         >
           <div class="flex items-center justify-between">
-            <h3 id="save-dialog-title" class="text-lg font-bold text-white">
+            <h3
+              id="save-dialog-title"
+              class="text-lg font-bold text-slate-800 dark:text-white"
+            >
               {$_("timer__dialog_save_title")}
             </h3>
             <span class="text-primary font-mono font-bold text-xl"
@@ -665,20 +676,20 @@
           <div class="space-y-2">
             <label
               for="save-note"
-              class="text-[10px] font-bold uppercase text-white/40"
+              class="text-[10px] font-bold uppercase text-slate-500 dark:text-white/40"
               >{$_("timer__dialog_note_label")}</label
             >
             <textarea
               id="save-note"
               bind:value={saveNote}
               placeholder={$_("timer__dialog_note_placeholder")}
-              class="w-full h-24 bg-white/5 border border-white/10 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-primary/50 resize-none"
+              class="w-full h-24 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-xl p-3 text-sm text-slate-800 dark:text-white focus:outline-none focus:border-primary/50 resize-none"
             ></textarea>
           </div>
           <div class="flex gap-3 pt-2">
             <button
               onclick={() => (showSaveDialog = false)}
-              class="flex-1 py-3 px-4 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl transition-all"
+              class="flex-1 py-3 px-4 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 text-slate-800 dark:text-white font-bold rounded-xl transition-all"
               >{$_("timer__btn_cancel")}</button
             >
             <button
@@ -695,19 +706,23 @@
 
     <!-- Main Controller Button -->
     <div
-      class="flex items-center bg-slate-900/95 backdrop-blur-md rounded-2xl shadow-2xl border border-white/5 p-1 transition-all duration-300 hover:border-white/20"
+      class="flex items-center bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-2xl shadow-2xl border border-black/10 dark:border-white/5 p-1 transition-all duration-300 hover:border-black/20 dark:hover:border-white/20"
     >
       <!-- Play/Pause Quick Action -->
       <button
         onclick={toggleTimer}
         class="w-12 h-12 flex items-center justify-center rounded-xl transition-all {isRunning
           ? 'bg-red-500 hover:bg-red-400 shadow-lg shadow-red-500/20'
-          : 'bg-white/5 hover:bg-white/10'}"
+          : 'bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10'}"
       >
         {#if isRunning}
           <Pause size={20} fill="white" strokeWidth={0} />
         {:else}
-          <Play size={20} fill="currentColor" class="text-white ml-1" />
+          <Play
+            size={20}
+            fill="currentColor"
+            class="text-slate-700 dark:text-white ml-1"
+          />
         {/if}
       </button>
 
@@ -720,7 +735,7 @@
       >
         <div class="flex items-center gap-2">
           <span
-            class="font-mono text-xl font-bold text-white tabular-nums leading-none tracking-tight"
+            class="font-mono text-xl font-bold text-slate-800 dark:text-white tabular-nums leading-none tracking-tight"
           >
             {formatTime(timerMode === "countup" ? elapsed : remaining)}
           </span>
@@ -728,18 +743,20 @@
             <div
               class="w-1 h-1 rounded-full {isRunning
                 ? 'bg-green-500 animate-pulse'
-                : 'bg-white/20'}"
+                : 'bg-slate-300 dark:bg-white/20'}"
             ></div>
           {/if}
         </div>
         <div class="flex items-center justify-between gap-4 mt-0.5">
           <span
-            class="text-[9px] font-bold uppercase tracking-[0.15em] text-white/40 truncate max-w-[100px] leading-tight"
+            class="text-[9px] font-bold uppercase tracking-[0.15em] text-slate-500 dark:text-white/40 truncate max-w-[100px] leading-tight"
           >
             {getModeLabel()}
           </span>
           {#if progress > 0}
-            <div class="w-12 h-[3px] bg-white/5 rounded-full overflow-hidden">
+            <div
+              class="w-12 h-[3px] bg-black/10 dark:bg-white/5 rounded-full overflow-hidden"
+            >
               <div
                 class="h-full bg-primary transition-all duration-500"
                 style="width: {progress}%"
@@ -754,10 +771,14 @@
 
 <style>
   .glass-card {
-    background: rgba(15, 15, 15, 0.85);
+    background: rgba(255, 255, 255, 0.85);
     backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(0, 0, 0, 0.08);
     border-radius: 1.5rem;
+  }
+  :global(.dark) .glass-card {
+    background: rgba(15, 15, 15, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.08);
   }
 
   .util-btn {
@@ -784,13 +805,20 @@
     align-items: center;
     justify-content: center;
     border-radius: 0.75rem;
-    color: rgba(255, 255, 255, 0.4);
+    color: rgba(15, 23, 42, 0.4);
     transition: all 0.2s;
   }
+  :global(.dark) .icon-btn {
+    color: rgba(255, 255, 255, 0.4);
+  }
   .icon-btn:hover {
+    color: rgba(15, 23, 42, 0.8);
+    background: rgba(0, 0, 0, 0.05);
+    transform: scale(1.05);
+  }
+  :global(.dark) .icon-btn:hover {
     color: white;
     background: rgba(255, 255, 255, 0.05);
-    transform: scale(1.05);
   }
 
   .custom-scrollbar::-webkit-scrollbar {
@@ -800,10 +828,16 @@
     background: transparent;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.1);
     border-radius: 20px;
   }
+  :global(.dark) .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+  }
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.2);
+  }
+  :global(.dark) .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.2);
   }
 

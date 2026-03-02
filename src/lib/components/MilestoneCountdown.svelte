@@ -162,9 +162,19 @@
           class="mt-5 flex items-center justify-center xl:justify-start gap-3 opacity-0 group-hover:opacity-100 transition-opacity"
         >
           <button
+            onclick={() => onEdit?.(milestone)}
+            class="p-2.5 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-xl transition-all border border-white/20 hover:border-white/40 group/btn"
+            title={$_("milestone.edit_tooltip")}
+          >
+            <Pencil
+              size={18}
+              class="text-white group-hover/btn:scale-110 transition-transform"
+            />
+          </button>
+          <button
             onclick={() => (showHideConfirm = true)}
             class="p-2.5 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-xl transition-all border border-white/20 hover:border-white/40 group/btn"
-            title={$_("common.hide")}
+            title={$_("milestone.hide_tooltip")}
           >
             <EyeOff
               size={18}
@@ -227,6 +237,6 @@
   message={$_("milestone.hide_confirm")}
   confirmText={$_("common.hide")}
   type="warning"
-  on:close={() => (showHideConfirm = false)}
-  on:confirm={handleToggleHide}
+  onClose={() => (showHideConfirm = false)}
+  onConfirm={handleToggleHide}
 />

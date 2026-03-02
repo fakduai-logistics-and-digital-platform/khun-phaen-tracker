@@ -342,14 +342,18 @@
           <div class="flex items-center gap-4">
             <!-- DateTime Pill -->
             <div
-              class="hidden sm:inline-flex items-center gap-2 bg-slate-800 dark:bg-slate-700 px-2.5 py-1 rounded-md"
+              class="hidden sm:inline-flex items-center gap-2 bg-slate-100 dark:bg-slate-700 px-2.5 py-1 rounded-md transition-colors"
             >
-              <span class="text-[11px] text-slate-300 leading-none">
+              <span
+                class="text-[11px] text-slate-500 dark:text-slate-300 leading-none"
+              >
                 {formatDate(currentTime)}
               </span>
-              <span class="text-slate-500 text-[10px]">|</span>
+              <span class="text-slate-300 dark:text-slate-500 text-[10px]"
+                >|</span
+              >
               <span
-                class="font-mono text-[11px] text-white tabular-nums leading-none"
+                class="font-mono text-[11px] text-slate-800 dark:text-white tabular-nums leading-none"
               >
                 {formatTime(currentTime)}
               </span>

@@ -144,7 +144,7 @@
       class="flex items-center gap-2 px-4 h-12 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-400 font-bold text-[11px] uppercase tracking-widest transition-all shadow-sm hover:text-purple-500 whitespace-nowrap"
     >
       <CalendarDays size={16} />
-      <span class="hidden lg:inline">Report 1M</span>
+      <span class="hidden lg:inline">{$_("page__summary_30_days")}</span>
     </button>
 
     <button
@@ -152,7 +152,7 @@
       class="flex items-center gap-2 px-4 h-12 bg-blue-500/5 border border-blue-500/10 rounded-xl hover:bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold text-[11px] uppercase tracking-widest transition-all shadow-sm whitespace-nowrap"
     >
       <MessageSquareQuote size={16} />
-      <span class="hidden lg:inline">Daily Summary</span>
+      <span class="hidden lg:inline">{$_("dailyReflect__btn_open")}</span>
     </button>
 
     {#if isOwner}
@@ -162,7 +162,7 @@
         title={$_("milestone.add_btn")}
       >
         <Rocket size={16} />
-        <span class="hidden lg:inline">Countdown</span>
+        <span class="hidden lg:inline">{$_("milestone.btn_countdown")}</span>
       </button>
     {/if}
 

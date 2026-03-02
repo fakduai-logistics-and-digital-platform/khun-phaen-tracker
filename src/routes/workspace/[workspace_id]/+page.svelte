@@ -92,7 +92,16 @@
     try {
       const res = await api.workspaces.getMilestones(wsId);
       if (res.ok) {
-        milestones = await res.json();
+        const data = await res.json();
+        // Normalize IDs and workspace IDs from MongoDB (if sent as $oid object)
+        milestones = data.map((m: any) => ({
+          ...m,
+          id: m.id || m._id || "",
+          workspace_id:
+            typeof m.workspace_id === "object" && m.workspace_id.$oid
+              ? m.workspace_id.$oid
+              : m.workspace_id,
+        }));
       }
     } catch (e) {}
   }

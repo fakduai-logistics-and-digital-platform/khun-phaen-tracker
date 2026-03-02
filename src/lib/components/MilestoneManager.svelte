@@ -25,8 +25,19 @@
   export let isOwner: boolean = false;
   export let editTask: Milestone | null = null;
 
+  // Track which editTask we already consumed to prevent re-trigger after resetForm
+  let consumedEditTaskId: string | null = null;
+
+  $: if (!editTask) {
+    consumedEditTaskId = null;
+  }
+
   $: if (editTask && !editingId) {
-    editMilestone(editTask);
+    const etId = editTask.id || (editTask as any)._id;
+    if (etId !== consumedEditTaskId) {
+      consumedEditTaskId = etId;
+      editMilestone(editTask);
+    }
   }
 
   const dispatch = createEventDispatcher();
@@ -60,7 +71,15 @@
     try {
       const res = await api.workspaces.getMilestones(workspaceId);
       if (res.ok) {
-        milestones = await res.json();
+        const data = await res.json();
+        milestones = (data || []).map((m: any) => ({
+          ...m,
+          id: m.id || m._id || "",
+          workspace_id:
+            typeof m.workspace_id === "object" && m.workspace_id.$oid
+              ? m.workspace_id.$oid
+              : m.workspace_id,
+        }));
       }
     } catch (e) {
       error = "Failed to load milestones";
@@ -191,47 +210,36 @@
 </script>
 
 <div
-  class="fixed inset-0 z-100 flex items-start justify-center p-4 pt-16 md:pt-24 bg-slate-900/60 backdrop-blur-sm overflow-y-auto"
+  class="fixed inset-0 z-100 flex items-start justify-center p-4 pt-16 md:pt-24 bg-black/35 backdrop-blur-sm overflow-y-auto"
   in:fade={{ duration: 200 }}
 >
   <div
-    class="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col border border-slate-200/50 dark:border-white/10 mb-8"
+    class="bg-white dark:bg-[#1a263b] w-full max-w-2xl rounded-xl shadow-2xl overflow-hidden flex flex-col border border-white/10 dark:border-white/10 mb-8"
     in:scale={{ start: 0.95, duration: 200 }}
   >
     <!-- Header -->
     <div
-      class="px-8 py-6 border-b border-slate-100 dark:border-white/5 flex items-center justify-between bg-white dark:bg-slate-900"
+      class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between"
     >
-      <div class="flex items-center gap-4">
-        <div
-          class="p-3 bg-linear-to-br from-indigo-500 to-purple-600 rounded-2xl text-white shadow-lg shadow-indigo-500/20"
-        >
-          <Rocket size={24} />
-        </div>
-        <div>
-          <h2
-            class="text-2xl font-black text-slate-900 dark:text-white leading-tight tracking-tight uppercase"
-          >
-            {$_("milestone.manager_title")}
-          </h2>
-          <p class="text-sm font-medium text-slate-400">
-            {$_("milestone.manager_subtitle")}
-          </p>
-        </div>
-      </div>
+      <h2
+        class="text-lg font-semibold text-gray-800 dark:text-white flex items-center gap-2"
+      >
+        <Rocket size={20} class="text-primary" />
+        {$_("milestone.manager_title")}
+      </h2>
       <button
         onclick={() => dispatch("close")}
-        class="p-2.5 text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 rounded-2xl transition-all"
+        class="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
       >
-        <X size={24} />
+        <X size={20} />
       </button>
     </div>
 
     <!-- Content -->
-    <div class="flex-1 overflow-y-auto p-8 pt-6 space-y-8">
+    <div class="flex-1 overflow-y-auto p-6 space-y-6">
       {#if error}
         <div
-          class="p-4 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 rounded-2xl text-rose-600 dark:text-rose-400 text-sm font-bold flex items-center gap-3 animate-shake"
+          class="p-4 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 rounded-lg text-rose-600 dark:text-rose-400 text-sm font-medium flex items-center gap-3"
         >
           <Info size={18} />
           {error}
@@ -240,29 +248,27 @@
 
       {#if showForm && isOwner}
         <div
-          class="p-8 bg-slate-50 dark:bg-white/5 rounded-4xl border border-slate-200/50 dark:border-white/10 space-y-6 shadow-sm"
+          class="p-6 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700 space-y-5"
           transition:slide
         >
           <div class="flex items-center justify-between">
-            <h3
-              class="text-xs font-black uppercase tracking-widest text-indigo-500"
-            >
+            <h3 class="text-sm font-semibold text-gray-800 dark:text-white">
               {editingId
                 ? $_("milestone.edit_title")
                 : $_("milestone.add_title")}
             </h3>
             <button
               onclick={resetForm}
-              class="text-xs font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors"
+              class="text-sm font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
             >
               {$_("common.cancel")}
             </button>
           </div>
 
-          <div class="space-y-5">
+          <div class="space-y-4">
             <div>
               <label
-                class="block text-[10px] font-black text-slate-400 dark:text-slate-500 mb-2 uppercase tracking-[0.2em]"
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
                 for="title"
               >
                 {$_("milestone.form_title")}
@@ -272,13 +278,13 @@
                 type="text"
                 bind:value={title}
                 placeholder="e.g. Production Go-Live"
-                class="w-full px-5 py-3.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-white/10 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all text-slate-900 dark:text-white font-bold"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none dark:bg-gray-700 dark:text-white"
               />
             </div>
 
             <div>
               <label
-                class="block text-[10px] font-black text-slate-400 dark:text-slate-500 mb-2 uppercase tracking-[0.2em]"
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
                 for="desc"
               >
                 {$_("milestone.form_desc")}
@@ -287,106 +293,98 @@
                 id="desc"
                 bind:value={description}
                 rows="2"
-                class="w-full px-5 py-3.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-white/10 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all text-slate-900 dark:text-white font-medium resize-none"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none dark:bg-gray-700 dark:text-white resize-none"
               ></textarea>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div class="grid grid-cols-2 gap-4">
               <div>
                 <label
-                  class="block text-[10px] font-black text-slate-400 dark:text-slate-500 mb-2 uppercase tracking-[0.2em]"
+                  class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1"
                   for="date"
                 >
-                  {$_("milestone.form_date")}
+                  <Calendar size={14} />{$_("milestone.form_date")}
                 </label>
-                <div class="relative">
-                  <Calendar
-                    class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300"
-                    size={20}
-                  />
-                  <input
-                    id="date"
-                    type="date"
-                    bind:value={targetDate}
-                    class="w-full pl-12 pr-4 py-3.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-white/10 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all text-slate-900 dark:text-white font-bold"
-                  />
-                </div>
+                <input
+                  id="date"
+                  type="date"
+                  bind:value={targetDate}
+                  class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none dark:bg-gray-700 dark:text-white"
+                />
               </div>
 
               <div>
                 <label
-                  class="block text-[10px] font-black text-slate-400 dark:text-slate-500 mb-2 uppercase tracking-[0.2em]"
+                  class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1"
                   for="target-hour"
                 >
-                  {$_("milestone.form_time")}
+                  <Clock size={14} />{$_("milestone.form_time")}
                 </label>
                 <div class="flex items-center gap-2">
-                  <div class="relative flex-1">
-                    <Clock
-                      class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300"
-                      size={18}
-                    />
-                    <select
-                      id="target-hour"
-                      bind:value={targetHour}
-                      class="w-full pl-12 pr-4 py-3.5 bg-white dark:bg-slate-950 border border-slate-200/50 dark:border-white/10 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all text-slate-900 dark:text-white font-bold appearance-none cursor-pointer"
-                    >
-                      {#each hours as h}
-                        <option value={h}>{h}</option>
-                      {/each}
-                    </select>
-                  </div>
-                  <span class="text-xl font-black text-slate-300">:</span>
-                  <div class="relative flex-1">
-                    <select
-                      bind:value={targetMinute}
-                      class="w-full px-4 py-3.5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-white/10 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all text-slate-900 dark:text-white font-bold appearance-none cursor-pointer text-center"
-                    >
-                      {#each minutes as m}
-                        <option value={m}>{m}</option>
-                      {/each}
-                    </select>
-                  </div>
+                  <select
+                    id="target-hour"
+                    bind:value={targetHour}
+                    class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none dark:bg-gray-700 dark:text-white appearance-none cursor-pointer"
+                  >
+                    {#each hours as h}
+                      <option value={h}>{h}</option>
+                    {/each}
+                  </select>
+                  <span class="text-lg font-bold text-gray-400">:</span>
+                  <select
+                    bind:value={targetMinute}
+                    class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none dark:bg-gray-700 dark:text-white appearance-none cursor-pointer text-center"
+                  >
+                    {#each minutes as m}
+                      <option value={m}>{m}</option>
+                    {/each}
+                  </select>
                 </div>
               </div>
             </div>
 
-            <button
-              onclick={handleSubmit}
-              disabled={submitting || !title || !targetDate}
-              class="w-full py-4 bg-linear-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 disabled:opacity-50 text-white font-black uppercase tracking-widest rounded-2xl transition-all shadow-xl shadow-indigo-500/20 active:scale-[0.98] flex items-center justify-center gap-3 mt-4"
-            >
-              {#if submitting}
-                <Loader2 size={20} class="animate-spin" />
-              {:else}
-                <CheckCircle2 size={20} />
-              {/if}
-              {editingId ? $_("common.update") : $_("common.save")}
-            </button>
+            <div class="flex justify-end gap-3 pt-2">
+              <button
+                onclick={resetForm}
+                class="min-w-24 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium"
+              >
+                {$_("common.cancel")}
+              </button>
+              <button
+                onclick={handleSubmit}
+                disabled={submitting || !title || !targetDate}
+                class="min-w-24 bg-primary hover:bg-primary-dark text-white py-2 px-4 rounded-lg font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {#if submitting}
+                  <Loader2 size={16} class="animate-spin" />
+                {/if}
+                {editingId ? $_("common.update") : $_("common.save")}
+              </button>
+            </div>
           </div>
         </div>
       {:else if isOwner}
         <button
           onclick={() => (showForm = true)}
-          class="w-full py-6 border-2 border-dashed border-slate-200 dark:border-white/5 rounded-3xl text-slate-400 hover:text-indigo-500 hover:border-indigo-500/30 hover:bg-indigo-50/50 dark:hover:bg-indigo-500/5 transition-all group flex flex-col items-center justify-center gap-2"
+          class="w-full py-6 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-gray-400 hover:text-primary hover:border-primary/40 dark:hover:bg-white/5 transition-all group flex flex-col items-center justify-center gap-2"
         >
           <div
-            class="p-3 bg-slate-50 dark:bg-white/5 rounded-2xl group-hover:bg-indigo-100 dark:group-hover:bg-indigo-500/20 transition-all group-hover:scale-110"
+            class="p-3 bg-gray-100 dark:bg-gray-700 rounded-lg group-hover:bg-primary/10 dark:group-hover:bg-primary/20 transition-all group-hover:scale-110"
           >
-            <Plus size={28} />
+            <Plus size={24} />
           </div>
-          <span class="font-black text-xs uppercase tracking-widest">
+          <span class="font-medium text-sm">
             {$_("milestone.add_btn")}
           </span>
         </button>
       {/if}
 
-      <div class="space-y-4">
+      <div class="space-y-3">
         <h3
-          class="text-[10px] font-black uppercase tracking-[0.3em] text-slate-300 dark:text-slate-600 flex items-center gap-4"
+          class="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-3"
         >
           <span class="shrink-0">{$_("milestone.list_title")}</span>
-          <div class="h-px w-full bg-slate-100 dark:bg-white/5"></div>
+          <div class="h-px w-full bg-gray-200 dark:bg-gray-700"></div>
         </h3>
 
         {#if loading}
@@ -395,12 +393,12 @@
           </div>
         {:else if milestones.length === 0}
           <div
-            class="text-center py-20 px-8 bg-slate-50/50 dark:bg-white/5 rounded-[2.5rem] border border-dashed border-slate-200 dark:border-white/5"
+            class="text-center py-16 px-8 dark:bg-gray-800/30 rounded-lg border border-dashed border-gray-300 dark:border-gray-600"
           >
             <Rocket
-              class="w-12 h-12 text-slate-200 dark:text-slate-700 mx-auto mb-4 opacity-50"
+              class="w-10 h-10 text-gray-300 dark:text-gray-600 mx-auto mb-3 opacity-50"
             />
-            <p class="text-slate-400 font-bold italic">
+            <p class="text-gray-400 font-medium">
               {$_("milestone.no_milestones")}
             </p>
           </div>
@@ -409,40 +407,42 @@
             {#each milestones as m (m.id || (m as any)._id || Math.random())}
               {@const mid = m.id || (m as any)._id}
               <div
-                class="group p-5 bg-white dark:bg-white/2 border border-slate-200/50 dark:border-white/5 rounded-4xl hover:border-indigo-500/30 hover:shadow-2xl hover:shadow-indigo-500/5 transition-all flex items-center gap-5"
+                class="group p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-primary/30 dark:hover:border-primary/30 hover:bg-white/50 dark:hover:bg-white/3 transition-all flex items-center gap-4 {m.is_hidden
+                  ? 'opacity-30 grayscale'
+                  : ''}"
               >
                 <div
-                  class="w-14 h-14 rounded-2xl bg-linear-to-br from-slate-50 to-slate-100 dark:from-white/5 dark:to-white/10 flex items-center justify-center text-slate-400 dark:text-slate-500 shrink-0 group-hover:from-indigo-50 group-hover:to-indigo-100 dark:group-hover:from-indigo-500/10 dark:group-hover:to-indigo-500/20 group-hover:text-indigo-500 transition-all shadow-inner"
+                  class="w-12 h-12 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-400 dark:text-gray-500 shrink-0 group-hover:bg-primary/10 dark:group-hover:bg-primary/15 group-hover:text-primary transition-all"
                 >
-                  <Rocket size={24} />
+                  <Rocket size={20} />
                 </div>
 
-                <div class="flex-1 min-w-0 {m.is_hidden ? 'opacity-50' : ''}">
+                <div class="flex-1 min-w-0">
                   <div class="flex items-center gap-2">
                     <h4
-                      class="font-black text-lg text-slate-900 dark:text-white truncate tracking-tight uppercase"
+                      class="font-semibold text-base text-gray-800 dark:text-white truncate"
                     >
                       {m.title}
                     </h4>
                     {#if m.is_hidden}
                       <span
-                        class="px-2 py-0.5 bg-slate-200 dark:bg-slate-800 text-slate-500 text-[10px] font-black uppercase tracking-tighter rounded-md"
+                        class="px-2 py-0.5 bg-amber-500/15 text-amber-500 text-xs font-medium rounded"
                       >
-                        Hidden
+                        {$_("milestone.hidden_badge")}
                       </span>
                     {/if}
                   </div>
-                  <div class="flex items-center gap-3 mt-1">
+                  <div class="flex items-center gap-2 mt-1">
                     <div
-                      class="flex items-center gap-1.5 px-2 py-0.5 bg-slate-100 dark:bg-white/5 rounded-md text-[10px] font-black text-slate-400 uppercase tracking-tighter"
+                      class="flex items-center gap-1 px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-xs font-medium text-gray-500 dark:text-gray-400"
                     >
-                      <Calendar size={10} />
+                      <Calendar size={11} />
                       {formatThaiDateShort(m.target_date)}
                     </div>
                     <div
-                      class="flex items-center gap-1.5 px-2 py-0.5 bg-slate-100 dark:bg-white/5 rounded-md text-[10px] font-black text-slate-400 uppercase tracking-tighter"
+                      class="flex items-center gap-1 px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-xs font-medium text-gray-500 dark:text-gray-400"
                     >
-                      <Clock size={10} />
+                      <Clock size={11} />
                       {new Date(m.target_date).toLocaleTimeString("th-TH", {
                         hour: "2-digit",
                         minute: "2-digit",
@@ -450,8 +450,8 @@
                     </div>
                     {#if new Date(m.target_date) < new Date()}
                       <span
-                        class="px-2 py-0.5 bg-emerald-500/10 text-emerald-500 text-[10px] font-black uppercase tracking-tighter rounded-md"
-                        >Reached</span
+                        class="px-2 py-0.5 bg-emerald-500/10 text-emerald-500 text-xs font-medium rounded"
+                        >{$_("milestone.reached_badge")}</span
                       >
                     {/if}
                   </div>
@@ -463,33 +463,35 @@
                   >
                     <button
                       onclick={() => toggleVisibility(m)}
-                      class="p-3 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-2xl transition-all"
-                      title={m.is_hidden ? "Show" : "Hide"}
+                      class="p-2 text-gray-400 hover:text-primary dark:hover:bg-white/5 rounded-lg transition-all"
+                      title={m.is_hidden
+                        ? $_("milestone.show_tooltip")
+                        : $_("milestone.hide_tooltip")}
                     >
                       {#if m.is_hidden}
-                        <Eye size={20} />
+                        <Eye size={18} />
                       {:else}
-                        <EyeOff size={20} />
+                        <EyeOff size={18} />
                       {/if}
                     </button>
                     <button
                       onclick={() => editMilestone(m)}
-                      class="p-3 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-2xl transition-all"
+                      class="p-2 text-gray-400 hover:text-primary dark:hover:bg-white/5 rounded-lg transition-all"
                     >
-                      <Pencil size={20} />
+                      <Pencil size={18} />
                     </button>
                     <button
                       onclick={() => requestDelete(m.id)}
-                      class="p-3 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-2xl transition-all"
+                      class="p-2 text-gray-400 hover:text-red-500 dark:hover:bg-red-500/5 rounded-lg transition-all"
                     >
-                      <Trash2 size={20} />
+                      <Trash2 size={18} />
                     </button>
                   </div>
                 {/if}
 
                 <ChevronRight
-                  class="text-slate-200 dark:text-slate-800 group-hover:text-indigo-200 transition-colors shrink-0"
-                  size={24}
+                  class="text-gray-300 dark:text-gray-600 group-hover:text-primary/40 transition-colors shrink-0"
+                  size={20}
                 />
               </div>
             {/each}
@@ -506,6 +508,6 @@
   message={$_("milestone.confirm_delete")}
   confirmText={$_("taskList__delete")}
   type="danger"
-  on:close={() => (showDeleteConfirm = false)}
-  on:confirm={deleteMilestone}
+  onClose={() => (showDeleteConfirm = false)}
+  onConfirm={deleteMilestone}
 />

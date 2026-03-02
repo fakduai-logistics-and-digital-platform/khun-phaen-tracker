@@ -1,90 +1,98 @@
 <script lang="ts">
-  import { createEventDispatcher } from "svelte";
   import { fade, scale } from "svelte/transition";
-  import { X, AlertTriangle, CheckCircle2 } from "lucide-svelte";
+  import { X, AlertTriangle, CheckCircle2, CircleAlert } from "lucide-svelte";
   import { _ } from "svelte-i18n";
 
-  export let show = false;
-  export let title = "";
-  export let message = "";
-  export let confirmText = "";
-  export let cancelText = "";
-  export let type: "danger" | "warning" | "info" = "danger";
-
-  const dispatch = createEventDispatcher();
-
-  function close() {
-    dispatch("close");
-  }
-
-  function confirm() {
-    dispatch("confirm");
-  }
+  let {
+    show = false,
+    title = "",
+    message = "",
+    confirmText = "",
+    cancelText = "",
+    type = "danger" as "danger" | "warning" | "info",
+    onConfirm,
+    onClose,
+  } = $props<{
+    show?: boolean;
+    title?: string;
+    message?: string;
+    confirmText?: string;
+    cancelText?: string;
+    type?: "danger" | "warning" | "info";
+    onConfirm?: () => void;
+    onClose?: () => void;
+  }>();
 </script>
 
 {#if show}
   <div
-    class="fixed inset-0 z-1000 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
-    in:fade={{ duration: 200 }}
-    out:fade={{ duration: 150 }}
+    class="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md"
+    in:fade={{ duration: 300 }}
+    out:fade={{ duration: 250 }}
   >
     <div
-      class="bg-white dark:bg-slate-900 w-full max-w-md rounded-4xl shadow-2xl overflow-hidden border border-slate-200/50 dark:border-white/10"
-      in:scale={{ start: 0.95, duration: 200 }}
-      out:scale={{ start: 0.95, duration: 150 }}
+      class="bg-slate-900 w-full max-w-md rounded-3xl shadow-[0_32px_64px_-16px_rgba(0,0,0,0.5)] overflow-hidden border border-white/10 flex flex-col"
+      in:scale={{ start: 0.95, duration: 400, opacity: 0 }}
+      out:scale={{ start: 0.95, duration: 250, opacity: 0 }}
     >
-      <div class="p-8 space-y-6">
-        <div class="flex items-center gap-4">
+      <!-- Header -->
+      <div
+        class="flex items-center justify-between px-6 py-4 border-b border-white/10"
+      >
+        <div class="flex items-center gap-3">
           <div
-            class="p-4 rounded-2xl {type === 'danger'
-              ? 'bg-rose-500/10 text-rose-500'
-              : type === 'warning'
-                ? 'bg-amber-500/10 text-amber-500'
-                : 'bg-indigo-500/10 text-indigo-500'}"
+            class={type === "danger"
+              ? "text-rose-500"
+              : type === "warning"
+                ? "text-amber-500"
+                : "text-blue-500"}
           >
-            {#if type === "danger" || type === "warning"}
-              <AlertTriangle size={28} />
+            {#if type === "danger"}
+              <AlertTriangle size={22} strokeWidth={2.5} />
+            {:else if type === "warning"}
+              <CircleAlert size={22} strokeWidth={2.5} />
             {:else}
-              <CheckCircle2 size={28} />
+              <CheckCircle2 size={22} strokeWidth={2.5} />
             {/if}
           </div>
-          <div class="flex-1 min-w-0">
-            <h3
-              class="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight"
-            >
-              {title || $_("common.confirm")}
-            </h3>
-            <p class="text-sm text-slate-500 font-medium">
-              {message}
-            </p>
-          </div>
-          <button
-            on:click={close}
-            class="p-2 text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
-          >
-            <X size={20} />
-          </button>
+          <h3 class="text-lg font-bold text-white tracking-tight">
+            {title || $_("common.confirm")}
+          </h3>
         </div>
+        <button
+          onclick={() => onClose?.()}
+          class="p-2 text-slate-500 hover:text-white hover:bg-white/10 rounded-xl transition-all active:scale-90"
+        >
+          <X size={20} />
+        </button>
+      </div>
 
-        <div class="flex items-center gap-3">
-          <button
-            on:click={close}
-            class="flex-1 py-4 text-sm font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
-          >
-            {cancelText || $_("common.cancel")}
-          </button>
-          <button
-            on:click={confirm}
-            class="flex-[1.5] py-4 rounded-2xl text-sm font-black uppercase tracking-widest text-white shadow-lg transition-all active:scale-95 {type ===
-            'danger'
-              ? 'bg-rose-600 hover:bg-rose-500 shadow-rose-500/20'
-              : type === 'warning'
-                ? 'bg-amber-500 hover:bg-amber-400 shadow-amber-500/20'
-                : 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-500/20'}"
-          >
-            {confirmText || $_("common.confirm")}
-          </button>
-        </div>
+      <!-- Body -->
+      <div class="px-8 py-10">
+        <p class="text-base text-slate-400 font-medium leading-relaxed">
+          {message}
+        </p>
+      </div>
+
+      <!-- Footer -->
+      <div class="px-6 py-5 border-t border-white/10 flex justify-end gap-3">
+        <button
+          onclick={() => onClose?.()}
+          class="px-6 py-2.5 rounded-xl border border-white/10 text-sm font-bold text-slate-300 hover:bg-white/5 hover:text-white transition-all active:scale-95"
+        >
+          {cancelText || $_("common.cancel")}
+        </button>
+        <button
+          onclick={() => onConfirm?.()}
+          class="px-8 py-2.5 rounded-xl text-sm font-bold text-white shadow-lg transition-all active:scale-95 {type ===
+          'danger'
+            ? 'bg-rose-600 hover:bg-rose-500 shadow-rose-900/40'
+            : type === 'warning'
+              ? 'bg-amber-500 hover:bg-amber-400 shadow-amber-900/40'
+              : 'bg-blue-600 hover:bg-blue-500 shadow-blue-900/40'}"
+        >
+          {confirmText || $_("common.confirm")}
+        </button>
       </div>
     </div>
   </div>
