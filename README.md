@@ -1,6 +1,6 @@
 # Khun Phaen Tracker (ขุนแผน)
 
-Offline-First Task Management System - Manage your tasks efficiently with local-first data and optional real-time synchronization.
+Task Management System - Manage your tasks efficiently with local-first data and optional real-time synchronization.
 
 [อ่านภาษาไทยที่นี่ (Read Thai version here)](README.th.md)
 
@@ -155,7 +155,3 @@ cargo run --release
 This project is licensed under [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/) - you are free to use, modify, and share this software for non-commercial purposes only.
 
 ---
-
-<p align="center">
-  Built with ❤️ for Offline-First Task Management
-</p>
