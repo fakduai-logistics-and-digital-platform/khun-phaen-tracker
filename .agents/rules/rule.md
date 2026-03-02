@@ -18,6 +18,7 @@ frontend
 - วางแผนลง TODO_<id_task>.md ให้ถี่ถ้วนถามตัวเองซ้ำๆจนกว่าเจอทางที่ดี
 - ไล่ทำตาม check list อันไหนเสร็จมา check list ด้วย
 - เขียน unittest ด้วยหล่ะเพื่อเช็ต logic function ใดๆ
+- check i18n ด้วยนะให้ครบทุกเคส
 - ลบ TODO_<id_task>.md
 - clean code แต่ละไฟล์ให้เบาที่สุด อะไรที่แยกเป็น component ได้ ไฟล์แต่ละไฟล์โค้ดไม่ควรเกิน 500 line
 - ในการทำ UI ให้ใช้ design token ตามธีมที่ทำไว้ด้วยหล่ะ
