@@ -160,6 +160,7 @@
 {#if modals.sprintManager}
   <SprintManager
     tasks={allTasksIncludingArchived.filter((t) => !t.is_archived)}
+    {isOwner}
     on:close={closeSprintManager}
     on:complete={handleCompleteSprint}
     on:completeAndExport={handleCompleteAndExport}
@@ -175,6 +176,7 @@
   <ProjectManager
     projects={projectList}
     {projectStats}
+    {isOwner}
     on:close={closeProjectManager}
     on:add={handleAddProject}
     on:update={handleUpdateProject}

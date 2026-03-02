@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { createEventDispatcher } from "svelte";
+  import { createEventDispatcher, onMount, onDestroy, tick } from "svelte";
   import {
     Download,
     Upload,
@@ -39,7 +39,24 @@
   let importContent = "";
   let importError = "";
   let showExportDropdown = false;
+  let triggerBtnRef: HTMLButtonElement;
   let dropdownRef: HTMLDivElement;
+  let dropdownStyle = "";
+  let portaledNode: HTMLElement | null = null;
+
+  // Portal action: moves element to document.body to escape ancestor filters/transforms
+  function portal(node: HTMLElement) {
+    document.body.appendChild(node);
+    portaledNode = node;
+    return {
+      destroy() {
+        if (node.parentNode) {
+          node.parentNode.removeChild(node);
+        }
+        portaledNode = null;
+      },
+    };
+  }
 
   type DatabaseTarget = {
     database: "SQLite" | "MongoDB/NoSQL" | "PostgreSQL";
@@ -68,6 +85,48 @@
       note: $_("exportImport__postgres_note"),
     },
   ];
+
+  function updateDropdownPosition() {
+    if (!triggerBtnRef || !showExportDropdown) return;
+    const rect = triggerBtnRef.getBoundingClientRect();
+    const dropdownWidth = 260;
+    // Position below button, aligned to right edge
+    let left = rect.right - dropdownWidth;
+    const top = rect.bottom + 8;
+    // Ensure dropdown doesn't go off-screen left
+    if (left < 8) left = 8;
+    dropdownStyle = `position:fixed;top:${top}px;left:${left}px;min-width:${dropdownWidth}px;z-index:9999;`;
+  }
+
+  async function toggleExportDropdown() {
+    showExportDropdown = !showExportDropdown;
+    if (showExportDropdown) {
+      await tick();
+      updateDropdownPosition();
+    }
+  }
+
+  function handleScrollOrResize() {
+    if (showExportDropdown) {
+      updateDropdownPosition();
+    }
+  }
+
+  onMount(() => {
+    window.addEventListener("scroll", handleScrollOrResize, true);
+    window.addEventListener("resize", handleScrollOrResize);
+  });
+
+  onDestroy(() => {
+    if (typeof window !== "undefined") {
+      window.removeEventListener("scroll", handleScrollOrResize, true);
+      window.removeEventListener("resize", handleScrollOrResize);
+    }
+    // Clean up portaled element if component is destroyed while dropdown is open
+    if (portaledNode && portaledNode.parentNode) {
+      portaledNode.parentNode.removeChild(portaledNode);
+    }
+  });
 
   function handleFileSelect(event: Event) {
     const target = event.target as HTMLInputElement;
@@ -187,12 +246,14 @@
     showExportDropdown = false;
   }
 
-  function toggleExportDropdown() {
-    showExportDropdown = !showExportDropdown;
-  }
-
   function handleClickOutside(event: MouseEvent) {
-    if (dropdownRef && !dropdownRef.contains(event.target as Node)) {
+    const target = event.target as Node;
+    if (
+      triggerBtnRef &&
+      !triggerBtnRef.contains(target) &&
+      dropdownRef &&
+      !dropdownRef.contains(target)
+    ) {
       showExportDropdown = false;
     }
   }
@@ -208,11 +269,9 @@
 
 <div class="flex flex-nowrap items-center gap-2">
   <!-- Export Dropdown -->
-  <div
-    class="relative {showExportDropdown ? 'z-50' : 'z-auto'}"
-    bind:this={dropdownRef}
-  >
+  <div class="relative">
     <button
+      bind:this={triggerBtnRef}
       on:click={toggleExportDropdown}
       class="flex items-center justify-center gap-2.5 {height} px-5 min-w-35 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl font-bold text-xs uppercase tracking-widest text-gray-700 dark:text-gray-400 transition-all shadow-sm hover:text-emerald-500 hover:border-emerald-500/30"
     >
@@ -225,112 +284,6 @@
           : ''}"
       />
     </button>
-
-    {#if showExportDropdown}
-      <div
-        class="absolute top-[calc(100%+0.5rem)] right-0 mt-1 bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-700/50 py-2.5 min-w-60 z-50 animate-fade-in origin-top-right"
-      >
-        <div
-          class="px-4 py-2 mb-1 border-b border-gray-100 dark:border-gray-800"
-        >
-          <p
-            class="text-[10px] font-black uppercase tracking-widest text-gray-400"
-          >
-            Choose Format
-          </p>
-        </div>
-
-        <button
-          on:click={handleExportCSV}
-          class="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-emerald-500/10 hover:text-emerald-600 transition-colors whitespace-nowrap"
-        >
-          <div class="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-600">
-            <FileSpreadsheet size={16} />
-          </div>
-          <span class="font-bold">{$_("exportImport__export_csv")}</span>
-        </button>
-
-        <button
-          on:click={handleExportPDF}
-          class="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-red-500/10 hover:text-red-600 transition-colors whitespace-nowrap"
-        >
-          <div class="p-1.5 rounded-lg bg-red-500/10 text-red-600">
-            <FileText size={16} />
-          </div>
-          <span class="font-bold">{$_("exportImport__export_pdf")}</span>
-        </button>
-
-        <button
-          on:click={handleExportPNG}
-          class="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-purple-500/10 hover:text-purple-600 transition-colors whitespace-nowrap"
-        >
-          <div class="p-1.5 rounded-lg bg-purple-500/10 text-purple-600">
-            <ImageIcon size={16} />
-          </div>
-          <span class="font-bold">{$_("exportImport__export_png")}</span>
-        </button>
-
-        <button
-          on:click={handleExportMarkdown}
-          class="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-blue-500/10 hover:text-blue-600 transition-colors whitespace-nowrap"
-        >
-          <div class="p-1.5 rounded-lg bg-blue-500/10 text-blue-600">
-            <FileCode size={16} />
-          </div>
-          <span class="font-bold">{$_("exportImport__export_markdown")}</span>
-        </button>
-
-        <button
-          on:click={handleExportVideo}
-          class="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-orange-500/10 hover:text-orange-600 transition-colors whitespace-nowrap"
-        >
-          <div class="p-1.5 rounded-lg bg-orange-500/10 text-orange-600">
-            <Video size={16} />
-          </div>
-          <span class="font-bold">{$_("exportImport__export_video")}</span>
-        </button>
-
-        <button
-          on:click={handleExportSlide}
-          class="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-indigo-500/10 hover:text-indigo-600 transition-colors whitespace-nowrap"
-        >
-          <div class="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-600">
-            <Presentation size={16} />
-          </div>
-          <span class="font-bold">{$_("exportImport__export_slide")}</span>
-        </button>
-
-        <div class="my-2 border-t border-gray-100 dark:border-gray-800"></div>
-
-        <div class="relative group/db">
-          <button
-            class="w-full flex items-center justify-between gap-3 px-4 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors whitespace-nowrap"
-          >
-            <span class="font-black uppercase tracking-tighter text-xs"
-              >{$_("exportImport__export_database")}</span
-            >
-            <ChevronRight size={14} class="text-gray-400" />
-          </button>
-
-          <div
-            class="hidden group-hover/db:block group-focus-within/db:block absolute left-full top-0 ml-2 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-700/50 py-2 min-w-72 z-50 animate-fade-in origin-left"
-          >
-            {#each databaseTargets as target}
-              <button
-                on:click={() => handleExportDatabase(target)}
-                class="w-full flex flex-col gap-0.5 px-4 py-2.5 text-left text-gray-700 dark:text-gray-300 hover:bg-primary/10 hover:text-primary transition-colors border-b border-gray-50 dark:border-gray-800 last:border-0"
-              >
-                <span class="font-black text-xs">{target.database}</span>
-                <span
-                  class="text-[10px] text-gray-400 font-medium tracking-tight uppercase"
-                  >{target.note}</span
-                >
-              </button>
-            {/each}
-          </div>
-        </div>
-      </div>
-    {/if}
   </div>
 
   {#if showImport}
@@ -352,6 +305,111 @@
     </button>
   {/if}
 </div>
+
+{#if showExportDropdown}
+  <div
+    use:portal
+    bind:this={dropdownRef}
+    style={dropdownStyle}
+    class="bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-700/50 py-2.5 animate-fade-in origin-top-right"
+  >
+    <div class="px-4 py-2 mb-1 border-b border-gray-100 dark:border-gray-800">
+      <p class="text-[10px] font-black uppercase tracking-widest text-gray-400">
+        Choose Format
+      </p>
+    </div>
+
+    <button
+      on:click={handleExportCSV}
+      class="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-emerald-500/10 hover:text-emerald-600 transition-colors whitespace-nowrap"
+    >
+      <div class="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-600">
+        <FileSpreadsheet size={16} />
+      </div>
+      <span class="font-bold">{$_("exportImport__export_csv")}</span>
+    </button>
+
+    <button
+      on:click={handleExportPDF}
+      class="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-red-500/10 hover:text-red-600 transition-colors whitespace-nowrap"
+    >
+      <div class="p-1.5 rounded-lg bg-red-500/10 text-red-600">
+        <FileText size={16} />
+      </div>
+      <span class="font-bold">{$_("exportImport__export_pdf")}</span>
+    </button>
+
+    <button
+      on:click={handleExportPNG}
+      class="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-purple-500/10 hover:text-purple-600 transition-colors whitespace-nowrap"
+    >
+      <div class="p-1.5 rounded-lg bg-purple-500/10 text-purple-600">
+        <ImageIcon size={16} />
+      </div>
+      <span class="font-bold">{$_("exportImport__export_png")}</span>
+    </button>
+
+    <button
+      on:click={handleExportMarkdown}
+      class="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-blue-500/10 hover:text-blue-600 transition-colors whitespace-nowrap"
+    >
+      <div class="p-1.5 rounded-lg bg-blue-500/10 text-blue-600">
+        <FileCode size={16} />
+      </div>
+      <span class="font-bold">{$_("exportImport__export_markdown")}</span>
+    </button>
+
+    <button
+      on:click={handleExportVideo}
+      class="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-orange-500/10 hover:text-orange-600 transition-colors whitespace-nowrap"
+    >
+      <div class="p-1.5 rounded-lg bg-orange-500/10 text-orange-600">
+        <Video size={16} />
+      </div>
+      <span class="font-bold">{$_("exportImport__export_video")}</span>
+    </button>
+
+    <button
+      on:click={handleExportSlide}
+      class="w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-indigo-500/10 hover:text-indigo-600 transition-colors whitespace-nowrap"
+    >
+      <div class="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-600">
+        <Presentation size={16} />
+      </div>
+      <span class="font-bold">{$_("exportImport__export_slide")}</span>
+    </button>
+
+    <div class="my-2 border-t border-gray-100 dark:border-gray-800"></div>
+
+    <div class="relative group/db">
+      <button
+        class="w-full flex items-center justify-between gap-3 px-4 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors whitespace-nowrap"
+      >
+        <span class="font-black uppercase tracking-tighter text-xs"
+          >{$_("exportImport__export_database")}</span
+        >
+        <ChevronRight size={14} class="text-gray-400" />
+      </button>
+
+      <div
+        class="hidden group-hover/db:block group-focus-within/db:block absolute left-full top-0 ml-2 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-gray-200/50 dark:border-gray-700/50 py-2 min-w-72 animate-fade-in origin-left"
+      >
+        {#each databaseTargets as target}
+          <button
+            on:click={() => handleExportDatabase(target)}
+            class="w-full flex flex-col gap-0.5 px-4 py-2.5 text-left text-gray-700 dark:text-gray-300 hover:bg-primary/10 hover:text-primary transition-colors border-b border-gray-50 dark:border-gray-800 last:border-0"
+          >
+            <span class="font-black text-xs">{target.database}</span>
+            <span
+              class="text-[10px] text-gray-400 font-medium tracking-tight uppercase"
+              >{target.note}</span
+            >
+          </button>
+        {/each}
+      </div>
+    </div>
+  </div>
+{/if}
 
 {#if showImportConfirm}
   <div

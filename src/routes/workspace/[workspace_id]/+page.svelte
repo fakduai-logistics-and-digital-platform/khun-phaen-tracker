@@ -379,7 +379,7 @@
       on:exportMonthlyPDF={() => exportActions.handleExportMonthlyPDF()}
       on:milestonesUpdated={fetchMilestones}
     />
-    <DailyReflect bind:show={$modals.dailyReflect} />
+    <DailyReflect bind:show={$modals.dailyReflect} {isOwner} />
     <CommandPalette
       open={$modals.commandPalette}
       tasks={$allTasksIncludingArchived}

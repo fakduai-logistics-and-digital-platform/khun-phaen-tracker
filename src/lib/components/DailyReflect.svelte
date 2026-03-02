@@ -22,6 +22,7 @@
   import { api } from "$lib/apis";
 
   export let show = false;
+  export let isOwner = true;
 
   let todayTasks: Task[] = [];
   let doneTodayTasks: Task[] = [];
@@ -296,7 +297,7 @@
 
 {#if show}
   <div
-    class="fixed inset-0 z-[20000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+    class="fixed inset-0 z-20000 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
     transition:fade={{ duration: 200 }}
     on:mousedown|self={() => (show = false)}
     on:keydown={(e) => (e.key === "Enter" || e.key === " ") && (show = false)}
@@ -332,13 +333,15 @@
             </div>
           </div>
           <div class="flex items-center gap-2">
-            <button
-              on:click={() => (showSettings = !showSettings)}
-              class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors text-gray-400 hover:text-primary"
-              title={$_("dailyReflect__settings_title")}
-            >
-              <Settings size={20} />
-            </button>
+            {#if isOwner}
+              <button
+                on:click={() => (showSettings = !showSettings)}
+                class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors text-gray-400 hover:text-primary"
+                title={$_("dailyReflect__settings_title")}
+              >
+                <Settings size={20} />
+              </button>
+            {/if}
             <button
               on:click={() => (show = false)}
               class="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors group"
@@ -352,7 +355,7 @@
         </div>
 
         <!-- Settings Panel -->
-        {#if showSettings}
+        {#if isOwner && showSettings}
           <div
             class="mt-4 p-4 bg-gray-50/80 dark:bg-gray-800/80 rounded-2xl border border-gray-100 dark:border-gray-700"
             transition:slide
@@ -544,35 +547,37 @@
                 </div>
               </div>
 
-              <!-- Discord Send Action Row -->
-              <div class="flex flex-col gap-2">
-                <button
-                  on:click={sendToDiscord}
-                  disabled={!generatedText || !webhookUrl || isSending}
-                  class="w-full py-4 rounded-2xl font-bold flex items-center justify-center gap-3 transition-all active:scale-[0.98] disabled:opacity-50 disabled:grayscale {sendSuccess
-                    ? 'bg-emerald-500 text-white'
-                    : 'bg-[#5865F2] text-white shadow-xl shadow-[#5865F2]/20 hover:shadow-2xl hover:shadow-[#5865F2]/30 hover:-translate-y-0.5'}"
-                >
-                  {#if isSending}
-                    <RefreshCcw size={20} class="animate-spin" />
-                    <span>{$_("layout__stats_syncing")}...</span>
-                  {:else if sendSuccess}
-                    <CheckCircle2 size={20} />
-                    <span>{$_("dailyReflect__send_success")}</span>
-                  {:else}
-                    <Send size={20} />
-                    <span>{$_("dailyReflect__btn_send_discord")}</span>
-                  {/if}
-                </button>
-
-                {#if !webhookUrl}
-                  <p
-                    class="text-[10px] text-center text-gray-400 font-medium italic"
+              <!-- Discord Send Action Row (Owner Only) -->
+              {#if isOwner}
+                <div class="flex flex-col gap-2">
+                  <button
+                    on:click={sendToDiscord}
+                    disabled={!generatedText || !webhookUrl || isSending}
+                    class="w-full py-4 rounded-2xl font-bold flex items-center justify-center gap-3 transition-all active:scale-[0.98] disabled:opacity-50 disabled:grayscale {sendSuccess
+                      ? 'bg-emerald-500 text-white'
+                      : 'bg-[#5865F2] text-white shadow-xl shadow-[#5865F2]/20 hover:shadow-2xl hover:shadow-[#5865F2]/30 hover:-translate-y-0.5'}"
                   >
-                    {$_("dailyReflect__webhook_help")}
-                  </p>
-                {/if}
-              </div>
+                    {#if isSending}
+                      <RefreshCcw size={20} class="animate-spin" />
+                      <span>{$_("layout__stats_syncing")}...</span>
+                    {:else if sendSuccess}
+                      <CheckCircle2 size={20} />
+                      <span>{$_("dailyReflect__send_success")}</span>
+                    {:else}
+                      <Send size={20} />
+                      <span>{$_("dailyReflect__btn_send_discord")}</span>
+                    {/if}
+                  </button>
+
+                  {#if !webhookUrl}
+                    <p
+                      class="text-[10px] text-center text-gray-400 font-medium italic"
+                    >
+                      {$_("dailyReflect__webhook_help")}
+                    </p>
+                  {/if}
+                </div>
+              {/if}
             </div>
           </div>
         {/if}
