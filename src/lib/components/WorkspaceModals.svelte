@@ -11,6 +11,7 @@
   import MilestoneManager from "./MilestoneManager.svelte";
   import type { Task, Project, Assignee, ChecklistItem } from "$lib/types";
   import type { Sprint } from "$lib/stores/sprintStore";
+  import type { Milestone } from "$lib/types/milestone";
 
   export let modals: any;
   export let editingTask: Task | null;
@@ -27,6 +28,7 @@
   export let projectStats: any[];
   export let workspaceId: string;
   export let newPageSize: number;
+  export let editingMilestone: Milestone | null = null;
 
   const dispatch = createEventDispatcher();
 
@@ -199,6 +201,7 @@
   <MilestoneManager
     {workspaceId}
     {isOwner}
+    editTask={editingMilestone}
     on:close={() => dispatch("closeModal", "milestoneManager")}
     on:updated={() => dispatch("milestonesUpdated")}
   />

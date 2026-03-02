@@ -35,6 +35,7 @@ interface BaseBridgeProps {
   initialSnapshot: Snapshot | null;
   onEditorReady: (editor: Editor) => void;
   onUserSnapshot: (snapshot: Snapshot) => void;
+  isDarkMode?: boolean;
 }
 
 interface OfflineCanvasProps extends BaseBridgeProps {
@@ -64,9 +65,11 @@ function OfflineCanvas({
   initialSnapshot,
   onEditorReady,
   onUserSnapshot,
+  isDarkMode,
 }: OfflineCanvasProps) {
   const initializedRef = useRef(false);
   const unlistenRef = useRef<(() => void) | null>(null);
+  const editorRef = useRef<Editor | null>(null);
 
   useEffect(() => {
     return () => {
@@ -75,10 +78,18 @@ function OfflineCanvas({
     };
   }, []);
 
+  useEffect(() => {
+    if (typeof isDarkMode !== "undefined" && editorRef.current) {
+      editorRef.current.user.updateUserPreferences({
+        colorScheme: isDarkMode ? "dark" : "light",
+      });
+    }
+  }, [isDarkMode]);
+
   return createElement(Tldraw, {
     licenseKey: TLDRAW_LICENSE_KEY,
     autoFocus: true,
-    inferDarkMode: false,
+    inferDarkMode: true,
     onMount: (editor: Editor) => {
       unlistenRef.current?.();
       if (!initializedRef.current && initialSnapshot) {
@@ -89,10 +100,15 @@ function OfflineCanvas({
         }
       }
       initializedRef.current = true;
-      // Force light theme for the whiteboard regardless of app theme
-      editor.user.updateUserPreferences({ colorScheme: "light" });
+      // Force theme preference to match app theme
+      if (typeof isDarkMode !== "undefined") {
+        editor.user.updateUserPreferences({
+          colorScheme: isDarkMode ? "dark" : "light",
+        });
+      }
       unlistenRef.current = registerSnapshotListener(editor, onUserSnapshot);
       onEditorReady(editor);
+      editorRef.current = editor;
     },
   });
 }
@@ -103,8 +119,11 @@ function SyncCanvas({
   onSyncStatus,
   onEditorReady,
   onUserSnapshot,
+  isDarkMode,
 }: SyncCanvasProps) {
   const unlistenRef = useRef<(() => void) | null>(null);
+  const editorRef = useRef<Editor | null>(null);
+
   const userInfo = useMemo(() => {
     const palette = [
       "#2563eb",
@@ -157,6 +176,14 @@ function SyncCanvas({
     onSyncStatus("offline", "หลุดการเชื่อมต่อ กำลังพยายามใหม่");
   }, [onSyncStatus, store, syncRoomId]);
 
+  useEffect(() => {
+    if (typeof isDarkMode !== "undefined" && editorRef.current) {
+      editorRef.current.user.updateUserPreferences({
+        colorScheme: isDarkMode ? "dark" : "light",
+      });
+    }
+  }, [isDarkMode]);
+
   if (store.status !== "synced-remote") {
     return createElement("div", {
       className:
@@ -172,13 +199,18 @@ function SyncCanvas({
     licenseKey: TLDRAW_LICENSE_KEY,
     store: store.store,
     autoFocus: true,
-    inferDarkMode: false,
+    inferDarkMode: true,
     onMount: (editor: Editor) => {
       unlistenRef.current?.();
-      // Force light theme for the whiteboard regardless of app theme
-      editor.user.updateUserPreferences({ colorScheme: "light" });
+      // Force theme preference to match app theme
+      if (typeof isDarkMode !== "undefined") {
+        editor.user.updateUserPreferences({
+          colorScheme: isDarkMode ? "dark" : "light",
+        });
+      }
       unlistenRef.current = registerSnapshotListener(editor, onUserSnapshot);
       onEditorReady(editor);
+      editorRef.current = editor;
     },
   });
 }
@@ -205,6 +237,7 @@ export interface MountTldrawBridgeOptions {
   onSyncStatus?: (status: TldrawBridgeSyncStatus, message: string) => void;
   syncRoomId?: string;
   syncHost?: string;
+  isDarkMode?: boolean;
 }
 
 export function mountTldrawBridge({
@@ -215,6 +248,7 @@ export function mountTldrawBridge({
   onSyncStatus,
   syncRoomId,
   syncHost,
+  isDarkMode,
 }: MountTldrawBridgeOptions): MountedTldrawBridge {
   let root: Root | null = createRoot(target);
   let editor: Editor | null = null;
@@ -241,6 +275,7 @@ export function mountTldrawBridge({
         },
         syncRoomId: syncRoomId!,
         syncHost: syncHost!,
+        isDarkMode,
         onSyncStatus:
           onSyncStatus ??
           (() => {
@@ -258,6 +293,7 @@ export function mountTldrawBridge({
         onEditorReady: (nextEditor: Editor) => {
           if (!isUnmounted) editor = nextEditor;
         },
+        isDarkMode,
       }),
     );
   }

@@ -3,19 +3,56 @@
   import { onMount, onDestroy } from "svelte";
   import type { Milestone } from "$lib/types/milestone";
   import { fade, scale } from "svelte/transition";
-  import { Clock, Calendar, Pencil, Trash2, Rocket } from "lucide-svelte";
+  import {
+    Clock,
+    Calendar,
+    Pencil,
+    Trash2,
+    Rocket,
+    EyeOff,
+  } from "lucide-svelte";
+  import ConfirmModal from "./ConfirmModal.svelte";
+  import { api } from "$lib/apis";
+  import { showMessage } from "$lib/stores/uiActions";
 
   let {
     milestone,
     onEdit,
     onDelete,
+    onHide,
     isOwner = false,
   } = $props<{
     milestone: Milestone;
     onEdit?: (m: Milestone) => void;
     onDelete?: (m: Milestone) => void;
+    onHide?: (m: Milestone) => void;
     isOwner?: boolean;
   }>();
+
+  let showHideConfirm = $state(false);
+  let isHiding = $state(false);
+
+  async function handleToggleHide() {
+    isHiding = true;
+    try {
+      const res = await api.workspaces.updateMilestone(
+        milestone.workspace_id,
+        milestone.id,
+        {
+          is_hidden: true,
+        },
+      );
+      if (res.ok) {
+        showMessage($_("page__success"));
+        onHide?.(milestone);
+      }
+    } catch (e) {
+      showMessage($_("page__error"), "error");
+    } finally {
+      isHiding = false;
+      showHideConfirm = false;
+    }
+  }
 
   let timeLeft = $state({
     days: 0,
@@ -125,23 +162,13 @@
           class="mt-5 flex items-center justify-center xl:justify-start gap-3 opacity-0 group-hover:opacity-100 transition-opacity"
         >
           <button
-            onclick={() => onEdit?.(milestone)}
+            onclick={() => (showHideConfirm = true)}
             class="p-2.5 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-xl transition-all border border-white/20 hover:border-white/40 group/btn"
-            title={$_("common.edit")}
+            title={$_("common.hide")}
           >
-            <Pencil
+            <EyeOff
               size={18}
               class="text-white group-hover/btn:scale-110 transition-transform"
-            />
-          </button>
-          <button
-            onclick={() => onDelete?.(milestone)}
-            class="p-2.5 bg-rose-500/20 hover:bg-rose-500/30 backdrop-blur-md rounded-xl transition-all border border-rose-500/30 hover:border-rose-500/50 group/btn"
-            title={$_("common.delete")}
-          >
-            <Trash2
-              size={18}
-              class="text-rose-200 group-hover/btn:scale-110 transition-transform"
             />
           </button>
         </div>
@@ -193,3 +220,13 @@
     {/if}
   </div>
 </div>
+
+<ConfirmModal
+  show={showHideConfirm}
+  title={$_("milestone.hide_title")}
+  message={$_("milestone.hide_confirm")}
+  confirmText={$_("common.hide")}
+  type="warning"
+  on:close={() => (showHideConfirm = false)}
+  on:confirm={handleToggleHide}
+/>

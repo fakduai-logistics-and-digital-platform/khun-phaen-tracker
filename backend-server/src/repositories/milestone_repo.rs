@@ -4,7 +4,6 @@ use mongodb::{
     bson::{doc, oid::ObjectId},
     Collection, Database,
 };
-use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct MilestoneRepository {
@@ -31,7 +30,7 @@ impl MilestoneRepository {
     }
 
     #[allow(dead_code)]
-    pub async fn find_by_id(&self, id: &Uuid) -> mongodb::error::Result<Option<Milestone>> {
+    pub async fn find_by_id(&self, id: &str) -> mongodb::error::Result<Option<Milestone>> {
         self.collection.find_one(doc! { "_id": id }, None).await
     }
 
@@ -42,7 +41,7 @@ impl MilestoneRepository {
 
     pub async fn update(
         &self,
-        id: &Uuid,
+        id: &str,
         workspace_id: &ObjectId,
         updates: mongodb::bson::Document,
     ) -> mongodb::error::Result<bool> {
@@ -57,7 +56,7 @@ impl MilestoneRepository {
         Ok(res.matched_count > 0)
     }
 
-    pub async fn delete(&self, id: &Uuid, workspace_id: &ObjectId) -> mongodb::error::Result<bool> {
+    pub async fn delete(&self, id: &str, workspace_id: &ObjectId) -> mongodb::error::Result<bool> {
         let res = self
             .collection
             .delete_one(doc! { "_id": id, "workspace_id": workspace_id }, None)

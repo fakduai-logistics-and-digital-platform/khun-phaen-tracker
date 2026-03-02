@@ -1,4 +1,9 @@
 {
+	"common": {
+		"cancel": "ยกเลิก",
+		"save": "บันทึก",
+		"update": "อัปเดต"
+	},
 	"layout__loading_db": "กำลังโหลดฐานข้อมูล...",
 	"layout__loading_first_time": "ครั้งแรกอาจใช้เวลาสักครู่",
 	"layout__db_error": "ไม่สามารถโหลดฐานข้อมูลได้ กรุณารีเฟรชหน้า",
@@ -654,7 +659,9 @@
 	"whiteboard__btn_close": "ปิด",
 	"whiteboard__status_offline": "โหมดออฟไลน์: บันทึกลงเบราว์เซอร์",
 	"whiteboard__status_connecting": "กำลังเชื่อมต่อห้อง {room}...",
+	"whiteboard__status_online": "Live: ห้อง {room}",
 	"whiteboard__status_no_room": "โหมดออฟไลน์: ไม่พบห้อง sync",
+	"whiteboard__status_error_msg": "ข้อผิดพลาดในการเชื่อมต่อ: {message}",
 	"whiteboard__loading": "กำลังโหลด Whiteboard...",
 	"whiteboard__license_title": "Whiteboard ทำงานได้ แต่ยังไม่มี tldraw License Key",
 	"whiteboard__license_copy": "คัดลอก",
@@ -770,5 +777,8 @@
 	"milestone.form_title": "หัวข้อเป้าหมาย",
 	"milestone.form_desc": "รายละเอียด (ไม่บังคับ)",
 	"milestone.form_date": "วันที่เป้าหมาย",
-	"milestone.form_time": "เวลาที่กำหนด (ชม:นาที)"
+	"milestone.form_time": "เวลาที่กำหนด (ชม:นาที)",
+	"milestone.hide_title": "ซ่อนการนับถอยหลัง",
+	"milestone.hide_confirm": "คุณแน่ใจหรือไม่ที่จะซ่อนการนับถอยหลังนี้จากหน้าหลัก? (คุณสามารถจัดการได้ในส่วนจัดการ Milestone)",
+	"milestone.delete_title": "ลบทิ้งถาวร"
 }

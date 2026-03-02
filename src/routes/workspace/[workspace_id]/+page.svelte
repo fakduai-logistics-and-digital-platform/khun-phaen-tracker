@@ -83,6 +83,8 @@
   let qrExportTasks: Task[] = [];
   let newPageSize = 20;
   let milestones: Milestone[] = [];
+  let editingMilestone: Milestone | null = null;
+  $: visibleMilestones = milestones.filter((m) => !m.is_hidden);
 
   async function fetchMilestones() {
     const wsId = $page.params.workspace_id;
@@ -213,27 +215,26 @@
   {:else if !$hasAccess}
     <AccessDenied />
   {:else}
-    {#if milestones.length > 0}
+    {#if visibleMilestones.length > 0}
       <div class="grid gap-6">
-        {#each milestones as milestone}
+        {#each visibleMilestones as milestone}
           <MilestoneCountdown
             {milestone}
             {isOwner}
-            onEdit={() => uiActions.openModal("milestoneManager")}
+            onEdit={(m) => {
+              editingMilestone = m;
+              uiActions.openModal("milestoneManager");
+            }}
             onDelete={() => uiActions.openModal("milestoneManager")}
+            onHide={fetchMilestones}
           />
         {/each}
       </div>
     {/if}
     <StatsPanel stats={$stats} />
     <SearchAndActions
-      searchInput={$searchInput}
-      {searchInputRef}
       isFiltersOpen={$modals.filters}
       {isOwner}
-      on:searchInput={(e) =>
-        searchInput.set(searchActions.handleSearchInput(e.detail))}
-      on:clearSearch={() => searchInput.set(searchActions.handleClearSearch())}
       on:toggleFilters={() => uiActions.toggleModal("filters")}
       on:openWorkerManager={() => uiActions.openModal("workerManager")}
       on:openProjectManager={() => uiActions.openModal("projectManager")}
@@ -250,7 +251,6 @@
       on:exportDatabase={(e) => exportActions.handleExportDatabase(e)}
       on:importCSV={(e) => exportActions.handleImportCSV(e)}
       on:showMessage={(e) => showMessage(e.detail)}
-      on:openMilestoneManager={() => uiActions.openModal("milestoneManager")}
     />
 
     {#if $modals.filters}
@@ -338,11 +338,15 @@
       {monthlySummaryRef}
       workspaceId={String($page.params.workspace_id || "")}
       {newPageSize}
+      {editingMilestone}
       on:addTask={(e) => taskActions.handleAddTask(e)}
       on:cancelEdit={cancelEdit}
       on:addAssignee={(e) => taskActions.handleAddAssignee(e)}
       on:checklistUpdate={(e) => taskActions.handleChecklistUpdate(e)}
-      on:closeModal={(e) => uiActions.closeModal(e.detail)}
+      on:closeModal={(e) => {
+        uiActions.closeModal(e.detail);
+        if (e.detail === "milestoneManager") editingMilestone = null;
+      }}
       on:savePageSize={(e) => {
         newPageSize = e.detail.value;
         viewActions.setPageSize(newPageSize);

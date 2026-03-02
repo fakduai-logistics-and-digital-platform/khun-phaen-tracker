@@ -2,7 +2,6 @@
   import { createEventDispatcher } from "svelte";
   import { _ } from "svelte-i18n";
   import {
-    Search,
     Filter,
     Users,
     Folder,
@@ -14,20 +13,10 @@
   } from "lucide-svelte";
   import ExportImport from "./ExportImport.svelte";
 
-  export let searchInput: string = "";
-  export let searchInputRef: HTMLInputElement | null = null;
   export let isFiltersOpen: boolean = false;
   export let isOwner: boolean = false;
 
   const dispatch = createEventDispatcher();
-
-  function handleSearchInput(event: Event) {
-    dispatch("searchInput", event);
-  }
-
-  function handleClearSearch() {
-    dispatch("clearSearch");
-  }
 
   function toggleFilters() {
     dispatch("toggleFilters");
@@ -97,32 +86,7 @@
 <div
   class="relative z-30 flex flex-col md:flex-row items-center gap-3 bg-white/50 dark:bg-gray-900/30 p-2 rounded-2xl border border-gray-200/50 dark:border-gray-800/50 backdrop-blur-sm transition-all group shadow-sm"
 >
-  <!-- Search Component -->
-  <div class="relative flex-1 group/search w-full">
-    <div
-      class="absolute left-4 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-400 group-focus-within/search:text-primary group-focus-within/search:bg-primary/10 transition-all duration-300"
-    >
-      <Search size={18} />
-    </div>
-    <input
-      bind:this={searchInputRef}
-      type="text"
-      value={searchInput}
-      on:input={handleSearchInput}
-      placeholder={$_("page__search_placeholder") + "... (press /)"}
-      class="w-full h-12 pl-14 pr-12 bg-white dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none text-gray-900 dark:text-white dark:placeholder-gray-500 font-medium transition-all shadow-sm"
-    />
-    {#if searchInput}
-      <button
-        on:click={handleClearSearch}
-        class="absolute right-4 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center text-gray-400 hover:text-white hover:bg-red-500 rounded-lg transition-all"
-      >
-        ×
-      </button>
-    {/if}
-  </div>
-
-  <!-- Action Row -->
+  <!-- Action Row (Search removed as requested) -->
   <div
     class="flex items-center gap-2.5 pb-1 md:pb-0 w-full md:w-auto overflow-x-auto scrollbar-hide"
   >
@@ -191,14 +155,16 @@
       <span class="hidden lg:inline">Daily Summary</span>
     </button>
 
-    <button
-      on:click={openMilestoneManager}
-      class="flex items-center gap-2 px-4 h-12 bg-indigo-500/5 border border-indigo-500/10 rounded-xl hover:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold text-[11px] uppercase tracking-widest transition-all shadow-sm whitespace-nowrap"
-      title={$_("milestone.add_btn")}
-    >
-      <Rocket size={16} />
-      <span class="hidden lg:inline">Countdown</span>
-    </button>
+    {#if isOwner}
+      <button
+        on:click={openMilestoneManager}
+        class="flex items-center gap-2 px-4 h-12 bg-indigo-500/5 border border-indigo-500/10 rounded-xl hover:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold text-[11px] uppercase tracking-widest transition-all shadow-sm whitespace-nowrap"
+        title={$_("milestone.add_btn")}
+      >
+        <Rocket size={16} />
+        <span class="hidden lg:inline">Countdown</span>
+      </button>
+    {/if}
 
     <ExportImport
       showImport={isOwner}

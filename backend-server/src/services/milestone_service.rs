@@ -24,11 +24,12 @@ impl MilestoneService {
     ) -> mongodb::error::Result<Milestone> {
         let now = chrono::Utc::now().to_rfc3339();
         let milestone = Milestone {
-            id: Uuid::new_v4(),
+            id: Uuid::now_v7().to_string(),
             workspace_id,
             title: req.title,
             description: req.description,
             target_date: req.target_date,
+            is_hidden: req.is_hidden,
             created_at: Some(now.clone()),
             updated_at: Some(now),
         };
@@ -37,7 +38,7 @@ impl MilestoneService {
 
     pub async fn update_milestone(
         &self,
-        id: Uuid,
+        id: String,
         workspace_id: &ObjectId,
         req: UpdateMilestoneRequest,
     ) -> mongodb::error::Result<bool> {
@@ -54,6 +55,9 @@ impl MilestoneService {
         if let Some(date) = req.target_date {
             updates.insert("target_date", date);
         }
+        if let Some(hidden) = req.is_hidden {
+            updates.insert("is_hidden", hidden);
+        }
 
         if updates.is_empty() {
             return Ok(true);
@@ -63,7 +67,7 @@ impl MilestoneService {
         self.repo.update(&id, workspace_id, updates).await
     }
 
-    pub async fn delete_milestone(&self, id: Uuid, workspace_id: &ObjectId) -> mongodb::error::Result<bool> {
+    pub async fn delete_milestone(&self, id: String, workspace_id: &ObjectId) -> mongodb::error::Result<bool> {
         self.repo.delete(&id, workspace_id).await
     }
 }

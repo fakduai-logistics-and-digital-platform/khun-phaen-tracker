@@ -1,4 +1,9 @@
 {
+	"common": {
+		"cancel": "Cancel",
+		"save": "Save",
+		"update": "Update"
+	},
 	"layout__loading_db": "Loading database...",
 	"layout__loading_first_time": "First time may take a moment",
 	"layout__db_error": "Cannot load database. Please refresh the page.",
@@ -641,7 +646,9 @@
 	"whiteboard__btn_close": "Close",
 	"whiteboard__status_offline": "Offline mode: Saving to browser",
 	"whiteboard__status_connecting": "Connecting to room {room}...",
+	"whiteboard__status_online": "Live: Room {room}",
 	"whiteboard__status_no_room": "Offline mode: No sync room found",
+	"whiteboard__status_error_msg": "Sync error: {message}",
 	"whiteboard__loading": "Loading Whiteboard...",
 	"whiteboard__license_title": "Whiteboard works but missing tldraw License Key",
 	"whiteboard__license_copy": "Copy",
@@ -755,5 +762,9 @@
 	"milestone.add_title": "Create New Countdown",
 	"milestone.form_title": "Target Event Title",
 	"milestone.form_desc": "Event Description (Optional)",
-	"milestone.form_date": "Target Date"
+	"milestone.form_date": "Target Date",
+	"milestone.form_time": "Target Time (HH:MM)",
+	"milestone.hide_title": "Hide Countdown",
+	"milestone.hide_confirm": "Are you sure you want to hide this countdown from the main board? (You can still manage it in the Milestone Manager)",
+	"milestone.delete_title": "Delete Permanently"
 }

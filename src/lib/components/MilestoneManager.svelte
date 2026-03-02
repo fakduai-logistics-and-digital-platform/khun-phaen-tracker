@@ -10,16 +10,24 @@
     Pencil,
     Trash2,
     Rocket,
+    Eye,
+    EyeOff,
     Info,
     CheckCircle2,
     ChevronRight,
     Loader2,
   } from "lucide-svelte";
+  import ConfirmModal from "./ConfirmModal.svelte";
   import type { Milestone, CreateMilestoneRequest } from "$lib/types/milestone";
   import { api } from "$lib/apis";
 
   export let workspaceId: string;
   export let isOwner: boolean = false;
+  export let editTask: Milestone | null = null;
+
+  $: if (editTask && !editingId) {
+    editMilestone(editTask);
+  }
 
   const dispatch = createEventDispatcher();
 
@@ -35,6 +43,8 @@
   let targetMinute = "00";
   let submitting = false;
   let error = "";
+  let showDeleteConfirm = false;
+  let deletingMilestoneId: string | null = null;
 
   const hours = Array.from({ length: 24 }, (_, i) =>
     String(i).padStart(2, "0"),
@@ -75,49 +85,54 @@
     submitting = true;
     error = "";
 
-    // Combine date and time
+    // Combine date and time to ISO string
     const combinedIso = `${targetDate}T${targetHour}:${targetMinute}:00Z`;
 
     try {
+      let res;
       if (editingId) {
-        const res = await api.workspaces.updateMilestone(
-          workspaceId,
-          editingId,
-          {
-            title,
-            description,
-            target_date: combinedIso,
-          },
-        );
-        if (res.ok) {
-          await fetchMilestones();
-          resetForm();
-          dispatch("updated");
-        }
-      } else {
-        const res = await api.workspaces.createMilestone(workspaceId, {
+        res = await api.workspaces.updateMilestone(workspaceId, editingId, {
           title,
           description,
           target_date: combinedIso,
         });
-        if (res.ok) {
-          await fetchMilestones();
-          resetForm();
-          dispatch("updated");
-        }
+      } else {
+        res = await api.workspaces.createMilestone(workspaceId, {
+          title,
+          description,
+          target_date: combinedIso,
+        });
+      }
+
+      if (res.ok) {
+        await fetchMilestones();
+        resetForm();
+        dispatch("updated");
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        error = errorData.message || "Failed to save milestone";
       }
     } catch (e) {
-      error = "Failed to save milestone";
+      error = "Connection error. Please try again.";
     } finally {
       submitting = false;
     }
   }
 
   function editMilestone(m: Milestone) {
-    editingId = m.id;
+    // Robust ID handling (can be id or _id depending on backend serialization)
+    const mid = m.id || (m as any)._id;
+    if (!mid) {
+      error = "Cannot edit: Milestone ID missing";
+      return;
+    }
+
+    editingId = mid;
     title = m.title;
     description = m.description || "";
+
     const dateObj = new Date(m.target_date);
+    // Use UTC methods to match the 'Z' appended in handleSubmit
     targetDate = dateObj.toISOString().split("T")[0];
     targetHour = String(dateObj.getUTCHours()).padStart(2, "0");
     targetMinute = String(Math.floor(dateObj.getUTCMinutes() / 5) * 5).padStart(
@@ -127,16 +142,41 @@
     showForm = true;
   }
 
-  async function deleteMilestone(id: string) {
-    if (!confirm($_("milestone.confirm_delete"))) return;
+  function requestDelete(id: string) {
+    deletingMilestoneId = id;
+    showDeleteConfirm = true;
+  }
+
+  function deleteMilestone() {
+    if (!deletingMilestoneId) return;
+    const id = deletingMilestoneId;
+
+    // Optimistic update
+    milestones = milestones.filter((m) => m.id !== id);
+    dispatch("updated");
+
+    // Fire and forget
+    api.workspaces.deleteMilestone(workspaceId, id).catch((e) => {
+      console.error("Failed to delete milestone:", e);
+      // Optional: rollback? User said "don't wait", so usually we just go ahead.
+    });
+
+    showDeleteConfirm = false;
+    deletingMilestoneId = null;
+  }
+
+  async function toggleVisibility(m: Milestone) {
+    const mid = m.id || (m as any)._id;
     try {
-      const res = await api.workspaces.deleteMilestone(workspaceId, id);
+      const res = await api.workspaces.updateMilestone(workspaceId, mid, {
+        is_hidden: !m.is_hidden,
+      });
       if (res.ok) {
-        milestones = milestones.filter((m) => m.id !== id);
+        await fetchMilestones();
         dispatch("updated");
       }
     } catch (e) {
-      error = "Failed to delete milestone";
+      error = "Failed to toggle visibility";
     }
   }
 
@@ -151,11 +191,11 @@
 </script>
 
 <div
-  class="fixed inset-0 z-100 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+  class="fixed inset-0 z-100 flex items-start justify-center p-4 pt-16 md:pt-24 bg-slate-900/60 backdrop-blur-sm overflow-y-auto"
   in:fade={{ duration: 200 }}
 >
   <div
-    class="bg-white dark:bg-slate-900 w-full max-w-2xl max-h-[90vh] rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col border border-slate-200/50 dark:border-white/10"
+    class="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col border border-slate-200/50 dark:border-white/10 mb-8"
     in:scale={{ start: 0.95, duration: 200 }}
   >
     <!-- Header -->
@@ -278,7 +318,7 @@
                   class="block text-[10px] font-black text-slate-400 dark:text-slate-500 mb-2 uppercase tracking-[0.2em]"
                   for="target-hour"
                 >
-                  Target Time (HH:MM)
+                  {$_("milestone.form_time")}
                 </label>
                 <div class="flex items-center gap-2">
                   <div class="relative flex-1">
@@ -366,7 +406,8 @@
           </div>
         {:else}
           <div class="grid gap-4">
-            {#each milestones as m}
+            {#each milestones as m (m.id || (m as any)._id || Math.random())}
+              {@const mid = m.id || (m as any)._id}
               <div
                 class="group p-5 bg-white dark:bg-white/2 border border-slate-200/50 dark:border-white/5 rounded-4xl hover:border-indigo-500/30 hover:shadow-2xl hover:shadow-indigo-500/5 transition-all flex items-center gap-5"
               >
@@ -376,12 +417,21 @@
                   <Rocket size={24} />
                 </div>
 
-                <div class="flex-1 min-w-0">
-                  <h4
-                    class="font-black text-lg text-slate-900 dark:text-white truncate tracking-tight uppercase"
-                  >
-                    {m.title}
-                  </h4>
+                <div class="flex-1 min-w-0 {m.is_hidden ? 'opacity-50' : ''}">
+                  <div class="flex items-center gap-2">
+                    <h4
+                      class="font-black text-lg text-slate-900 dark:text-white truncate tracking-tight uppercase"
+                    >
+                      {m.title}
+                    </h4>
+                    {#if m.is_hidden}
+                      <span
+                        class="px-2 py-0.5 bg-slate-200 dark:bg-slate-800 text-slate-500 text-[10px] font-black uppercase tracking-tighter rounded-md"
+                      >
+                        Hidden
+                      </span>
+                    {/if}
+                  </div>
                   <div class="flex items-center gap-3 mt-1">
                     <div
                       class="flex items-center gap-1.5 px-2 py-0.5 bg-slate-100 dark:bg-white/5 rounded-md text-[10px] font-black text-slate-400 uppercase tracking-tighter"
@@ -412,13 +462,24 @@
                     class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all translate-x-4 group-hover:translate-x-0"
                   >
                     <button
+                      onclick={() => toggleVisibility(m)}
+                      class="p-3 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-2xl transition-all"
+                      title={m.is_hidden ? "Show" : "Hide"}
+                    >
+                      {#if m.is_hidden}
+                        <Eye size={20} />
+                      {:else}
+                        <EyeOff size={20} />
+                      {/if}
+                    </button>
+                    <button
                       onclick={() => editMilestone(m)}
                       class="p-3 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-2xl transition-all"
                     >
                       <Pencil size={20} />
                     </button>
                     <button
-                      onclick={() => deleteMilestone(m.id)}
+                      onclick={() => requestDelete(m.id)}
                       class="p-3 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-2xl transition-all"
                     >
                       <Trash2 size={20} />
@@ -438,3 +499,13 @@
     </div>
   </div>
 </div>
+
+<ConfirmModal
+  show={showDeleteConfirm}
+  title={$_("milestone.delete_title")}
+  message={$_("milestone.confirm_delete")}
+  confirmText={$_("taskList__delete")}
+  type="danger"
+  on:close={() => (showDeleteConfirm = false)}
+  on:confirm={deleteMilestone}
+/>

@@ -10,7 +10,6 @@ use axum::{
 };
 use mongodb::bson::oid::ObjectId;
 use std::sync::Arc;
-use uuid::Uuid;
 
 pub async fn list_milestones(
     State(state): State<Arc<AppState>>,
@@ -59,15 +58,10 @@ pub async fn update_milestone(
         Err(_) => return (StatusCode::BAD_REQUEST, "Invalid workspace ID").into_response(),
     };
 
-    let m_uuid = match Uuid::parse_str(&milestone_id) {
-        Ok(uuid) => uuid,
-        Err(_) => return (StatusCode::BAD_REQUEST, "Invalid milestone ID").into_response(),
-    };
-
     let repo = MilestoneRepository::new(&state.db);
     let service = MilestoneService::new(repo);
 
-    match service.update_milestone(m_uuid, &ws_oid, req).await {
+    match service.update_milestone(milestone_id, &ws_oid, req).await {
         Ok(found) => {
             if found {
                 StatusCode::OK.into_response()
@@ -88,15 +82,10 @@ pub async fn delete_milestone(
         Err(_) => return (StatusCode::BAD_REQUEST, "Invalid workspace ID").into_response(),
     };
 
-    let m_uuid = match Uuid::parse_str(&milestone_id) {
-        Ok(uuid) => uuid,
-        Err(_) => return (StatusCode::BAD_REQUEST, "Invalid milestone ID").into_response(),
-    };
-
     let repo = MilestoneRepository::new(&state.db);
     let service = MilestoneService::new(repo);
 
-    match service.delete_milestone(m_uuid, &ws_oid).await {
+    match service.delete_milestone(milestone_id, &ws_oid).await {
         Ok(found) => {
             if found {
                 StatusCode::NO_CONTENT.into_response()
