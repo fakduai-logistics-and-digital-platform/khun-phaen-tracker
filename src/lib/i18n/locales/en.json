@@ -312,6 +312,7 @@
 	"taskForm__comments_delete_confirm_desc": "Deleting a comment is forever. There is no undo.",
 	"taskForm__comments_deleting": "Deleting...",
 	"taskForm__comments_delete_confirm_btn": "Delete comment",
+	"taskList__loading": "Loading tasks...",
 	"taskList__no_tasks": "No tasks at this time",
 	"taskList__add_task_hint": "Try adding a new task!",
 	"taskList__edit": "Edit",

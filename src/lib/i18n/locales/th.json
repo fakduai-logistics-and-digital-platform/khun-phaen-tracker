@@ -311,6 +311,7 @@
 	"taskForm__comments_delete_confirm_desc": "การลบความคิดเห็นเป็นแบบถาวรและไม่สามารถกู้คืนได้",
 	"taskForm__comments_deleting": "กำลังลบ...",
 	"taskForm__comments_delete_confirm_btn": "ลบความคิดเห็น",
+	"taskList__loading": "กำลังโหลดงาน...",
 	"taskList__no_tasks": "ไม่มีงานในช่วงเวลานี้",
 	"taskList__add_task_hint": "ลองเพิ่มงานใหม่ดูสิ!",
 	"taskList__edit": "แก้ไข",
