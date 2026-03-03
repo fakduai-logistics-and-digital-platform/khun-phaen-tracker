@@ -24,6 +24,8 @@ export type TaskActionDeps = {
   setAssignees: (assignees: Assignee[]) => void;
 };
 
+import { requestConfirm } from "./confirmStore";
+
 export function createTaskActions(deps: TaskActionDeps) {
   async function handleAddTask(
     event: CustomEvent<Omit<Task, "id" | "created_at">>,
@@ -136,7 +138,12 @@ export function createTaskActions(deps: TaskActionDeps) {
 
   async function handleDeleteTask(event: CustomEvent<string | number>) {
     const id = event.detail;
-    if (!confirm(deps.t("page__delete_task_confirm"))) return;
+    const confirmed = await requestConfirm({
+      title: deps.t("common.confirm"),
+      message: deps.t("page__delete_task_confirm"),
+      type: "danger",
+    });
+    if (!confirmed) return;
     try {
       await deleteTask(id);
       await deps.loadData();
@@ -150,12 +157,14 @@ export function createTaskActions(deps: TaskActionDeps) {
   async function handleDeleteSelectedTasks(event: CustomEvent<number[]>) {
     const ids = event.detail;
     if (ids.length === 0) return;
-    if (
-      !confirm(
-        deps.t("page__delete_tasks_confirm", { values: { count: ids.length } }),
-      )
-    )
-      return;
+    const confirmed = await requestConfirm({
+      title: deps.t("common.confirm"),
+      message: deps.t("page__delete_tasks_confirm", {
+        values: { count: ids.length },
+      }),
+      type: "danger",
+    });
+    if (!confirmed) return;
 
     try {
       const deleteResults = await Promise.allSettled(

@@ -27,6 +27,7 @@
   import { createEventDispatcher } from "svelte";
   import { _ } from "svelte-i18n";
   import { fade, slide, scale } from "svelte/transition";
+  import randZoneLogo from "$lib/assets/rand-zone-logo.svg";
 
   const dispatch = createEventDispatcher<{
     showBookmarks: void;
@@ -363,6 +364,19 @@
       >
         <PenTool size={18} />
       </button>
+      <a
+        href="https://watchakorn-18k.github.io/rand_zone_app/"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="util-btn bg-slate-900 hover:bg-slate-800 shadow-lg shadow-black/30 border border-white/10 p-2"
+        title={$_("timer__rand_zone_tooltip")}
+      >
+        <img
+          src={randZoneLogo}
+          alt="Rand Zone"
+          class="w-full h-full object-contain"
+        />
+      </a>
     </div>
   {/if}
 

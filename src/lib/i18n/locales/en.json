@@ -3,7 +3,8 @@
 		"cancel": "Cancel",
 		"hide": "Hide",
 		"save": "Save",
-		"update": "Update"
+		"update": "Update",
+		"confirm": "Confirm"
 	},
 	"layout__loading_db": "Loading database...",
 	"layout__loading_first_time": "First time may take a moment",
@@ -612,6 +613,7 @@
 	"timer__mode_goal": "Goal",
 	"timer__bookmarks_tooltip": "Bookmarks",
 	"timer__whiteboard_tooltip": "Whiteboard",
+	"timer__rand_zone_tooltip": "Rand Zone App",
 	"timer__shortcuts_tooltip": "Shortcuts (?)",
 	"timer__exit_confirm": "Timer is running. Are you sure you want to leave?",
 	"timer__history_more": "+ {count} more items",

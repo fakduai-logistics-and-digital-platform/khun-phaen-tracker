@@ -3,7 +3,8 @@
 		"cancel": "ยกเลิก",
 		"hide": "ซ่อน",
 		"save": "บันทึก",
-		"update": "อัปเดต"
+		"update": "อัปเดต",
+		"confirm": "ยืนยัน"
 	},
 	"layout__loading_db": "กำลังโหลดฐานข้อมูล...",
 	"layout__loading_first_time": "ครั้งแรกอาจใช้เวลาสักครู่",
@@ -271,7 +272,7 @@
 	"taskForm__checklist_placeholder": "เพิ่มรายการใหม่...",
 	"taskForm__checklist_add_btn": "เพิ่ม",
 	"taskForm__checklist_progress": "ความคืบหน้า",
-	"taskForm__checklist_templates": "Checklist Templates",
+	"taskForm__checklist_templates": "เทมเพลต Checklist",
 	"checklistTemplate__title": "จัดการ Checklist Template",
 	"checklistTemplate__add_new": "เพิ่ม Template ใหม่",
 	"checklistTemplate__edit_title": "แก้ไข Template",
@@ -612,6 +613,7 @@
 	"timer__mode_goal": "เป้าหมาย",
 	"timer__bookmarks_tooltip": "ที่คั่นลิงก์",
 	"timer__whiteboard_tooltip": "ไวท์บอร์ด",
+	"timer__rand_zone_tooltip": "แอปสุ่มกลุ่ม Rand Zone",
 	"timer__shortcuts_tooltip": "คีย์ลัด (?)",
 	"timer__exit_confirm": "มีการจับเวลาอยู่ คุณต้องการออกจากหน้านี้จริงหรือไม่?",
 	"timer__history_more": "+ {count} รายการอื่น",

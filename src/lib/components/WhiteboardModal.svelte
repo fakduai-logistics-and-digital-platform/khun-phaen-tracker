@@ -12,6 +12,7 @@
     Minimize2,
   } from "lucide-svelte";
   import { _ } from "svelte-i18n";
+  import { requestConfirm } from "$lib/stores/confirmStore";
 
   type Snapshot = Record<string, unknown>;
   type BridgeMode = "offline" | "sync";
@@ -234,9 +235,13 @@
     });
   }
 
-  function handleClearBoard() {
-    const shouldClear = confirm($_("whiteboard__confirm_clear"));
-    if (!shouldClear) return;
+  async function handleClearBoard() {
+    const confirmed = await requestConfirm({
+      title: $_("common.confirm"),
+      message: $_("whiteboard__confirm_clear"),
+      type: "danger",
+    });
+    if (!confirmed) return;
     bridge?.clearCurrentPage();
     localStorage.removeItem(SNAPSHOT_KEY);
     latestSnapshotRaw = null;

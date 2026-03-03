@@ -17,6 +17,7 @@
     Video,
   } from "lucide-svelte";
   import CustomDatePicker from "./CustomDatePicker.svelte";
+  import { requestConfirm } from "$lib/stores/confirmStore";
 
   const dispatch = createEventDispatcher<{
     close: void;
@@ -275,7 +276,12 @@
   }
 
   async function handleDelete(id: string | number) {
-    if (confirm($_("sprintManager__delete_confirm"))) {
+    const confirmed = await requestConfirm({
+      title: $_("common.confirm"),
+      message: $_("sprintManager__delete_confirm"),
+      type: "danger",
+    });
+    if (confirmed) {
       dispatch("deleteSprint", id);
       await sprints.delete(id);
     }

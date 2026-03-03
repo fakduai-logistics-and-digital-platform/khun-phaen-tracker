@@ -20,6 +20,7 @@
   import WhiteboardModal from "$lib/components/WhiteboardModal.svelte";
   import QuickNotes from "$lib/components/QuickNotes.svelte";
   import ProfileModal from "$lib/components/ProfileModal.svelte";
+  import GlobalConfirmModal from "$lib/components/GlobalConfirmModal.svelte";
   import { _ } from "svelte-i18n";
   import { initAuth, user, authLoading } from "$lib/stores/auth";
   import {
@@ -270,8 +271,13 @@
 <svelte:window bind:scrollY />
 
 <div
-  class="app-surface min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors flex flex-col"
+  class="app-surface min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors flex flex-col relative overflow-hidden"
 >
+  <!-- Background Grid -->
+  <div
+    class="fixed inset-0 pointer-events-none z-0 opacity-[0.02] dark:opacity-[0.01]"
+    style="background-image: linear-gradient(to right, currentColor 1px, transparent 1px), linear-gradient(to bottom, currentColor 1px, transparent 1px); background-size: 40px 40px;"
+  ></div>
   {#if loading}
     <div
       class="fixed inset-0 bg-white dark:bg-gray-900 flex flex-col items-center justify-center z-50 transition-colors"
@@ -704,5 +710,7 @@
           showToast(event.detail.message, event.detail.type)}
       />
     {/if}
+
+    <GlobalConfirmModal />
   {/if}
 </div>
