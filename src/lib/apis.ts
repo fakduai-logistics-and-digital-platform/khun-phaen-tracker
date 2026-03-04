@@ -580,6 +580,12 @@ export const api = {
           credentials: "include",
         });
       },
+      stats: (wsId: string): Promise<Response> => {
+        return fetch(`${API_BASE_URL}/workspaces/${wsId}/projects/stats`, {
+          headers: api.data._headers(),
+          credentials: "include",
+        });
+      },
       create: (
         wsId: string,
         project: Record<string, any>,

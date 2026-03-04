@@ -531,15 +531,12 @@ export async function getProjectsList(): Promise<Project[]> {
 export async function getProjectStats(): Promise<
   { id: string; taskCount: number }[]
 > {
-  const projects = await getProjectsList();
-  const result = await getTasks({
-    includeArchived: true,
-    limit: 1000,
-  });
-  const tasks = Array.isArray(result) ? result : result.tasks;
-  return projects.map((p) => ({
-    id: String(p.id),
-    taskCount: tasks.filter((t: Task) => t.project === p.name).length,
+  const res = await api.data.projects.stats(wsId());
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Failed to fetch project stats");
+  return (data.stats || []).map((s: any) => ({
+    id: String(s.id),
+    taskCount: Number(s.taskCount || 0),
   }));
 }
 

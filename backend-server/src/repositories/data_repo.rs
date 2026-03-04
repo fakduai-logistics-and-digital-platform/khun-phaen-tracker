@@ -602,6 +602,28 @@ impl DataRepository {
         Ok(assignees)
     }
 
+    pub async fn count_tasks_by_project_names(
+        &self,
+        workspace_id: &ObjectId,
+        project_names: &[String],
+    ) -> mongodb::error::Result<HashMap<String, u64>> {
+        let mut result = HashMap::new();
+        for name in project_names {
+            let count = self
+                .tasks
+                .count_documents(
+                    doc! {
+                        "workspace_id": workspace_id,
+                        "project": name
+                    },
+                    None,
+                )
+                .await?;
+            result.insert(name.clone(), count);
+        }
+        Ok(result)
+    }
+
     pub async fn count_tasks_by_assignee_ids(
         &self,
         workspace_id: &ObjectId,

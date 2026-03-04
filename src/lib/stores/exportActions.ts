@@ -909,7 +909,7 @@ export function createExportActions(deps: ExportActionDeps) {
           </div>
           <table>
             <thead><tr>
-              <th style="width:5%">#</th><th style="width:35%">ชื่องาน</th><th style="width:15%">โปรเจค</th>
+              <th style="width:5%">#</th><th style="width:35%">ชื่องาน</th><th style="width:15%">โปรเจกต์</th>
               <th style="width:12%">หมวดหมู่</th><th style="width:10%">สถานะ</th><th style="width:13%">วันที่</th><th style="width:10%">เวลา</th>
             </tr></thead>
             <tbody>${taskSnapshot

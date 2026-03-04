@@ -46,6 +46,7 @@ export function createWorkspacePageStore() {
   const projectList = writable<Project[]>([]);
   const assignees = writable<Assignee[]>([]);
   const workerStats = writable<any[]>([]);
+  const projectStats = writable<any[]>([]);
   const stats = writable<any>({
     total: 0,
     todo: 0,
@@ -187,6 +188,7 @@ export function createWorkspacePageStore() {
       if (result.projectList) projectList.set(result.projectList as Project[]);
       if (result.assignees) assignees.set(result.assignees as Assignee[]);
       if (result.workerStats) workerStats.set(result.workerStats);
+      if (result.projectStats) projectStats.set(result.projectStats);
       if (result.stats) stats.set(result.stats);
       filteredTasks.set(get(tasks));
     } catch (e) {
@@ -210,6 +212,7 @@ export function createWorkspacePageStore() {
     projectList,
     assignees,
     workerStats,
+    projectStats,
     stats,
     totalTasks,
     totalPages,

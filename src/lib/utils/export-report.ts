@@ -73,7 +73,7 @@ export function buildTaskReportHtml(
 			</div>
 			<table>
 				<thead>
-					<tr><th>#</th><th>ชื่องาน</th><th>โปรเจค</th><th>ผู้รับผิดชอบ</th><th>สถานะ</th><th>วันที่</th><th>เวลา</th></tr>
+					<tr><th>#</th><th>ชื่องาน</th><th>โปรเจกต์</th><th>ผู้รับผิดชอบ</th><th>สถานะ</th><th>วันที่</th><th>เวลา</th></tr>
 				</thead>
 				<tbody>
 					${taskSnapshot

@@ -4,6 +4,7 @@ import {
   getAssigneeStats,
   getAssignees,
   getCategories,
+  getProjectStats,
   getProjects,
   getProjectsList,
   getStatsFromTasks,
@@ -117,6 +118,7 @@ export type WorkspaceDataLoadResult = {
   }[];
   assignees?: any[];
   workerStats?: { id: string; taskCount: number }[];
+  projectStats?: { id: string; taskCount: number }[];
   stats?: {
     total: number;
     todo: number;
@@ -184,6 +186,7 @@ export async function loadWorkspaceData(params: {
   const projectsPromise = getProjects();
   const assigneesPromise = getAssignees(true);
   const workerStatsPromise = getAssigneeStats();
+  const projectStatsPromise = getProjectStats();
   const projectListPromise = getProjectsList();
 
   const taskFilters = buildTaskFilters(
@@ -201,6 +204,7 @@ export async function loadWorkspaceData(params: {
     projectsRes,
     assigneesRes,
     workerStatsRes,
+    projectStatsRes,
     projectListRes,
   ] = await Promise.allSettled([
     paginatedPromise,
@@ -209,6 +213,7 @@ export async function loadWorkspaceData(params: {
     projectsPromise,
     assigneesPromise,
     workerStatsPromise,
+    projectStatsPromise,
     projectListPromise,
   ]);
 
@@ -269,6 +274,10 @@ export async function loadWorkspaceData(params: {
       workerStatsRes.status === "fulfilled"
         ? workerStatsRes.value
         : (failedApis.push("assignee stats"), undefined),
+    projectStats:
+      projectStatsRes.status === "fulfilled"
+        ? projectStatsRes.value
+        : (failedApis.push("project stats"), undefined),
     stats,
   };
 }

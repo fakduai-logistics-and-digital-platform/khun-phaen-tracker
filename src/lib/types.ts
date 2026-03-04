@@ -35,7 +35,7 @@ export interface ChecklistItem {
 export interface Task {
   id?: string | number;
   title: string;
-  project?: string; // ชื่อโปรเจค
+  project?: string; // ชื่อโปรเจกต์
   duration_minutes: number;
   start_date?: string; // YYYY-MM-DD
   date: string; // YYYY-MM-DD

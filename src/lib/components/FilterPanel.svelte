@@ -143,7 +143,7 @@
           { value: "all", label: $_("page__filter_project_all") },
           ...projects.map((proj) => ({ value: proj, label: proj })),
         ]}
-        placeholder="ค้นหาโปรเจค..."
+        placeholder="ค้นหาโปรเจกต์..."
       />
     </div>
 

@@ -55,6 +55,7 @@
     projectList,
     assignees,
     workerStats,
+    projectStats,
     stats,
     totalTasks,
     totalPages,
@@ -354,7 +355,7 @@
       {qrExportTasks}
       loadingData={$loadingData}
       workerStats={$workerStats}
-      projectStats={[]}
+      projectStats={$projectStats}
       {monthlySummary}
       {monthlySummaryRef}
       workspaceId={String($page.params.workspace_id || "")}

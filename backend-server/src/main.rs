@@ -272,6 +272,10 @@ async fn main() {
             get(handlers::data_handler::list_projects),
         )
         .route(
+            "/api/workspaces/:ws_id/projects/stats",
+            get(handlers::data_handler::get_project_stats),
+        )
+        .route(
             "/api/workspaces/:ws_id/projects",
             post(handlers::data_handler::create_project),
         )
