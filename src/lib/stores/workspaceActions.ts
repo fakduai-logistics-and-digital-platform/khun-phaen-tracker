@@ -7,7 +7,7 @@ import {
   deleteAssignee,
   getStats,
 } from "$lib/db";
-import type { Project, Assignee } from "$lib/types";
+import type { Project, Assignee, Task } from "$lib/types";
 
 type NotifyType = "success" | "error";
 
@@ -24,6 +24,10 @@ type WorkspaceActionDeps = {
   getProjects: () => string[];
   setProjects: (projects: string[]) => void;
   setStats: (stats: any) => void;
+  getTasks: () => Task[];
+  setTasks: (tasks: Task[]) => void;
+  getFilteredTasks: () => Task[];
+  setFilteredTasks: (tasks: Task[]) => void;
 };
 
 export function createWorkspaceActions(deps: WorkspaceActionDeps) {
@@ -139,7 +143,24 @@ export function createWorkspaceActions(deps: WorkspaceActionDeps) {
 
     if (entity === "task") {
       statNeedsUpdate = true;
-      deps.debouncedLoadData();
+      const currentTasks = deps.getTasks();
+      const currentFiltered = deps.getFilteredTasks();
+
+      if (action === "create" && data) {
+        if (!currentTasks.find((t) => String(t.id) === String(data.id))) {
+          deps.setTasks([...currentTasks, data]);
+          deps.setFilteredTasks([...currentFiltered, data]);
+        }
+      } else if (action === "update" && id && data) {
+        const updateMapper = (t: Task) =>
+          String(t.id) === String(id) ? { ...t, ...data } : t;
+        deps.setTasks(currentTasks.map(updateMapper));
+        deps.setFilteredTasks(currentFiltered.map(updateMapper));
+      } else if (action === "delete" && id) {
+        const deleteFilter = (t: Task) => String(t.id) !== String(id);
+        deps.setTasks(currentTasks.filter(deleteFilter));
+        deps.setFilteredTasks(currentFiltered.filter(deleteFilter));
+      }
     } else if (entity === "assignee") {
       let currentAssignees = deps.getAssignees();
       if (action === "create" && data) {

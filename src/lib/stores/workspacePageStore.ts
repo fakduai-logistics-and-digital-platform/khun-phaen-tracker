@@ -69,6 +69,8 @@ export function createWorkspacePageStore() {
     timer: null as any,
   });
 
+  const editingTask = writable<Task | null>(null);
+
   const viewActions = createViewActions({
     loadData: () => loadData(),
   });
@@ -99,6 +101,10 @@ export function createWorkspacePageStore() {
     getProjects: () => get(projects),
     setProjects: (v) => projects.set(v),
     setStats: (v) => stats.set(v),
+    getTasks: () => get(tasks),
+    setTasks: (v) => tasks.set(v),
+    getFilteredTasks: () => get(filteredTasks),
+    setFilteredTasks: (v) => filteredTasks.set(v),
   });
 
   const _actionDepsBase = {
@@ -114,8 +120,8 @@ export function createWorkspacePageStore() {
     setTasks: (v) => tasks.set(v),
     getFilteredTasks: () => get(filteredTasks),
     setFilteredTasks: (v) => filteredTasks.set(v),
-    getEditingTask: () => null, // Editing task is locally managed
-    setEditingTask: (v) => {},
+    getEditingTask: () => get(editingTask),
+    setEditingTask: (v) => editingTask.set(v),
     setShowForm: (v) => uiActions.setModalState("form", v),
     setAssignees: (v) => assignees.set(v as any),
   });
@@ -222,5 +228,6 @@ export function createWorkspacePageStore() {
     debouncedLoadData,
     showMessage,
     videoExportState,
+    editingTask,
   };
 }

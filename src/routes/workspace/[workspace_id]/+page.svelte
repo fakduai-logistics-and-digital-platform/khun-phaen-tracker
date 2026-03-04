@@ -73,11 +73,11 @@
     debouncedLoadData,
     showMessage,
     videoExportState,
+    editingTask,
   } = ws;
 
   const { currentView, pageSize, currentPage } = viewActions;
 
-  let editingTask: Task | null = null;
   let monthlySummaryRef: HTMLDivElement | null = null;
   let searchInputRef: HTMLInputElement | null = null;
   let isKanbanDragging = false;
@@ -110,17 +110,17 @@
   // Auto-open task from URL
   $: if (browser && !$loadingData && $allTasksIncludingArchived.length > 0) {
     const urlTaskId = $page.url.searchParams.get("task");
-    if (urlTaskId && (!editingTask || String(editingTask.id) !== urlTaskId)) {
+    if (urlTaskId && (!$editingTask || String($editingTask.id) !== urlTaskId)) {
       const task = $allTasksIncludingArchived.find(
         (t) => String(t.id) === urlTaskId,
       );
       if (task) {
-        editingTask = task;
+        $editingTask = task;
         uiActions.openModal("form");
       }
-    } else if (!urlTaskId && $modals.form && editingTask) {
+    } else if (!urlTaskId && $modals.form && $editingTask) {
       uiActions.closeModal("form");
-      editingTask = null;
+      $editingTask = null;
     }
   }
 
@@ -152,8 +152,8 @@
     getKeyboardConfig({
       uiActions,
       modals,
-      editingTask,
-      setEditingTask: (v) => (editingTask = v),
+      editingTask: $editingTask,
+      setEditingTask: (v) => ($editingTask = v),
       searchInputRef,
       visibleTabs,
       viewActions,
@@ -206,7 +206,7 @@
   $: sprintManagerTasks = $filteredTasks;
 
   function cancelEdit() {
-    editingTask = null;
+    $editingTask = null;
     uiActions.closeModal("form");
     updateUrlTask(null);
   }
@@ -298,7 +298,7 @@
       on:closeTabSettings={() => uiActions.closeModal("tabSettings")}
       on:addTask={() => {
         uiActions.toggleModal("form");
-        editingTask = null;
+        $editingTask = null;
         updateUrlTask(null);
       }}
     />
@@ -317,9 +317,9 @@
       assignees={$assignees}
       on:statusChange={(e) => taskActions.handleStatusChange(e)}
       on:edit={(e) => {
-        editingTask = e.detail;
+        $editingTask = e.detail;
         uiActions.openModal("form");
-        updateUrlTask(editingTask?.id);
+        updateUrlTask($editingTask?.id);
       }}
       on:delete={(e) => taskActions.handleDeleteTask(e)}
       on:dragState={(e) => (isKanbanDragging = e.detail)}
@@ -345,7 +345,7 @@
 
     <WorkspaceModals
       modals={$modals}
-      {editingTask}
+      editingTask={$editingTask}
       assignees={$assignees}
       {isOwner}
       projectList={$projectList}
@@ -402,12 +402,12 @@
       toggleTheme={() => theme.toggle()}
       switchView={(v) => viewActions.switchView(v)}
       openTask={(t) => {
-        editingTask = t;
+        $editingTask = t;
         uiActions.openModal("form");
         updateUrlTask(t.id);
       }}
       createTask={() => {
-        editingTask = null;
+        $editingTask = null;
         uiActions.openModal("form");
         updateUrlTask(null);
       }}
