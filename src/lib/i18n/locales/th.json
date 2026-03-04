@@ -365,6 +365,7 @@
 	"workerManager__task_count_suffix": "งาน",
 	"workerManager__btn_save": "บันทึก",
 	"workerManager__btn_add": "เพิ่ม",
+	"workerManager__random_color_btn": "สุ่มสี",
 	"workerManager__btn_cancel": "ยกเลิก",
 	"workerManager__btn_edit": "แก้ไข",
 	"workerManager__btn_delete": "ลบ",

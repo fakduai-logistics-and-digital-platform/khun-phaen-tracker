@@ -366,6 +366,7 @@
 	"workerManager__task_count_suffix": "tasks",
 	"workerManager__btn_save": "Save",
 	"workerManager__btn_add": "Add",
+	"workerManager__random_color_btn": "Random Color",
 	"workerManager__btn_cancel": "Cancel",
 	"workerManager__btn_edit": "Edit",
 	"workerManager__btn_delete": "Delete",
