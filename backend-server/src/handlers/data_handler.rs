@@ -133,7 +133,7 @@ async fn purge_task_comment_assets(
                     .await
                 {
                     tracing::warn!(
-                        "Failed to delete archived-task comment image {}: {:?}",
+                        "Failed to delete task comment image {}: {:?}",
                         image.file_key,
                         e
                     );
@@ -145,6 +145,33 @@ async fn purge_task_comment_assets(
     repo.delete_comments_by_task(ws_oid, task_oid)
         .await
         .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+async fn purge_task_attachments(
+    state: &SharedState,
+    task: &TaskDocument,
+) -> Result<(), String> {
+    if let Some(client) = &state.storage_client {
+        if let Some(attachments) = &task.attachments {
+            for attachment in attachments {
+                if let Err(e) = client
+                    .delete_object()
+                    .bucket(&state.storage_bucket)
+                    .key(&attachment.file_key)
+                    .send()
+                    .await
+                {
+                    tracing::warn!(
+                        "Failed to delete task attachment {}: {:?}",
+                        attachment.file_key,
+                        e
+                    );
+                }
+            }
+        }
+    }
+
     Ok(())
 }
 
@@ -434,6 +461,46 @@ pub async fn delete_task(
     };
 
     let repo = DataRepository::new(&state.db);
+    let task = match repo.find_task_by_id(&task_oid).await {
+        Ok(Some(t)) if t.workspace_id == ws_oid => t,
+        Ok(Some(_)) => {
+            return (
+                axum::http::StatusCode::FORBIDDEN,
+                axum::Json(serde_json::json!({ "error": "Task does not belong to this workspace" })),
+            )
+                .into_response()
+        }
+        Ok(None) => {
+            return (
+                axum::http::StatusCode::NOT_FOUND,
+                axum::Json(serde_json::json!({ "error": "Task not found" })),
+            )
+                .into_response()
+        }
+        Err(e) => {
+            return (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                axum::Json(serde_json::json!({ "error": format!("{}", e) })),
+            )
+                .into_response()
+        }
+    };
+
+    if let Err(e) = purge_task_comment_assets(&state, &repo, &ws_oid, &task_oid).await {
+        tracing::error!(
+            "Failed to purge comments/assets before deleting task {}: {}",
+            task_id,
+            e
+        );
+    }
+    if let Err(e) = purge_task_attachments(&state, &task).await {
+        tracing::error!(
+            "Failed to purge attachments before deleting task {}: {}",
+            task_id,
+            e
+        );
+    }
+
     match repo.delete_task(&task_oid, &ws_oid).await {
         Ok(true) => axum::Json(serde_json::json!({ "success": true })).into_response(),
         Ok(false) => (
