@@ -225,6 +225,7 @@
 	"workload__cleared_unit": "CLEARED",
 	"workload__casualties_unit": "CASUALTIES",
 	"statsPanel__total_tasks": "Total Tasks",
+	"statsPanel__pending": "On Hold",
 	"statsPanel__todo": "To Do",
 	"statsPanel__in_progress": "In Progress",
 	"statsPanel__done": "Done",

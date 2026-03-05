@@ -5,6 +5,7 @@ import { normalizeTaskDate } from "./export-report";
 export interface MonthlySummary {
   periodLabel: string;
   total: number;
+  pending: number;
   todo: number;
   inProgress: number;
   inTest: number;
@@ -40,6 +41,7 @@ export function isWithinLastDays(
 
 export function buildMonthlySummary(taskList: Task[]): MonthlySummary {
   const tasks30 = taskList.filter((task) => isWithinLastDays(task.date, 30));
+  const pending = tasks30.filter((task) => task.status === "pending").length;
   const todo = tasks30.filter((task) => task.status === "todo").length;
   const inProgress = tasks30.filter(
     (task) => task.status === "in-progress",
@@ -103,6 +105,7 @@ export function buildMonthlySummary(taskList: Task[]): MonthlySummary {
   return {
     periodLabel: `${formatDateISO(start)} ถึง ${formatDateISO(today)}`,
     total: tasks30.length,
+    pending,
     todo,
     inProgress,
     inTest,

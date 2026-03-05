@@ -58,22 +58,13 @@
   let showHeader = true;
   let isNavbarLocked = true;
 
-  let lastScrollY = 0;
   $: {
     if (isNavbarLocked) {
       showHeader = true;
     } else {
-      // Auto-hide logic: show at top or when scrolling up
-      if (scrollY < 20) {
-        showHeader = true;
-      } else if (scrollY > lastScrollY + 5) {
-        // Add a small buffer to prevent jitter
-        showHeader = false;
-      } else if (scrollY < lastScrollY - 5) {
-        showHeader = true;
-      }
+      // Auto-hide when unlocked: only show when user is near the top.
+      showHeader = scrollY < 20;
     }
-    lastScrollY = scrollY;
   }
 
   function toggleNavbarLock() {

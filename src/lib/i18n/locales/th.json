@@ -224,6 +224,7 @@
 	"workload__cleared_unit": "เคลียร์งานแล้ว",
 	"workload__casualties_unit": "งานค้างเสียหาย",
 	"statsPanel__total_tasks": "งานทั้งหมด",
+	"statsPanel__pending": "พักไว้ก่อน",
 	"statsPanel__todo": "รอดำเนินการ",
 	"statsPanel__in_progress": "กำลังทำ",
 	"statsPanel__done": "เสร็จแล้ว",

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
 	import { 
-		CheckCircle2, Circle, Loader2, Calendar, FlaskConical, LayoutTemplate, ArrowLeft,
+		CheckCircle2, Circle, Loader2, Calendar, FlaskConical, LayoutTemplate, ArrowLeft, PauseCircle,
 		Briefcase, Code2, Rocket, Zap, Heart, Target, Globe, Book, Camera, Coffee, Music, Smile
 	} from 'lucide-svelte';
 	import { currentWorkspaceName, currentWorkspaceColor, currentWorkspaceIcon } from '$lib/stores/workspace';
@@ -35,12 +35,13 @@
 	export let videoExportState: any = null;
 	export let stats: {
 		total: number;
+		pending: number;
 		todo: number;
 		in_progress: number;
 		in_test: number;
 		done: number;
 		total_minutes: number;
-	} = { total: 0, todo: 0, in_progress: 0, in_test: 0, done: 0, total_minutes: 0 };
+	} = { total: 0, pending: 0, todo: 0, in_progress: 0, in_test: 0, done: 0, total_minutes: 0 };
 </script>
 
 {#if $currentWorkspaceName}
@@ -76,7 +77,7 @@
 	</div>
 {/if}
 
-<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
 	<!-- Total Tasks -->
 	<div class="bg-gray-50 dark:bg-gray-800/40 p-5 rounded-2xl border border-gray-200 dark:border-gray-700/30 backdrop-blur-md transition-all group shadow-sm">
 		<div class="flex items-start justify-between">
@@ -86,6 +87,19 @@
 			</div>
 			<div class="p-3 bg-blue-500/5 rounded-xl">
 				<Calendar class="text-blue-500" size={24} />
+			</div>
+		</div>
+	</div>
+
+	<!-- Pending -->
+	<div class="bg-gray-50 dark:bg-gray-800/40 p-5 rounded-2xl border border-gray-200 dark:border-gray-700/30 backdrop-blur-md transition-all group shadow-sm">
+		<div class="flex items-start justify-between">
+			<div>
+				<p class="text-[10px] font-black text-slate-600/80 dark:text-slate-400/80 uppercase tracking-widest mb-1 opacity-70">{$_('statsPanel__pending')}</p>
+				<p class="text-3xl font-black text-slate-600 dark:text-slate-300 leading-none tracking-tighter">{stats.pending}</p>
+			</div>
+			<div class="p-3 bg-slate-500/5 rounded-xl">
+				<PauseCircle class="text-slate-500" size={24} />
 			</div>
 		</div>
 	</div>

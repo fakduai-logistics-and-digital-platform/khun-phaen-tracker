@@ -117,7 +117,7 @@
     </div>
 
     <div class="p-6 overflow-y-auto space-y-6">
-      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
         <div
           class="rounded-xl border border-gray-200 dark:border-gray-700 p-3 bg-gray-50 dark:bg-gray-700/40"
         >
@@ -130,6 +130,18 @@
             class="text-2xl font-black text-gray-900 dark:text-white leading-tight"
           >
             {monthlySummary.total}
+          </p>
+        </div>
+        <div
+          class="rounded-xl border border-slate-200/50 dark:border-slate-700/50 p-3 bg-slate-50/50 dark:bg-slate-900/20"
+        >
+          <p class="text-xs text-slate-700 dark:text-slate-400 font-medium">
+            {$_("page__filter_status_pending")}
+          </p>
+          <p
+            class="text-2xl font-black text-slate-700 dark:text-slate-300 leading-tight"
+          >
+            {monthlySummary.pending}
           </p>
         </div>
         <div
@@ -209,6 +221,7 @@
         <MonthlySummaryCharts
           done={monthlySummary.done}
           inProgress={monthlySummary.inProgress}
+          pending={monthlySummary.pending}
           todo={monthlySummary.todo}
           dailyTrend={monthlySummary.dailyTrend}
           projectBreakdown={monthlySummary.projectBreakdown}

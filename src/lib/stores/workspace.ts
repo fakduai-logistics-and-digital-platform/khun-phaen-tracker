@@ -121,6 +121,7 @@ export type WorkspaceDataLoadResult = {
   projectStats?: { id: string; taskCount: number }[];
   stats?: {
     total: number;
+    pending: number;
     todo: number;
     in_progress: number;
     in_test: number;

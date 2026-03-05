@@ -822,9 +822,8 @@ export async function getCategories(): Promise<string[]> {
 
 export function getStatsFromTasks(tasks: Task[]) {
   const total = tasks.length;
-  const todo = tasks.filter(
-    (t: Task) => t.status === "todo" || t.status === "pending",
-  ).length;
+  const pending = tasks.filter((t: Task) => t.status === "pending").length;
+  const todo = tasks.filter((t: Task) => t.status === "todo").length;
   const in_progress = tasks.filter(
     (t: Task) => t.status === "in-progress",
   ).length;
@@ -835,7 +834,7 @@ export function getStatsFromTasks(tasks: Task[]) {
     0,
   );
 
-  return { total, todo, in_progress, in_test, done, total_minutes };
+  return { total, pending, todo, in_progress, in_test, done, total_minutes };
 }
 
 export async function getStats() {

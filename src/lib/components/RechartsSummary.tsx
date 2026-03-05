@@ -23,6 +23,7 @@ interface ChartProps {
   done: number;
   inProgress: number;
   inTest: number;
+  pending: number;
   todo: number;
   dailyTrend: { date: string; count: number }[];
   projectBreakdown: { name: string; count: number }[];
@@ -48,6 +49,7 @@ interface ChartProps {
     done: string;
     inProgress: string;
     inTest: string;
+    pending: string;
     todo: string;
   };
 }
@@ -65,6 +67,7 @@ export const RechartsSummary: React.FC<ChartProps> = ({
   done,
   inProgress,
   inTest,
+  pending,
   todo,
   dailyTrend,
   projectBreakdown,
@@ -123,6 +126,7 @@ export const RechartsSummary: React.FC<ChartProps> = ({
   }, [dailyTrend]);
 
   const statusData = [
+    { name: labels.pending, value: pending },
     { name: labels.done, value: done },
     { name: labels.inProgress, value: inProgress },
     { name: labels.inTest, value: inTest },
