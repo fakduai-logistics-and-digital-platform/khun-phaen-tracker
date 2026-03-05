@@ -40,6 +40,7 @@
   const dispatch = createEventDispatcher();
 
   let name = $currentWorkspaceName;
+  let shortName = "";
   let color = $currentWorkspaceColor || "#6366f1";
   let icon = $currentWorkspaceIcon || "LayoutTemplate";
 
@@ -87,6 +88,7 @@
   ];
 
   onMount(async () => {
+    shortName = generateShortName(name);
     try {
       const res = await api.workspaces.getNotificationConfig(workspaceId);
       if (res.ok) {
@@ -108,6 +110,20 @@
     }
   });
 
+  function normalizeShortName(value: string): string {
+    return value.replace(/\s+/g, "").slice(0, 4).toUpperCase();
+  }
+
+  function generateShortName(value: string): string {
+    return normalizeShortName(value.trim());
+  }
+
+  function resolveShortName(): string {
+    const normalized = normalizeShortName(shortName);
+    if (normalized) return normalized;
+    return generateShortName(name);
+  }
+
   async function handleSave() {
     isSaving = true;
     try {
@@ -117,9 +133,17 @@
         name,
         color,
         icon,
+        resolveShortName(),
       );
       if (updateRes.ok) {
-        setWorkspaceId(workspaceId, name, undefined, color, icon);
+        setWorkspaceId(
+          workspaceId,
+          name,
+          undefined,
+          color,
+          icon,
+          resolveShortName(),
+        );
       }
 
       // 2. Update Notification Config
@@ -217,6 +241,26 @@
                 bind:value={name}
                 class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-primary/50 text-gray-900 dark:text-white font-bold transition-all"
                 placeholder={$_("workspaceSettings__name_placeholder")}
+              />
+            </div>
+
+            <div class="space-y-4">
+              <label
+                for="ws-short-name"
+                class="block text-sm font-bold text-gray-700 dark:text-gray-300"
+                >ชื่อย่อ (สูงสุด 4 ตัว)</label
+              >
+              <input
+                id="ws-short-name"
+                type="text"
+                value={shortName}
+                maxlength="4"
+                on:input={(e) =>
+                  (shortName = normalizeShortName(
+                    (e.currentTarget as HTMLInputElement).value,
+                  ))}
+                class="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border-none rounded-2xl focus:ring-2 focus:ring-primary/50 text-gray-900 dark:text-white font-black uppercase tracking-widest transition-all"
+                placeholder={generateShortName(name) || "WORK"}
               />
             </div>
 

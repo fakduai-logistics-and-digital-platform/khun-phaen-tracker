@@ -19,6 +19,8 @@
 	const gitFlowTypes = ['feature', 'bugfix', 'hotfix', 'release'] as const;
 
 	let copyFeedbackTimer: ReturnType<typeof setTimeout> | null = null;
+	let copiedField: 'branch' | 'command' | null = null;
+	let checkoutCommand = '';
 
 	interface BuiltInTranslatorInstance {
 		translate(input: string): Promise<string>;
@@ -185,15 +187,51 @@
 		try {
 			await navigator.clipboard.writeText(branchName);
 			copySucceeded = true;
+			copiedField = 'branch';
 			branchMessage = `คัดลอกแล้ว: ${branchName}`;
 			branchMessageType = 'success';
 
 			if (copyFeedbackTimer) clearTimeout(copyFeedbackTimer);
 			copyFeedbackTimer = setTimeout(() => {
 				copySucceeded = false;
+				copiedField = null;
 			}, 2000);
 		} catch (error) {
 			console.error('Copy branch failed:', error);
+			branchMessage = 'คัดลอกไม่สำเร็จ กรุณาลองใหม่';
+			branchMessageType = 'error';
+		}
+	}
+
+	async function handleCopyCheckoutCommand() {
+		const cleanedTitle = title.trim();
+		if (!cleanedTitle) return;
+
+		await getOrCreateTranslator();
+		await updateBranchPreview(cleanedTitle);
+
+		if (!navigator.clipboard?.writeText) {
+			branchMessage = 'เบราว์เซอร์ไม่รองรับการคัดลอกอัตโนมัติ';
+			branchMessageType = 'error';
+			return;
+		}
+
+		const checkoutCommand = `git checkout -b ${branchName}`;
+
+		try {
+			await navigator.clipboard.writeText(checkoutCommand);
+			copySucceeded = true;
+			copiedField = 'command';
+			branchMessage = `คัดลอกแล้ว: ${checkoutCommand}`;
+			branchMessageType = 'success';
+
+			if (copyFeedbackTimer) clearTimeout(copyFeedbackTimer);
+			copyFeedbackTimer = setTimeout(() => {
+				copySucceeded = false;
+				copiedField = null;
+			}, 2000);
+		} catch (error) {
+			console.error('Copy checkout command failed:', error);
 			branchMessage = 'คัดลอกไม่สำเร็จ กรุณาลองใหม่';
 			branchMessageType = 'error';
 		}
@@ -204,6 +242,7 @@
 	}
 
 	$: branchName = `${gitFlowType}/${translatedTitle ? slugifyBranchSegment(translatedTitle) : 'untitled-task'}`;
+	$: checkoutCommand = `git checkout -b ${branchName}`;
 </script>
 
 {#if show}
@@ -271,7 +310,36 @@
 							class="h-10 px-3 inline-flex items-center gap-1.5 bg-primary hover:bg-primary-dark disabled:bg-gray-300 dark:disabled:bg-gray-600 text-white rounded-lg text-sm font-medium transition-colors"
 							title="คัดลอกชื่อ branch"
 						>
-							{#if copySucceeded}
+							{#if copySucceeded && copiedField === 'branch'}
+								<Check size={15} />
+								Copied
+							{:else}
+								<Copy size={15} />
+								Copy
+							{/if}
+						</button>
+					</div>
+				</div>
+
+				<div>
+					<label for="checkout-command-preview" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Git Command</label>
+					<div class="flex gap-2">
+						<input
+							id="checkout-command-preview"
+							type="text"
+							value={checkoutCommand}
+							readonly
+							on:focus={(event) => (event.currentTarget as HTMLInputElement).select()}
+							class="flex-1 h-10 px-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 font-mono text-sm"
+						/>
+						<button
+							type="button"
+							on:click={handleCopyCheckoutCommand}
+							disabled={!title.trim() || isTranslatingBranch}
+							class="h-10 px-3 inline-flex items-center gap-1.5 bg-primary hover:bg-primary-dark disabled:bg-gray-300 dark:disabled:bg-gray-600 text-white rounded-lg text-sm font-medium transition-colors"
+							title="คัดลอกคำสั่ง checkout"
+						>
+							{#if copySucceeded && copiedField === 'command'}
 								<Check size={15} />
 								Copied
 							{:else}

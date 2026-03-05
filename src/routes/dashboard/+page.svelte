@@ -43,6 +43,7 @@
   interface Workspace {
     id: string;
     name: string;
+    short_name?: string;
     room_code: string;
     created_at: string;
     owner_id: string;
@@ -366,6 +367,7 @@
         workspace.owner_id,
         workspace.color,
         workspace.icon,
+        workspace.short_name,
       );
     }
     localStorage.setItem("sync-room-code", workspace.room_code);

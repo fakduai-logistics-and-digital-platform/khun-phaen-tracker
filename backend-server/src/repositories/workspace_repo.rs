@@ -52,6 +52,7 @@ impl WorkspaceRepository {
         id: &ObjectId,
         owner_id: &ObjectId,
         new_name: &str,
+        new_short_name: Option<&str>,
         new_color: Option<&str>,
         new_icon: Option<&str>,
     ) -> mongodb::error::Result<bool> {
@@ -61,6 +62,7 @@ impl WorkspaceRepository {
                 doc! { "_id": id, "owner_id": owner_id },
                 doc! { "$set": {
                     "name": new_name,
+                    "short_name": new_short_name,
                     "color": new_color,
                     "icon": new_icon
                 } },
@@ -146,6 +148,7 @@ impl WorkspaceRepository {
         let name = doc.get_str("name").ok()?.to_string();
         let room_code = doc.get_str("room_code").ok()?.to_string();
         let color = doc.get_str("color").ok().map(|s| s.to_string());
+        let short_name = doc.get_str("short_name").ok().map(|s| s.to_string());
         let icon = doc.get_str("icon").ok().map(|s| s.to_string());
         let created_at = doc
             .get("created_at")
@@ -186,6 +189,7 @@ impl WorkspaceRepository {
         Some(Workspace {
             id,
             name,
+            short_name,
             color,
             icon,
             owner_id,

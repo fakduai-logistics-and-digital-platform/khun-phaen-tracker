@@ -5,7 +5,7 @@ use crate::models::data::{
 use futures::stream::StreamExt;
 use mongodb::{
     bson::{doc, oid::ObjectId, Bson, Document},
-    options::IndexOptions,
+    options::{FindOneOptions, IndexOptions},
     Collection, Database, IndexModel,
 };
 use std::collections::HashMap;
@@ -206,8 +206,25 @@ impl DataRepository {
         let page = filter.page.unwrap_or(1).max(1);
         let skip = (page - 1) * limit;
 
+        let sort_field = match filter.sort_by.as_deref() {
+            Some("date")
+            | Some("created_at")
+            | Some("updated_at")
+            | Some("task_number")
+            | Some("title")
+            | Some("status")
+            | Some("due_date")
+            | Some("start_date") => filter.sort_by.as_deref().unwrap_or("updated_at"),
+            _ => "updated_at",
+        };
+
+        let sort_direction = match filter.sort_order.as_deref() {
+            Some("asc") | Some("1") => 1,
+            _ => -1,
+        };
+
         let find_options = mongodb::options::FindOptions::builder()
-            .sort(doc! { "date": -1, "_id": -1 })
+            .sort(doc! { sort_field: sort_direction, "_id": -1 })
             .limit(limit as i64)
             .skip(skip)
             .build();
@@ -280,6 +297,23 @@ impl DataRepository {
             task.id = Some(id);
         }
         Ok(task)
+    }
+
+    pub async fn get_next_task_number(
+        &self,
+        workspace_id: &ObjectId,
+    ) -> mongodb::error::Result<i64> {
+        let opts = FindOneOptions::builder()
+            .sort(doc! { "task_number": -1 })
+            .build();
+        let highest = self
+            .tasks
+            .find_one(
+                doc! { "workspace_id": workspace_id, "task_number": { "$exists": true, "$ne": Bson::Null } },
+                opts,
+            )
+            .await?;
+        Ok(highest.and_then(|t| t.task_number).unwrap_or(0) + 1)
     }
 
     pub async fn update_task(

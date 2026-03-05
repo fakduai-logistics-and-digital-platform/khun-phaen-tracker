@@ -186,6 +186,7 @@ export const api = {
       name: string,
       color?: string,
       icon?: string,
+      shortName?: string,
     ): Promise<Response> => {
       let token = "";
       if (typeof document !== "undefined") {
@@ -205,7 +206,7 @@ export const api = {
         method: "POST",
         headers,
         credentials: "include",
-        body: JSON.stringify({ name, color, icon }),
+        body: JSON.stringify({ name, color, icon, short_name: shortName }),
       });
     },
     getStats: async (): Promise<Response> => {
@@ -247,6 +248,7 @@ export const api = {
       name: string,
       color?: string,
       icon?: string,
+      shortName?: string,
     ): Promise<Response> => {
       let token = "";
       if (typeof document !== "undefined") {
@@ -266,7 +268,7 @@ export const api = {
         method: "PUT",
         headers,
         credentials: "include",
-        body: JSON.stringify({ name, color, icon }),
+        body: JSON.stringify({ name, color, icon, short_name: shortName }),
       });
     },
     delete: async (id: string): Promise<Response> => {
@@ -434,6 +436,12 @@ export const api = {
           ? "?" + new URLSearchParams(filter).toString()
           : "";
         return fetch(`${API_BASE_URL}/workspaces/${wsId}/tasks${params}`, {
+          headers: api.data._headers(),
+          credentials: "include",
+        });
+      },
+      nextNumber: (wsId: string): Promise<Response> => {
+        return fetch(`${API_BASE_URL}/workspaces/${wsId}/tasks/next-number`, {
           headers: api.data._headers(),
           credentials: "include",
         });

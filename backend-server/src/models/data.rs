@@ -76,6 +76,8 @@ pub struct TaskDocument {
     pub id: Option<ObjectId>,
     pub workspace_id: ObjectId,
     pub title: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub task_number: Option<i64>,
     #[serde(default)]
     pub project: String,
     #[serde(default)]
@@ -320,6 +322,8 @@ pub struct TaskFilterQuery {
     pub due_end_date: Option<String>,
     pub due_preset: Option<String>,
     pub include_archived: Option<bool>,
+    pub sort_by: Option<String>,
+    pub sort_order: Option<String>,
     pub page: Option<u64>,
     pub limit: Option<u64>,
 }

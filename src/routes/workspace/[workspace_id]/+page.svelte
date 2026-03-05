@@ -197,6 +197,7 @@
           data.workspace?.owner_id || "",
           data.workspace?.color,
           data.workspace?.icon,
+          data.workspace?.short_name,
         );
         connectRealtime(urlRoom, (payload) =>
           workspaceActions.handleRealtimeUpdate(payload),

@@ -45,6 +45,7 @@ pub async fn get_workspaces_handler(
                     serde_json::json!({
                         "id": w.id.map(|id| id.to_hex()).unwrap_or_default(),
                         "name": w.name,
+                        "short_name": w.short_name,
                         "color": w.color,
                         "icon": w.icon,
                         "owner_id": w.owner_id.to_hex(),
@@ -147,6 +148,7 @@ pub async fn create_workspace_handler(
             let workspace_json = serde_json::json!({
                 "id": workspace.id.map(|id| id.to_hex()).unwrap_or_default(),
                 "name": workspace.name,
+                "short_name": workspace.short_name,
                 "color": workspace.color,
                 "icon": workspace.icon,
                 "owner_id": workspace.owner_id.to_hex(),
@@ -351,6 +353,7 @@ pub async fn check_workspace_access_handler(
             let workspace_json = serde_json::json!({
                 "id": w.id.map(|id| id.to_hex()).unwrap_or_default(),
                 "name": w.name.clone(),
+                "short_name": w.short_name.clone(),
                 "color": w.color.clone(),
                 "icon": w.icon.clone(),
                 "owner_id": w.owner_id.to_hex(),

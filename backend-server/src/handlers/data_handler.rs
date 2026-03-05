@@ -213,6 +213,31 @@ pub async fn list_tasks(
     }
 }
 
+pub async fn get_next_task_number(
+    State(state): State<SharedState>,
+    Path(ws_id): Path<String>,
+    headers: HeaderMap,
+    jar: CookieJar,
+) -> axum::response::Response {
+    let ws_oid = match verify_workspace_access(&state, &headers, &jar, &ws_id).await {
+        Ok(id) => id,
+        Err(resp) => return resp,
+    };
+
+    let repo = DataRepository::new(&state.db);
+    match repo.get_next_task_number(&ws_oid).await {
+        Ok(next_number) => {
+            axum::Json(serde_json::json!({ "success": true, "next_task_number": next_number }))
+                .into_response()
+        }
+        Err(e) => (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            axum::Json(serde_json::json!({ "error": format!("{}", e) })),
+        )
+            .into_response(),
+    }
+}
+
 pub async fn create_task(
     State(state): State<SharedState>,
     Path(ws_id): Path<String>,
@@ -243,10 +268,23 @@ pub async fn create_task(
 
     let resolved_due_date = payload.due_date.clone().or(payload.end_date.clone());
 
+    let repo = DataRepository::new(&state.db);
+    let next_task_number = match repo.get_next_task_number(&ws_oid).await {
+        Ok(v) => v,
+        Err(e) => {
+            return (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                axum::Json(serde_json::json!({ "error": format!("{}", e) })),
+            )
+                .into_response()
+        }
+    };
+
     let task = TaskDocument {
         id: None,
         workspace_id: ws_oid,
         title: payload.title,
+        task_number: Some(next_task_number),
         project: payload.project,
         duration_minutes: payload.duration_minutes,
         start_date: Some(resolved_start_date.clone()),
@@ -265,7 +303,6 @@ pub async fn create_task(
         updated_at: None,
     };
 
-    let repo = DataRepository::new(&state.db);
     match repo.create_task(task).await {
         Ok(created) => {
             // Trigger notification
@@ -380,11 +417,6 @@ pub async fn update_task(
         }
     }
 
-    if updates.is_empty() {
-        return axum::Json(serde_json::json!({ "success": true, "message": "No changes" }))
-            .into_response();
-    }
-
     let repo = DataRepository::new(&state.db);
     
     // Fetch old task before update to know what changed
@@ -392,6 +424,39 @@ pub async fn update_task(
         Ok(Some(t)) if t.workspace_id == ws_oid => Some(t),
         _ => None,
     };
+
+    if old_task.is_none() {
+        return (
+            axum::http::StatusCode::NOT_FOUND,
+            axum::Json(serde_json::json!({ "error": "Task not found" })),
+        )
+            .into_response();
+    }
+
+    if old_task
+        .as_ref()
+        .and_then(|t| t.task_number)
+        .is_none()
+        && !updates.contains_key("task_number")
+    {
+        match repo.get_next_task_number(&ws_oid).await {
+            Ok(v) => {
+                updates.insert("task_number", v);
+            }
+            Err(e) => {
+                return (
+                    axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                    axum::Json(serde_json::json!({ "error": format!("{}", e) })),
+                )
+                    .into_response()
+            }
+        }
+    }
+
+    if updates.is_empty() {
+        return axum::Json(serde_json::json!({ "success": true, "message": "No changes" }))
+            .into_response();
+    }
     
     let should_purge_comments_after_archive = if archive_flag == Some(true) {
         old_task.as_ref().map(|t| !t.is_archived).unwrap_or(false)
@@ -424,7 +489,8 @@ pub async fn update_task(
                 }
             }
 
-            axum::Json(serde_json::json!({ "success": true })).into_response()
+            let updated_task = repo.find_task_by_id(&task_oid).await.ok().flatten();
+            axum::Json(serde_json::json!({ "success": true, "task": updated_task })).into_response()
         }
         Ok(false) => (
             axum::http::StatusCode::NOT_FOUND,

@@ -7,11 +7,16 @@
     deleteTaskComment,
     getAssigneeGroups,
     getCommentImages,
+    getNextTaskNumber,
     getTaskComments,
     toggleTaskCommentReaction,
     updateTaskCommentText,
   } from "$lib/db";
   import { user } from "$lib/stores/auth";
+  import {
+    currentWorkspaceName,
+    currentWorkspaceShortName,
+  } from "$lib/stores/workspace";
   import { taskDefaults } from "$lib/stores/taskDefaults";
   import type {
     Assignee,
@@ -92,6 +97,7 @@
   let showBranchDialog = false;
   let formInitKey = "closed";
   let copySuccess = false;
+  let nextTaskNumber: number | null = null;
 
   let comments: TaskComment[] = [];
   let commentsLoading = false;
@@ -156,6 +162,19 @@
   ];
 
   $: activeSprint = sprints.find((s) => s.status === "active");
+  $: workspaceBadgePrefix = (
+    $currentWorkspaceShortName ||
+    $currentWorkspaceName ||
+    ""
+  )
+    .replace(/\s+/g, "")
+    .slice(0, 4)
+    .toUpperCase();
+  $: displayTaskNumber = editingTask?.task_number ?? nextTaskNumber;
+  $: taskNumberBadge =
+    displayTaskNumber && workspaceBadgePrefix
+      ? `${workspaceBadgePrefix}-${displayTaskNumber}`
+      : "";
   const isSameId = (
     a: string | number | null | undefined,
     b: string | number | null | undefined,
@@ -218,7 +237,10 @@
       sprint_id = activeSprint?.id || null;
       checklist = [];
       dependencies = [];
+      void loadNextTaskNumber();
     }
+
+    nextTaskNumber = null;
 
     assignee_id_to_add = null;
     showBranchDialog = false;
@@ -231,6 +253,16 @@
     imagePaginationByComment = {};
     lastCommentsKey = "";
     void loadAssigneeGroups();
+  }
+
+  async function loadNextTaskNumber() {
+    if (!show || editingTask) return;
+    try {
+      nextTaskNumber = await getNextTaskNumber();
+    } catch (error) {
+      console.error("Failed to fetch next task number:", error);
+      nextTaskNumber = null;
+    }
   }
 
   async function loadAssigneeGroups() {
@@ -1115,6 +1147,13 @@
             {editingTask
               ? $_("taskForm__edit_task_title")
               : $_("taskForm__add_task_title")}
+            {#if taskNumberBadge}
+              <span
+                class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold tracking-wide bg-primary/10 text-primary border border-primary/20 shrink-0"
+              >
+                {taskNumberBadge}
+              </span>
+            {/if}
           </h2>
           <div class="flex items-center gap-2">
             {#if editingTask?.id}

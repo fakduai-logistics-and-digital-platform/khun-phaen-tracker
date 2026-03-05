@@ -79,6 +79,8 @@ function docToTask(doc: any): Task {
   return {
     id: extractId(doc),
     title: doc.title || "",
+    task_number:
+      typeof doc.task_number === "number" ? doc.task_number : undefined,
     project: doc.project || "",
     duration_minutes: doc.duration_minutes || 0,
     start_date: resolvedStartDate || undefined,
@@ -249,7 +251,11 @@ export async function updateTask(
   if (!res.ok) {
     throw new Error(data.error || "Failed to update task");
   }
-  broadcastChange("task", "update", String(id), payload);
+  const taskFromServer = data?.task ? docToTask(data.task) : null;
+  const updatePayload = taskFromServer
+    ? { ...payload, task_number: taskFromServer.task_number }
+    : payload;
+  broadcastChange("task", "update", String(id), updatePayload);
 }
 
 export async function deleteTask(id: string | number): Promise<void> {
@@ -386,7 +392,10 @@ export async function getTasks(filter?: FilterOptions): Promise<Task[]>;
 export async function getTasks(
   filter?: FilterOptions,
 ): Promise<Task[] | PaginatedResponse<Task>> {
-  const params: Record<string, string> = {};
+  const params: Record<string, string> = {
+    sort_by: "updated_at",
+    sort_order: "desc",
+  };
 
   if (filter?.status && filter.status !== "all") {
     if (filter.status === "active") {
@@ -494,6 +503,13 @@ export async function getTaskById(id: string | number): Promise<Task | null> {
   });
   const tasks = Array.isArray(result) ? result : result.tasks;
   return tasks.find((t: Task) => String(t.id) === String(id)) || null;
+}
+
+export async function getNextTaskNumber(): Promise<number> {
+  const res = await api.data.tasks.nextNumber(wsId());
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Failed to fetch next task number");
+  return Number(data.next_task_number || 1);
 }
 
 export async function getTasksBySprint(

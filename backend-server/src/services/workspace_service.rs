@@ -9,6 +9,27 @@ use uuid::Uuid;
 pub struct WorkspaceService;
 
 impl WorkspaceService {
+    fn normalize_short_name(value: &str) -> Option<String> {
+        let normalized: String = value
+            .chars()
+            .filter(|c| !c.is_whitespace())
+            .take(4)
+            .collect::<String>()
+            .to_uppercase();
+        if normalized.is_empty() {
+            None
+        } else {
+            Some(normalized)
+        }
+    }
+
+    fn resolve_short_name(name: &str, short_name: Option<&str>) -> Option<String> {
+        match short_name.and_then(Self::normalize_short_name) {
+            Some(value) => Some(value),
+            None => Self::normalize_short_name(name),
+        }
+    }
+
     pub async fn get_user_workspaces(
         repo: &WorkspaceRepository,
         owner_id: &ObjectId,
@@ -40,6 +61,7 @@ impl WorkspaceService {
         let workspace = Workspace {
             id: None,
             name: payload.name.clone(),
+            short_name: Self::resolve_short_name(&payload.name, payload.short_name.as_deref()),
             color: payload.color.clone(),
             icon: payload.icon.clone(),
             owner_id: owner_id.clone(),
@@ -66,6 +88,7 @@ impl WorkspaceService {
             workspace_id,
             owner_id,
             &payload.name,
+            Self::resolve_short_name(&payload.name, payload.short_name.as_deref()).as_deref(),
             payload.color.as_deref(),
             payload.icon.as_deref(),
         )

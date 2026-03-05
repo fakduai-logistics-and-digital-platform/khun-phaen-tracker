@@ -216,6 +216,10 @@ async fn main() {
             get(handlers::data_handler::list_tasks),
         )
         .route(
+            "/api/workspaces/:ws_id/tasks/next-number",
+            get(handlers::data_handler::get_next_task_number),
+        )
+        .route(
             "/api/workspaces/:ws_id/tasks",
             post(handlers::data_handler::create_task),
         )

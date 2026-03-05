@@ -66,10 +66,11 @@
     | "date"
     | "status"
     | "category"
-    | "assignee";
+    | "assignee"
+    | "updated_at";
   type SortDirection = "asc" | "desc";
 
-  let sortColumn: SortColumn = "date";
+  let sortColumn: SortColumn = "updated_at";
   let sortDirection: SortDirection = "desc";
   let selectedTasks: Set<string | number> = new Set();
   let expandedMobileCards: Set<string | number> = new Set();
@@ -93,6 +94,10 @@
         // Sort by first assignee's name, or empty if no assignees
         aVal = a.assignees && a.assignees.length > 0 ? a.assignees[0].name : "";
         bVal = b.assignees && b.assignees.length > 0 ? b.assignees[0].name : "";
+        break;
+      case "updated_at":
+        aVal = a.updated_at || "";
+        bVal = b.updated_at || "";
         break;
       case "date":
         aVal = dueDateOf(a);
