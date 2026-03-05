@@ -380,22 +380,24 @@
     const today = new Date();
     const reportDate = today.toISOString().split("T")[0];
     const lines = [
-      `# Sprint Report - ${sprint.name}`,
+      `# ${$_("sprintManager__markdown_report_title")} - ${sprint.name}`,
       "",
-      `- วันที่รายงาน: ${reportDate}`,
-      `- ช่วง Sprint: ${formatDate(sprint.start_date)} - ${formatDate(sprint.end_date)}`,
-      `- งานที่เสร็จแล้ว: ${doneTasks.length} งาน`,
+      `- ${$_("sprintManager__markdown_report_date")}: ${reportDate}`,
+      `- ${$_("sprintManager__markdown_sprint_range")}: ${formatDate(sprint.start_date)} - ${formatDate(sprint.end_date)}`,
+      `- ${$_("sprintManager__markdown_done_count", {
+        values: { count: doneTasks.length },
+      })}`,
       "",
-      "## ✅ งานที่เสร็จแล้ว",
+      `## ✅ ${$_("sprintManager__markdown_done_section")}`,
       ...(doneTasks.length > 0
         ? doneTasks.map((task) => {
-            const title = task.title || "ไม่ระบุชื่องาน";
+            const title = task.title || $_("sprintManager__unknown_task_title");
             const project = task.project || "-";
-            const assignee = task.assignee?.name || "ไม่ระบุ";
+            const assignee = getTaskAssigneeLabel(task);
             const dateText = task.date || "-";
-            return `- [x] ${title} (${project}) - ผู้รับผิดชอบ: ${assignee} - ${dateText}`;
+            return `- [x] ${title} (${project}) - ${$_("tableView__column_assignee")}: ${assignee} - ${dateText}`;
           })
-        : ["- ไม่มีงาน"]),
+        : [`- ${$_("sprintManager__markdown_no_tasks")}`]),
     ];
 
     return lines.join("\n");
@@ -428,16 +430,30 @@
   function getStatusLabel(status: Task["status"]) {
     switch (status) {
       case "pending":
-        return "Pending";
+        return $_("taskList__status_pending");
       case "todo":
-        return "To Do";
+        return $_("taskList__status_todo");
       case "in-progress":
-        return "In Progress";
+        return $_("taskList__status_in_progress");
       case "in-test":
-        return "In Test";
+        return $_("taskList__status_in_test");
       case "done":
-        return "Done";
+        return $_("taskList__status_done");
     }
+  }
+
+  function getTaskAssigneeLabel(task: Task): string {
+    if (task.assignees && task.assignees.length > 0) {
+      const names = task.assignees
+        .map((assignee) => assignee?.name?.trim())
+        .filter((name): name is string => Boolean(name));
+      if (names.length > 0) return names.join(", ");
+    }
+
+    const singleName = task.assignee?.name?.trim();
+    if (singleName) return singleName;
+
+    return $_("page__unassigned");
   }
 
   function getNextSprintName(): string {
@@ -825,14 +841,14 @@
                         <button
                           on:click={() => openSprintMarkdownModal(sprint)}
                           class="p-2 text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors"
-                          title="ดูข้อความสรุปสำหรับคัดลอก"
+                          title={$_("sprintManager__view_markdown_hint")}
                         >
                           <FileText size={16} />
                         </button>
                         <button
                           on:click={() => openCompletedTasksModal(sprint)}
                           class="p-2 text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-900/20 rounded-lg transition-colors"
-                          title="ดูงานที่สำเร็จ"
+                          title={$_("sprintManager__view_done_tasks_hint")}
                         >
                           <Eye size={16} />
                         </button>
@@ -1006,7 +1022,7 @@
       <div class="flex items-center justify-between p-5 border-b border-gray-100 dark:border-gray-700">
         <div>
           <h3 class="text-lg font-bold text-gray-900 dark:text-white">
-            ข้อความสรุป Sprint (Markdown)
+            {$_("sprintManager__markdown_modal_title")}
           </h3>
           <p class="text-sm text-gray-500 dark:text-gray-400">
             {viewingMarkdownSprint.name}
@@ -1027,7 +1043,9 @@
             on:click={copySprintMarkdown}
             class="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors {markdownCopied ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'bg-indigo-600 text-white hover:bg-indigo-700'}"
           >
-            {markdownCopied ? "คัดลอกแล้ว" : "คัดลอกข้อความ"}
+            {markdownCopied
+              ? $_("sprintManager__copied")
+              : $_("sprintManager__copy_markdown")}
           </button>
         </div>
 
@@ -1057,10 +1075,12 @@
       <div class="flex items-center justify-between p-5 border-b border-gray-100 dark:border-gray-700">
         <div>
           <h3 class="text-lg font-bold text-gray-900 dark:text-white">
-            งานที่สำเร็จแล้ว
+            {$_("sprintManager__done_tasks_title")}
           </h3>
           <p class="text-sm text-gray-500 dark:text-gray-400">
-            {viewingCompletedSprint.name} • {completedTasks.length} งาน
+            {viewingCompletedSprint.name} • {$_("sprintManager__done_count", {
+              values: { count: completedTasks.length },
+            })}
           </p>
         </div>
         <button
@@ -1075,7 +1095,7 @@
       <div class="p-5 overflow-auto">
         {#if completedTasks.length === 0}
           <div class="text-sm text-gray-500 dark:text-gray-400 py-6 text-center">
-            ยังไม่มีงานที่สถานะ Done ใน Sprint นี้
+            {$_("sprintManager__done_tasks_empty")}
           </div>
         {:else}
           <div class="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
@@ -1083,10 +1103,21 @@
               <thead class="bg-gray-50 dark:bg-gray-700/60 text-gray-600 dark:text-gray-300">
                 <tr>
                   <th class="px-4 py-3 text-left font-semibold">#</th>
-                  <th class="px-4 py-3 text-left font-semibold">Task</th>
-                  <th class="px-4 py-3 text-left font-semibold">Category</th>
-                  <th class="px-4 py-3 text-left font-semibold">Date</th>
-                  <th class="px-4 py-3 text-left font-semibold">Status</th>
+                  <th class="px-4 py-3 text-left font-semibold">
+                    {$_("tableView__column_title")}
+                  </th>
+                  <th class="px-4 py-3 text-left font-semibold">
+                    {$_("tableView__column_assignee")}
+                  </th>
+                  <th class="px-4 py-3 text-left font-semibold">
+                    {$_("tableView__column_category")}
+                  </th>
+                  <th class="px-4 py-3 text-left font-semibold">
+                    {$_("tableView__column_date_short")}
+                  </th>
+                  <th class="px-4 py-3 text-left font-semibold">
+                    {$_("tableView__column_status")}
+                  </th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
@@ -1095,6 +1126,9 @@
                     <td class="px-4 py-3 text-gray-500 dark:text-gray-400">{index + 1}</td>
                     <td class="px-4 py-3 text-gray-900 dark:text-gray-100 font-medium">
                       {task.title}
+                    </td>
+                    <td class="px-4 py-3 text-gray-600 dark:text-gray-300">
+                      {getTaskAssigneeLabel(task)}
                     </td>
                     <td class="px-4 py-3 text-gray-600 dark:text-gray-300">
                       {task.category || "-"}
