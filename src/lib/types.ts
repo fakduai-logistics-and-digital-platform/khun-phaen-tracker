@@ -46,7 +46,7 @@ export interface Task {
   duration_minutes: number;
   start_date?: string; // YYYY-MM-DD
   date: string; // YYYY-MM-DD
-  status: "todo" | "in-progress" | "in-test" | "done";
+  status: "pending" | "todo" | "in-progress" | "in-test" | "done";
   category: string;
   notes: string;
   assignee_ids?: (string | number)[]; // Array of assignee IDs (multiple assignees)

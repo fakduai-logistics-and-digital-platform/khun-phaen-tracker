@@ -73,7 +73,6 @@
     exportActions,
     loadData,
     debouncedLoadData,
-    showMessage,
     videoExportState,
     editingTask,
   } = ws;
@@ -88,6 +87,11 @@
   let milestones: Milestone[] = [];
   let editingMilestone: Milestone | null = null;
   let assigneeGroups: AssigneeGroup[] = [];
+  type SavedMyTasksFilter = {
+    enabled: boolean;
+    assignee_id: string | number | null;
+  };
+  const MY_TASKS_FILTER_STORAGE_KEY = "workspace-my-tasks-filter";
   $: visibleMilestones = milestones.filter((m) => !m.is_hidden);
 
   async function loadAssigneeGroups() {
@@ -139,6 +143,11 @@
   $: myAssigneeId = $assignees.find(
     (a) => a.user_id === $user?.id || a.user_id === $user?.user_id,
   )?.id;
+  $: myTasksStorageKey = `${MY_TASKS_FILTER_STORAGE_KEY}:${$page.params.workspace_id}:${$user?.id || $user?.user_id || "anon"}`;
+  $: isMyTasksActive =
+    myAssigneeId !== undefined &&
+    myAssigneeId !== null &&
+    String($filters?.assignee_id) === String(myAssigneeId);
   $: isOwner =
     $currentWorkspaceOwnerId && $user?.id
       ? $currentWorkspaceOwnerId === $user.id
@@ -195,7 +204,23 @@
         await sprints.refresh();
         await fetchMilestones();
         await loadAssigneeGroups();
-        filters.set(restoreFilters($sprints));
+        const restoredFilters = restoreFilters($sprints);
+        let initialFilters = { ...restoredFilters };
+        const savedMyTasksRaw = localStorage.getItem(myTasksStorageKey);
+        if (savedMyTasksRaw) {
+          try {
+            const savedMyTasks = JSON.parse(
+              savedMyTasksRaw,
+            ) as SavedMyTasksFilter;
+            if (savedMyTasks.enabled && savedMyTasks.assignee_id !== null) {
+              initialFilters = {
+                ...initialFilters,
+                assignee_id: savedMyTasks.assignee_id,
+              };
+            }
+          } catch {}
+        }
+        filters.set(initialFilters);
         initWasmSearch();
       } else {
         hasAccess.set(false);
@@ -229,6 +254,23 @@
     if (id) url.searchParams.set("task", String(id));
     else url.searchParams.delete("task");
     goto(url.toString(), { replaceState: true, noScroll: true });
+  }
+
+  function toggleMyTasksFilter() {
+    if (myAssigneeId === undefined || myAssigneeId === null) return;
+    filters.update((f) => {
+      const nextIsActive = f.assignee_id !== myAssigneeId;
+      if (browser) {
+        const savedPayload: SavedMyTasksFilter = nextIsActive
+          ? { enabled: true, assignee_id: myAssigneeId }
+          : { enabled: false, assignee_id: null };
+        localStorage.setItem(myTasksStorageKey, JSON.stringify(savedPayload));
+      }
+      return {
+        ...f,
+        assignee_id: nextIsActive ? myAssigneeId : "all",
+      };
+    });
   }
 </script>
 
@@ -264,11 +306,22 @@
         {/each}
       </div>
     {/if}
-    <StatsPanel stats={$stats} />
+    <StatsPanel
+      stats={$stats}
+      {isOwner}
+      {videoExportState}
+      on:exportCSV={() => exportActions.handleExportCSV()}
+      on:exportPDF={() => exportActions.handleExportPDF()}
+      on:exportMarkdown={(e) => exportActions.handleExportMarkdown(e)}
+      on:exportVideo={(e) => exportActions.handleExportVideo(e)}
+      on:exportSlide={(e) => exportActions.handleExportSlide(e)}
+      on:exportDatabase={(e) => exportActions.handleExportDatabase(e)}
+      on:importCSV={(e) => exportActions.handleImportCSV(e)}
+    />
     <SearchAndActions
       isFiltersOpen={$modals.filters}
       {isOwner}
-      {videoExportState}
+      {isMyTasksActive}
       on:toggleFilters={() => uiActions.toggleModal("filters")}
       on:openWorkerManager={() => uiActions.openModal("workerManager")}
       on:openProjectManager={() => uiActions.openModal("projectManager")}
@@ -277,14 +330,7 @@
       on:openDailyReflect={() => uiActions.openModal("dailyReflect")}
       on:openMilestoneManager={() => uiActions.openModal("milestoneManager")}
       on:openWorkspaceSettings={() => uiActions.openModal("workspaceSettings")}
-      on:exportCSV={() => exportActions.handleExportCSV()}
-      on:exportPDF={() => exportActions.handleExportPDF()}
-      on:exportMarkdown={(e) => exportActions.handleExportMarkdown(e)}
-      on:exportVideo={(e) => exportActions.handleExportVideo(e)}
-      on:exportSlide={(e) => exportActions.handleExportSlide(e)}
-      on:exportDatabase={(e) => exportActions.handleExportDatabase(e)}
-      on:importCSV={(e) => exportActions.handleImportCSV(e)}
-      on:showMessage={(e) => showMessage(e.detail)}
+      on:toggleMyTasks={toggleMyTasksFilter}
     />
 
     {#if $modals.filters}

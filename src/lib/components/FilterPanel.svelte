@@ -78,6 +78,12 @@
             badgeColor: "bg-indigo-500",
           },
           {
+            value: "pending",
+            label: $_("page__filter_status_pending"),
+            badge: true,
+            badgeColor: "bg-slate-500",
+          },
+          {
             value: "todo",
             label: $_("page__filter_status_todo"),
             badge: true,

@@ -4,6 +4,7 @@
   import {
     Filter,
     Users,
+    UserCheck,
     Folder,
     Flag,
     CalendarDays,
@@ -11,11 +12,10 @@
     Settings,
     Rocket,
   } from "lucide-svelte";
-  import ExportImport from "./ExportImport.svelte";
 
   export let isFiltersOpen: boolean = false;
   export let isOwner: boolean = false;
-  export let videoExportState: any = null;
+  export let isMyTasksActive: boolean = false;
 
   const dispatch = createEventDispatcher();
 
@@ -47,41 +47,14 @@
     dispatch("openMilestoneManager");
   }
 
-  function handleExportCSV() {
-    dispatch("exportCSV");
-  }
-
-  function handleExportPDF() {
-    dispatch("exportPDF");
-  }
-
-  function handleExportMarkdown(event: any) {
-    dispatch("exportMarkdown", event.detail);
-  }
-
-  function handleExportVideo(event: any) {
-    dispatch("exportVideo", event.detail);
-  }
-
-  function handleExportSlide(event: any) {
-    dispatch("exportSlide", event.detail);
-  }
-
-  function handleExportDatabase(event: any) {
-    dispatch("exportDatabase", event.detail);
-  }
-
-  function handleImportCSV(event: any) {
-    dispatch("importCSV", event.detail);
-  }
-
   function openWorkspaceSettings() {
     dispatch("openWorkspaceSettings");
   }
 
-  function showMessage(msg: string) {
-    dispatch("showMessage", msg);
+  function toggleMyTasks() {
+    dispatch("toggleMyTasks");
   }
+
 </script>
 
 <div
@@ -114,11 +87,21 @@
       <button
         on:click={openWorkspaceSettings}
         class="flex items-center justify-center w-12 h-12 shrink-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-all shadow-sm"
-        title="Workspace Settings"
+        title={$_("page__workspace_settings")}
       >
         <Settings size={20} />
       </button>
     {/if}
+
+    <button
+      on:click={toggleMyTasks}
+      class="flex items-center justify-center w-12 h-12 shrink-0 border rounded-xl transition-all shadow-sm {isMyTasksActive
+        ? 'bg-teal-500/15 border-teal-500/40 text-teal-300 dark:text-teal-300'
+        : 'bg-teal-500/5 border-teal-500/15 text-teal-600 dark:text-teal-400 hover:bg-teal-500/10'}"
+      title={$_("page__my_tasks")}
+    >
+      <UserCheck size={20} />
+    </button>
 
     <div
       class="h-8 w-px bg-gray-200 dark:bg-gray-700 mx-1 hidden md:block"
@@ -127,6 +110,7 @@
     <button
       on:click={openProjectManager}
       class="flex items-center gap-2 px-4 h-12 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-400 font-bold text-[11px] uppercase tracking-widest transition-all shadow-sm hover:text-primary whitespace-nowrap"
+      title={$_("page__projects")}
     >
       <Folder size={16} />
       <span class="hidden lg:inline">{$_("page__projects")}</span>
@@ -135,6 +119,7 @@
     <button
       on:click={openSprintManager}
       class="flex items-center gap-2 px-4 h-12 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-400 font-bold text-[11px] uppercase tracking-widest transition-all shadow-sm hover:text-amber-500 whitespace-nowrap"
+      title={$_("page__sprint")}
     >
       <Flag size={16} />
       <span class="hidden lg:inline">{$_("page__sprint")}</span>
@@ -143,6 +128,7 @@
     <button
       on:click={openMonthlySummary}
       class="flex items-center gap-2 px-4 h-12 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-400 font-bold text-[11px] uppercase tracking-widest transition-all shadow-sm hover:text-purple-500 whitespace-nowrap"
+      title={$_("page__summary_30_days")}
     >
       <CalendarDays size={16} />
       <span class="hidden lg:inline">{$_("page__summary_30_days")}</span>
@@ -151,6 +137,7 @@
     <button
       on:click={openDailyReflect}
       class="flex items-center gap-2 px-4 h-12 bg-blue-500/5 border border-blue-500/10 rounded-xl hover:bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold text-[11px] uppercase tracking-widest transition-all shadow-sm whitespace-nowrap"
+      title={$_("dailyReflect__btn_open")}
     >
       <MessageSquareQuote size={16} />
       <span class="hidden lg:inline">{$_("dailyReflect__btn_open")}</span>
@@ -166,19 +153,5 @@
         <span class="hidden lg:inline">{$_("milestone.btn_countdown")}</span>
       </button>
     {/if}
-
-    <ExportImport
-      showImport={isOwner}
-      {videoExportState}
-      on:exportCSV={handleExportCSV}
-      on:exportPDF={handleExportPDF}
-      on:exportPNG={() => {}}
-      on:exportMarkdown={handleExportMarkdown}
-      on:exportVideo={handleExportVideo}
-      on:exportSlide={handleExportSlide}
-      on:exportDatabase={handleExportDatabase}
-      on:importCSV={handleImportCSV}
-      height="h-12"
-    />
   </div>
 </div>

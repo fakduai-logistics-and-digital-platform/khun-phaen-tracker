@@ -54,6 +54,8 @@
   ): string {
     if (isArchived) return "bg-gray-200/50 text-gray-500 border-gray-300/30";
     switch (status) {
+      case "pending":
+        return "bg-slate-100/70 text-slate-600 border-slate-300/40";
       case "todo":
         return "bg-warning/10 text-warning border-warning/30";
       case "in-progress":
@@ -71,6 +73,8 @@
   ): string {
     if (isArchived) return $_("taskList__archived");
     switch (status) {
+      case "pending":
+        return $_("taskList__status_pending");
       case "todo":
         return $_("taskList__status_todo");
       case "in-progress":

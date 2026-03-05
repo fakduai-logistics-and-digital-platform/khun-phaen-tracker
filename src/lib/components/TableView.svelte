@@ -186,6 +186,8 @@
 
   function getStatusIcon(status: Task["status"]) {
     switch (status) {
+      case "pending":
+        return Circle;
       case "done":
         return CheckCircle2;
       case "in-progress":
@@ -201,6 +203,8 @@
     if (isArchived)
       return "text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700/50";
     switch (status) {
+      case "pending":
+        return "text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-900/30";
       case "done":
         return "text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20";
       case "in-progress":
@@ -215,6 +219,8 @@
   function getStatusLabel(status: Task["status"], isArchived: boolean = false) {
     if (isArchived) return $_("taskList__archived");
     switch (status) {
+      case "pending":
+        return $_("page__filter_status_pending");
       case "in-progress":
         return $_("page__filter_status_in_progress");
       case "in-test":
@@ -228,6 +234,8 @@
 
   function nextStatus(status: Task["status"]): Task["status"] {
     switch (status) {
+      case "pending":
+        return "todo";
       case "todo":
         return "in-progress";
       case "in-progress":
@@ -235,12 +243,14 @@
       case "in-test":
         return "done";
       case "done":
-        return "todo";
+        return "pending";
     }
   }
 
   function getStatusShort(status: Task["status"]): string {
     switch (status) {
+      case "pending":
+        return $_("tableView__status_short_pending");
       case "in-progress":
         return $_("tableView__status_short_in_progress");
       case "in-test":

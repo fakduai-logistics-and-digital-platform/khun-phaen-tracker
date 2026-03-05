@@ -822,7 +822,9 @@ export async function getCategories(): Promise<string[]> {
 
 export function getStatsFromTasks(tasks: Task[]) {
   const total = tasks.length;
-  const todo = tasks.filter((t: Task) => t.status === "todo").length;
+  const todo = tasks.filter(
+    (t: Task) => t.status === "todo" || t.status === "pending",
+  ).length;
   const in_progress = tasks.filter(
     (t: Task) => t.status === "in-progress",
   ).length;

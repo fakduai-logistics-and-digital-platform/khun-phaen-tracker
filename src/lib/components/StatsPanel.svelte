@@ -1,9 +1,11 @@
 <script lang="ts">
+	import { createEventDispatcher } from 'svelte';
 	import { 
 		CheckCircle2, Circle, Loader2, Calendar, FlaskConical, LayoutTemplate, ArrowLeft,
 		Briefcase, Code2, Rocket, Zap, Heart, Target, Globe, Book, Camera, Coffee, Music, Smile
 	} from 'lucide-svelte';
 	import { currentWorkspaceName, currentWorkspaceColor, currentWorkspaceIcon } from '$lib/stores/workspace';
+	import ExportImport from '$lib/components/ExportImport.svelte';
 	import { _ } from 'svelte-i18n';
 	import { base } from '$app/paths';
 
@@ -27,6 +29,10 @@
 		return ICON_MAP[key || 'LayoutTemplate'] || LayoutTemplate;
 	}
 
+	const dispatch = createEventDispatcher();
+
+	export let isOwner: boolean = false;
+	export let videoExportState: any = null;
 	export let stats: {
 		total: number;
 		todo: number;
@@ -38,19 +44,35 @@
 </script>
 
 {#if $currentWorkspaceName}
-	<div 
-		class="mb-2 inline-flex items-center rounded-xl border px-3 py-1.5 gap-2"
-		style="background-color: {$currentWorkspaceColor ? $currentWorkspaceColor + '1a' : '#6366f11a'}; border-color: {$currentWorkspaceColor ? $currentWorkspaceColor + '4d' : '#6366f14d'}"
-	>
-		<div style="color: {$currentWorkspaceColor || '#6366f1'}">
-			<svelte:component this={getIcon($currentWorkspaceIcon)} size={12} />
-		</div>
-		<p 
-			class="max-w-[70vw] truncate text-xs font-black uppercase tracking-wider"
-			style="color: {$currentWorkspaceColor || '#6366f1'}"
+	<div class="mb-2 flex flex-wrap items-center gap-2">
+		<div 
+			class="inline-flex items-center rounded-xl border px-3 h-8 gap-2"
+			style="background-color: {$currentWorkspaceColor ? $currentWorkspaceColor + '1a' : '#6366f11a'}; border-color: {$currentWorkspaceColor ? $currentWorkspaceColor + '4d' : '#6366f14d'}"
 		>
-			{$currentWorkspaceName}
-		</p>
+			<div style="color: {$currentWorkspaceColor || '#6366f1'}">
+				<svelte:component this={getIcon($currentWorkspaceIcon)} size={12} />
+			</div>
+			<p 
+				class="max-w-[70vw] truncate text-xs font-black uppercase tracking-wider"
+				style="color: {$currentWorkspaceColor || '#6366f1'}"
+			>
+				{$currentWorkspaceName}
+			</p>
+		</div>
+
+		<ExportImport
+			showImport={isOwner}
+			{videoExportState}
+			height="h-8"
+			on:exportCSV={() => dispatch('exportCSV')}
+			on:exportPDF={() => dispatch('exportPDF')}
+			on:exportPNG={() => dispatch('exportPNG')}
+			on:exportMarkdown={(e) => dispatch('exportMarkdown', e.detail)}
+			on:exportVideo={(e) => dispatch('exportVideo', e.detail)}
+			on:exportSlide={(e) => dispatch('exportSlide', e.detail)}
+			on:exportDatabase={(e) => dispatch('exportDatabase', e.detail)}
+			on:importCSV={(e) => dispatch('importCSV', e.detail)}
+		/>
 	</div>
 {/if}
 

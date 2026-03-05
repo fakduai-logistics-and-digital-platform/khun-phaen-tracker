@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { _ } from 'svelte-i18n';
 	import type { Sprint } from '$lib/stores/sprintStore';
 
 	export let sprints: Sprint[] = [];
@@ -37,12 +38,12 @@
 	$: selectedLabel = getSelectedLabel(value, sprints);
 
 	function getSelectedLabel(val: string | number | 'all' | null, sprintList: Sprint[]): string {
-		if (val === 'all') return formMode ? '-- ไม่ระบุ --' : 'ทั้งหมด';
-		if (val === null) return formMode ? '-- ไม่ระบุ --' : 'ไม่มี Sprint';
+		if (val === 'all') return formMode ? $_('page__filter_sprint_unspecified') : $_('page__filter_sprint_all');
+		if (val === null) return formMode ? $_('page__filter_sprint_unspecified') : $_('page__filter_sprint_none');
 		const sprint = sprintList.find(s => String(s.id) === String(val));
-		if (!sprint) return formMode ? '-- ไม่ระบุ --' : 'ทั้งหมด';
-		const statusText = sprint.status === 'active' ? ' (กำลังทำ)' : 
-			sprint.status === 'completed' ? ' (เสร็จสิ้น)' : '';
+		if (!sprint) return formMode ? $_('page__filter_sprint_unspecified') : $_('page__filter_sprint_all');
+		const statusText = sprint.status === 'active' ? ` (${$_('page__filter_sprint_status_active')})` : 
+			sprint.status === 'completed' ? ` (${$_('page__filter_sprint_status_completed')})` : '';
 		return sprint.name + statusText;
 	}
 
@@ -103,7 +104,7 @@
 						type="text"
 						bind:this={searchInputRef}
 						bind:value={searchQuery}
-						placeholder="ค้นหา Sprint..."
+						placeholder={$_('page__filter_sprint_search_placeholder')}
 						class="w-full h-9 pl-9 pr-3 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
 					/>
 				</div>
@@ -118,7 +119,7 @@
 						class="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 {value === 'all' ? 'bg-primary/10 text-primary font-medium' : 'text-gray-900 dark:text-gray-100'}"
 						on:click={() => selectSprint('all')}
 					>
-						ทั้งหมด
+						{$_('page__filter_sprint_all')}
 					</button>
 				{/if}
 				<button
@@ -126,7 +127,7 @@
 					class="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 {value === null ? 'bg-primary/10 text-primary font-medium' : 'text-gray-900 dark:text-gray-100'}"
 					on:click={() => selectSprint(null)}
 				>
-					{formMode ? '-- ไม่ระบุ --' : 'ไม่มี Sprint'}
+					{formMode ? $_('page__filter_sprint_unspecified') : $_('page__filter_sprint_none')}
 				</button>
 
 				<div class="border-t border-gray-200 dark:border-gray-700 my-1"></div>
@@ -134,7 +135,7 @@
 				<!-- Sprint options -->
 				{#if displaySprints.length === 0}
 					<div class="px-4 py-3 text-sm text-gray-500 text-center">
-						ไม่พบ Sprint
+						{$_('page__filter_sprint_not_found')}
 					</div>
 				{:else}
 					{#each displaySprints as sprint}
@@ -145,18 +146,18 @@
 						>
 							<span class="truncate flex-1">{sprint.name}</span>
 							{#if sprint.status === 'active'}
-								<span class="shrink-0 px-2 py-0.5 text-xs bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 rounded-full">กำลังทำ</span>
+								<span class="shrink-0 px-2 py-0.5 text-xs bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 rounded-full">{$_('page__filter_sprint_status_active')}</span>
 							{:else if sprint.status === 'completed'}
-								<span class="shrink-0 px-2 py-0.5 text-xs bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 rounded-full">เสร็จสิ้น</span>
+								<span class="shrink-0 px-2 py-0.5 text-xs bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 rounded-full">{$_('page__filter_sprint_status_completed')}</span>
 							{:else}
-								<span class="shrink-0 px-2 py-0.5 text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 rounded-full">วางแผน</span>
+								<span class="shrink-0 px-2 py-0.5 text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 rounded-full">{$_('page__filter_sprint_status_planned')}</span>
 							{/if}
 						</button>
 					{/each}
 
 					{#if hasMore}
 						<div class="px-4 py-2 text-xs text-gray-500 text-center border-t border-gray-200 dark:border-gray-700">
-							พิมพ์เพื่อค้นหา Sprint อื่นๆ ({filteredSprints.length - 5} รายการ)
+							{$_('page__filter_sprint_search_more', { values: { count: filteredSprints.length - 5 } })}
 						</div>
 					{/if}
 				{/if}

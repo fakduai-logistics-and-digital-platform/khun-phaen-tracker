@@ -145,7 +145,7 @@
         const row = map.get(key)!;
         row.total += 1;
         row.totalMinutes += task.duration_minutes || 0;
-        if (task.status === "todo") row.todo += 1;
+        if (task.status === "todo" || task.status === "pending") row.todo += 1;
         if (task.status === "in-progress") row.inProgress += 1;
         if (task.status === "in-test") row.inTest += 1;
         if (task.status === "done") row.done += 1;

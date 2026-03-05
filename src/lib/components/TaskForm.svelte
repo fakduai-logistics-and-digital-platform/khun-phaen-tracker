@@ -1269,6 +1269,41 @@
                   </div>
                 </div>
 
+                <div>
+                  <label
+                    for="status"
+                    class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-1"
+                    ><CheckCircle size={14} />{$_("taskForm__status_label")}</label
+                  >
+                  <SearchableSelect
+                    id="status"
+                    bind:value={status}
+                    options={[
+                      {
+                        value: "pending",
+                        label: $_("taskForm__status_pending"),
+                      },
+                      {
+                        value: "todo",
+                        label: $_("taskForm__status_todo"),
+                      },
+                      {
+                        value: "in-progress",
+                        label: $_("taskForm__status_in_progress"),
+                      },
+                      {
+                        value: "in-test",
+                        label: $_("taskForm__status_in_test"),
+                      },
+                      {
+                        value: "done",
+                        label: $_("taskForm__status_done"),
+                      },
+                    ]}
+                    showSearch={false}
+                  />
+                </div>
+
                 <AssigneeSelector
                   {assignees}
                   {assigneeGroups}
