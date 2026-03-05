@@ -45,7 +45,16 @@
 </script>
 
 {#if $currentWorkspaceName}
-	<div class="mb-2 flex flex-wrap items-center gap-2">
+	<div class="mb-2">
+		<a 
+			href="{base}/dashboard" 
+			class="mb-2 inline-flex h-8 items-center gap-1.5 rounded-xl border border-gray-200 bg-gray-50 px-3 text-[10px] font-black uppercase tracking-widest text-gray-700 shadow-sm transition-colors hover:bg-gray-100 dark:border-gray-700/40 dark:bg-gray-800/50 dark:text-gray-200 dark:hover:bg-gray-800"
+		>
+			<ArrowLeft size={14} />
+			{$_('statsPanel__switch_workspace')}
+		</a>
+
+		<div class="flex flex-wrap items-center gap-2">
 		<div 
 			class="inline-flex items-center rounded-xl border px-3 h-8 gap-2"
 			style="background-color: {$currentWorkspaceColor ? $currentWorkspaceColor + '1a' : '#6366f11a'}; border-color: {$currentWorkspaceColor ? $currentWorkspaceColor + '4d' : '#6366f14d'}"
@@ -74,10 +83,11 @@
 			on:exportDatabase={(e) => dispatch('exportDatabase', e.detail)}
 			on:importCSV={(e) => dispatch('importCSV', e.detail)}
 		/>
+		</div>
 	</div>
 {/if}
 
-<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
+<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
 	<!-- Total Tasks -->
 	<div class="bg-gray-50 dark:bg-gray-800/40 p-5 rounded-2xl border border-gray-200 dark:border-gray-700/30 backdrop-blur-md transition-all group shadow-sm">
 		<div class="flex items-start justify-between">
@@ -156,30 +166,4 @@
 		</div>
 	</div>
 
-	<!-- Workspace Card -->
-	<div class="bg-gray-50 dark:bg-gray-800/40 p-4 rounded-2xl border border-gray-200 dark:border-gray-700/30 backdrop-blur-md transition-all group shadow-sm">
-		<div class="flex items-start justify-between">
-			<div class="min-w-0">
-				<p class="text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-1 opacity-70">{$_('statsPanel__workspace')}</p>
-				<h3 class="text-lg font-black text-gray-900 dark:text-white leading-tight truncate">
-					{$currentWorkspaceName || 'Workspace'}
-				</h3>
-				
-				<a 
-					href="{base}/dashboard" 
-					class="mt-2 flex items-center gap-1.5 text-[10px] font-black transition-colors uppercase tracking-widest"
-					style="color: {$currentWorkspaceColor || '#6366f1'}"
-				>
-					<ArrowLeft size={14} />
-					{$_('statsPanel__switch_workspace')}
-				</a>
-			</div>
-			<div 
-				class="p-3 rounded-xl"
-				style="background-color: {$currentWorkspaceColor ? $currentWorkspaceColor + '1a' : '#6366f11a'}; color: {$currentWorkspaceColor || '#6366f1'}"
-			>
-				<svelte:component this={getIcon($currentWorkspaceIcon)} size={24} />
-			</div>
-		</div>
-	</div>
 </div>

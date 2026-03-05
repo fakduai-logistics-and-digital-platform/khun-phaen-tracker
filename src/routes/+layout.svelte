@@ -57,13 +57,14 @@
   let scrollY = 0;
   let showHeader = true;
   let isNavbarLocked = true;
+  const TOP_SCROLL_THRESHOLD = 4;
 
   $: {
     if (isNavbarLocked) {
       showHeader = true;
     } else {
-      // Auto-hide when unlocked: only show when user is near the top.
-      showHeader = scrollY < 20;
+      // When unlocked, show navbar only at the very top of the page.
+      showHeader = scrollY <= TOP_SCROLL_THRESHOLD;
     }
   }
 
@@ -306,7 +307,7 @@
     </main>
   {:else}
     <header
-      class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-999 transition-all duration-300 {showHeader
+      class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 fixed top-0 left-0 right-0 z-999 transition-all duration-300 {showHeader
         ? 'translate-y-0'
         : '-translate-y-full'}"
     >
@@ -625,7 +626,7 @@
       </div>
     </header>
 
-    <main class="{containerWidth} mx-auto py-6 flex-1">
+    <main class="{containerWidth} mx-auto pt-24 pb-6 flex-1">
       <slot />
     </main>
 
