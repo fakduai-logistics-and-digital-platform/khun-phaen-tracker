@@ -40,7 +40,6 @@ export function createTaskActions(deps: TaskActionDeps) {
     event: CustomEvent<Omit<Task, "id" | "created_at">>,
   ) {
     const editingTask = deps.getEditingTask();
-    const isEditing = Boolean(editingTask);
     const oldTasks = deps.getTasks();
     const oldFiltered = deps.getFilteredTasks();
 
@@ -52,15 +51,20 @@ export function createTaskActions(deps: TaskActionDeps) {
         const updatedTask = { ...editingTask, ...event.detail };
         deps.setTasks(
           oldTasks.map((task) =>
-            task.id === editingTask!.id ? updatedTask : task,
+            String(task.id) === String(editingTask!.id) ? updatedTask : task,
           ),
         );
-        deps.setFilteredTasks(deps.getTasks());
+        deps.setFilteredTasks(
+          oldFiltered.map((task) =>
+            String(task.id) === String(editingTask!.id) ? updatedTask : task,
+          ),
+        );
 
         deps.setEditingTask(null); // Clear edit state
 
         await updateTask(editingTask.id!, event.detail);
         deps.notify(deps.t("page__update_task_success"));
+        deps.trackRealtime("update-task");
       } else {
         // Optimistic add with temporary ID
         const tempId = `temp-${Date.now()}`;
@@ -70,14 +74,18 @@ export function createTaskActions(deps: TaskActionDeps) {
           created_at: new Date().toISOString(),
         };
         deps.setTasks([...oldTasks, newTask]);
-        deps.setFilteredTasks(deps.getTasks());
+        deps.setFilteredTasks([...oldFiltered, newTask]);
 
-        await addTask(event.detail);
+        const createdId = await addTask(event.detail);
+        const replaceTempTaskId = (list: Task[]) =>
+          list.map((task) =>
+            String(task.id) === String(tempId) ? { ...task, id: createdId } : task,
+          );
+        deps.setTasks(replaceTempTaskId(deps.getTasks()));
+        deps.setFilteredTasks(replaceTempTaskId(deps.getFilteredTasks()));
         deps.notify(deps.t("page__add_task_success"));
+        deps.trackRealtime("add-task");
       }
-
-      await deps.loadData();
-      deps.trackRealtime(isEditing ? "update-task" : "add-task");
     } catch (e) {
       console.error("❌ handleAddTask failed:", e);
       deps.setTasks(oldTasks);
@@ -239,12 +247,20 @@ export function createTaskActions(deps: TaskActionDeps) {
     const { id, status } = event.detail;
     const oldTasks = deps.getTasks();
     const oldFiltered = deps.getFilteredTasks();
+    const editingTask = deps.getEditingTask();
     deps.setTasks(
       oldTasks.map((task) =>
         String(task.id) === String(id) ? { ...task, status } : task,
       ),
     );
-    deps.setFilteredTasks(deps.getTasks());
+    deps.setFilteredTasks(
+      oldFiltered.map((task) =>
+        String(task.id) === String(id) ? { ...task, status } : task,
+      ),
+    );
+    if (editingTask && String(editingTask.id) === String(id)) {
+      deps.setEditingTask({ ...editingTask, status });
+    }
 
     try {
       await updateTask(id, { status });
@@ -272,7 +288,6 @@ export function createTaskActions(deps: TaskActionDeps) {
 
     try {
       await updateTask(id, { status: newStatus });
-      await deps.loadData();
       deps.trackRealtime("update-task-status");
     } catch (e) {
       deps.setTasks(previousTasks);

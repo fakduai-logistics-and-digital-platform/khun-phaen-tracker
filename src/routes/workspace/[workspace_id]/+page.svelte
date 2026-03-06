@@ -87,6 +87,7 @@
   let milestones: Milestone[] = [];
   let editingMilestone: Milestone | null = null;
   let assigneeGroups: AssigneeGroup[] = [];
+  let suppressTaskAutoOpen = false;
   type SavedMyTasksFilter = {
     enabled: boolean;
     assignee_id: string | number | null;
@@ -123,20 +124,39 @@
     } catch (e) {}
   }
 
+  function openTaskModal(task: Task) {
+    const latestTask =
+      $tasks.find((t) => String(t.id) === String(task?.id)) ||
+      $allTasksIncludingArchived.find((t) => String(t.id) === String(task?.id)) ||
+      task;
+
+    suppressTaskAutoOpen = false;
+    $editingTask = latestTask;
+    uiActions.openModal("form");
+    updateUrlTask(latestTask?.id);
+  }
+
   // Auto-open task from URL
   $: if (browser && !$loadingData && $allTasksIncludingArchived.length > 0) {
     const urlTaskId = $page.url.searchParams.get("task");
-    if (urlTaskId && (!$editingTask || String($editingTask.id) !== urlTaskId)) {
+    if (urlTaskId && !$editingTask && suppressTaskAutoOpen) {
+      // Skip re-open while closing modal and waiting for URL to clear.
+    } else if (
+      urlTaskId &&
+      (!$editingTask || String($editingTask.id) !== urlTaskId)
+    ) {
       const task = $allTasksIncludingArchived.find(
         (t) => String(t.id) === urlTaskId,
       );
       if (task) {
-        $editingTask = task;
-        uiActions.openModal("form");
+        openTaskModal(task);
       }
     } else if (!urlTaskId && $modals.form && $editingTask) {
+      suppressTaskAutoOpen = false;
       uiActions.closeModal("form");
       $editingTask = null;
+    } else if (!urlTaskId) {
+      suppressTaskAutoOpen = false;
     }
   }
 
@@ -245,6 +265,7 @@
   $: sprintManagerTasks = $filteredTasks;
 
   function cancelEdit() {
+    suppressTaskAutoOpen = true;
     $editingTask = null;
     uiActions.closeModal("form");
     updateUrlTask(null);
@@ -380,9 +401,7 @@
       assignees={$assignees}
       on:statusChange={(e) => taskActions.handleStatusChange(e)}
       on:edit={(e) => {
-        $editingTask = e.detail;
-        uiActions.openModal("form");
-        updateUrlTask($editingTask?.id);
+        void openTaskModal(e.detail);
       }}
       on:delete={(e) => taskActions.handleDeleteTask(e)}
       on:dragState={(e) => (isKanbanDragging = e.detail)}
@@ -466,9 +485,7 @@
       toggleTheme={() => theme.toggle()}
       switchView={(v) => viewActions.switchView(v)}
       openTask={(t) => {
-        $editingTask = t;
-        uiActions.openModal("form");
-        updateUrlTask(t.id);
+        void openTaskModal(t);
       }}
       createTask={() => {
         $editingTask = null;
