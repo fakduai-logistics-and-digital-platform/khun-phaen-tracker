@@ -17,6 +17,8 @@
     ChevronRight,
     Loader2,
   } from "lucide-svelte";
+  import CustomDatePicker from "./CustomDatePicker.svelte";
+  import SearchableSelect from "./SearchableSelect.svelte";
   import ConfirmModal from "./ConfirmModal.svelte";
   import type { Milestone, CreateMilestoneRequest } from "$lib/types/milestone";
   import { api } from "$lib/apis";
@@ -63,6 +65,8 @@
   const minutes = Array.from({ length: 12 }, (_, i) =>
     String(i * 5).padStart(2, "0"),
   );
+  $: hourOptions = hours.map((h) => ({ value: h, label: h }));
+  $: minuteOptions = minutes.map((m) => ({ value: m, label: m }));
 
   onMount(fetchMilestones);
 
@@ -308,11 +312,10 @@
                 >
                   <Calendar size={14} />{$_("milestone.form_date")}
                 </label>
-                <input
+                <CustomDatePicker
                   id="date"
-                  type="date"
                   bind:value={targetDate}
-                  class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none dark:bg-gray-700 dark:text-white"
+                  placeholder={$_("taskForm__due_date_placeholder")}
                 />
               </div>
 
@@ -324,24 +327,22 @@
                   <Clock size={14} />{$_("milestone.form_time")}
                 </label>
                 <div class="flex items-center gap-2">
-                  <select
+                  <div class="flex-1">
+                    <SearchableSelect
                     id="target-hour"
                     bind:value={targetHour}
-                    class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none dark:bg-gray-700 dark:text-white appearance-none cursor-pointer"
-                  >
-                    {#each hours as h}
-                      <option value={h}>{h}</option>
-                    {/each}
-                  </select>
+                    options={hourOptions}
+                    showSearch={false}
+                  />
+                  </div>
                   <span class="text-lg font-bold text-gray-400">:</span>
-                  <select
+                  <div class="flex-1">
+                    <SearchableSelect
                     bind:value={targetMinute}
-                    class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none dark:bg-gray-700 dark:text-white appearance-none cursor-pointer text-center"
-                  >
-                    {#each minutes as m}
-                      <option value={m}>{m}</option>
-                    {/each}
-                  </select>
+                    options={minuteOptions}
+                    showSearch={false}
+                  />
+                  </div>
                 </div>
               </div>
             </div>

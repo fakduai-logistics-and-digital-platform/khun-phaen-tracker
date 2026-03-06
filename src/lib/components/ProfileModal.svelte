@@ -150,7 +150,7 @@
                                         id="firstName"
                                         bind:value={firstName}
                                         class="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all shadow-sm"
-                                        placeholder="John"
+                                        placeholder={$_('profileModal__first_name_placeholder')}
                                     />
                                 </div>
 							</div>
@@ -169,7 +169,7 @@
                                         id="lastName"
                                         bind:value={lastName}
                                         class="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all shadow-sm"
-                                        placeholder="Doe"
+                                        placeholder={$_('profileModal__last_name_placeholder')}
                                     />
                                 </div>
 							</div>
@@ -190,7 +190,7 @@
                                         id="nickname"
                                         bind:value={nickname}
                                         class="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all shadow-sm"
-                                        placeholder="Johnny"
+                                        placeholder={$_('profileModal__nickname_placeholder')}
                                     />
                                 </div>
 							</div>
@@ -209,7 +209,7 @@
                                         id="position"
                                         bind:value={position}
                                         class="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all shadow-sm"
-                                        placeholder="Developer"
+                                        placeholder={$_('profileModal__position_placeholder')}
                                     />
                                 </div>
 							</div>
@@ -232,7 +232,7 @@
                                     id="discordId"
                                     bind:value={discordId}
                                     class="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all shadow-sm"
-                                    placeholder="user#1234"
+                                    placeholder={$_('profileModal__discord_id_placeholder')}
                                 />
                             </div>
 						</div>
