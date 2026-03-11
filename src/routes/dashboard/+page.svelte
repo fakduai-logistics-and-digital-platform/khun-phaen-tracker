@@ -517,13 +517,39 @@
             </p>
           </div>
 
-          <button
-            on:click={() => (showCreateModal = true)}
-            class="inline-flex items-center justify-center gap-2 rounded-2xl border border-indigo-500/20 bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-[0_14px_30px_rgba(79,70,229,0.28)] ring-1 ring-indigo-500/40 transition-all hover:bg-indigo-500 active:scale-95 dark:border-indigo-400/20 dark:bg-indigo-500 dark:ring-indigo-400/30 dark:hover:bg-indigo-400"
-          >
-            <Plus size={18} />
-            {$_("dashboard__btn_create")}
-          </button>
+          <div class="flex w-full flex-col gap-3 sm:w-auto sm:min-w-[300px]">
+            <button
+              type="button"
+              on:click={() => enterWorkspace(myTasksHub)}
+              class="inline-flex w-full items-center justify-between gap-3 rounded-2xl border border-teal-200 bg-white px-4 py-3 text-sm font-semibold text-teal-950 shadow-[0_10px_24px_rgba(15,118,110,0.08)] transition-all hover:-translate-y-0.5 hover:border-teal-300 hover:bg-teal-50 active:scale-95 dark:border-teal-400/20 dark:bg-teal-500/10 dark:text-teal-100 dark:shadow-[0_14px_30px_rgba(13,148,136,0.12)] dark:hover:bg-teal-500/15 dark:hover:text-white"
+            >
+              <div class="flex items-center gap-3">
+                <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-teal-100 text-teal-700 dark:bg-teal-400/12 dark:text-teal-200">
+                  <Target size={17} />
+                </div>
+                <span class="truncate text-sm font-semibold">
+                  {$_("dashboard__hub_name")}
+                </span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="rounded-full bg-teal-100 px-2.5 py-1 text-xs font-bold text-teal-700 dark:bg-teal-400/14 dark:text-teal-100/90">
+                  {workspaceTaskCounts[MY_TASKS_WORKSPACE_ID] ?? 0}
+                </span>
+                <ArrowRight
+                  size={16}
+                  class="text-teal-700 dark:text-teal-100/80"
+                />
+              </div>
+            </button>
+
+            <button
+              on:click={() => (showCreateModal = true)}
+              class="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-indigo-300 bg-[linear-gradient(135deg,_#635bff,_#4f46e5)] px-4 py-3 text-sm font-semibold text-white shadow-[0_14px_30px_rgba(99,91,255,0.24)] transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_34px_rgba(99,91,255,0.30)] active:scale-95 dark:border-indigo-400/20 dark:bg-indigo-500 dark:ring-indigo-400/30 dark:hover:bg-indigo-400"
+            >
+              <Plus size={18} />
+              {$_("dashboard__btn_create")}
+            </button>
+          </div>
         </div>
 
         <div class="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -582,69 +608,6 @@
         </div>
       </div>
     </header>
-
-    <button
-      type="button"
-      on:click={() => enterWorkspace(myTasksHub)}
-      class="group relative w-full overflow-hidden rounded-[30px] border border-teal-300/35 bg-[radial-gradient(circle_at_top_right,_rgba(45,212,191,0.16),_transparent_30%),linear-gradient(135deg,_rgba(6,78,59,0.98),_rgba(8,80,73,0.92)_45%,_rgba(15,118,110,0.88))] px-5 py-5 text-left shadow-[0_18px_45px_rgba(13,148,136,0.14)] transition-all hover:-translate-y-0.5 hover:shadow-[0_24px_55px_rgba(13,148,136,0.22)] sm:px-6 sm:py-6"
-    >
-      <div class="absolute inset-y-0 right-0 w-40 bg-[radial-gradient(circle_at_center,_rgba(94,234,212,0.22),_transparent_68%)] opacity-80 blur-2xl"></div>
-      <div class="relative flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
-        <div class="min-w-0 flex-1">
-          <p class="text-[11px] font-black uppercase tracking-[0.32em] text-teal-100/70">
-            {$_("dashboard__hub_eyebrow")}
-          </p>
-          <div class="mt-3 flex items-start gap-3 sm:gap-4">
-            <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/10 text-teal-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:h-14 sm:w-14">
-              <Target size={24} />
-            </div>
-            <div class="min-w-0">
-              <h2 class="text-[28px] font-black leading-none tracking-tight text-white sm:text-[32px]">
-                {$_("dashboard__hub_name")}
-              </h2>
-              <p class="mt-2 max-w-2xl text-sm leading-6 text-teal-50/82 sm:text-[15px]">
-                {$_("dashboard__hub_desc")}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div class="flex w-full max-w-[260px] flex-col gap-3 xl:w-auto">
-          <div class="rounded-[24px] border border-white/10 bg-slate-950/22 px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-sm">
-            <p class="text-[10px] font-black uppercase tracking-[0.34em] text-teal-100/58">
-              {$_("dashboard__hub_active_tasks")}
-            </p>
-            <div class="mt-2 flex items-end gap-2">
-              <p class="text-4xl font-black leading-none tracking-tight text-white">
-                {workspaceTaskCounts[MY_TASKS_WORKSPACE_ID] ?? 0}
-              </p>
-              <span class="pb-1 text-xs font-semibold uppercase tracking-[0.2em] text-teal-100/60">
-                {$_("dashboard__hub_items")}
-              </span>
-            </div>
-          </div>
-          <div class="relative">
-            <div class="absolute inset-0 rounded-[22px] bg-white/10 opacity-0 blur-xl transition-all duration-300 group-hover:opacity-100"></div>
-            <div class="relative inline-flex h-14 w-full items-center justify-between rounded-[22px] border border-white/12 bg-[linear-gradient(135deg,_rgba(255,255,255,0.16),_rgba(255,255,255,0.08))] px-4 text-white shadow-[0_10px_30px_rgba(0,0,0,0.14),inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-md transition-all duration-300 group-hover:-translate-y-0.5 group-hover:border-white/18 group-hover:bg-[linear-gradient(135deg,_rgba(255,255,255,0.22),_rgba(255,255,255,0.10))]">
-              <div class="flex flex-col">
-                <span class="text-[10px] font-black uppercase tracking-[0.28em] text-teal-50/65">
-                  {$_("dashboard__hub_open_label")}
-                </span>
-                <span class="mt-0.5 text-sm font-bold tracking-wide">
-                  {$_("dashboard__hub_open_name")}
-                </span>
-              </div>
-              <div class="flex h-9 w-9 items-center justify-center rounded-full border border-white/12 bg-white/10 transition-all duration-300 group-hover:bg-white/16">
-                <ArrowRight
-                  size={18}
-                  class="transition-all duration-300 group-hover:translate-x-0.5"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </button>
 
     {#if loading || $authLoading}
       <div
