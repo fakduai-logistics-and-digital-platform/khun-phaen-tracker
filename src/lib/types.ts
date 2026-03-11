@@ -41,6 +41,11 @@ export interface ChecklistItem {
 
 export interface Task {
   id?: string | number;
+  workspace_id?: string;
+  workspace_name?: string;
+  workspace_short_name?: string;
+  workspace_color?: string;
+  workspace_icon?: string;
   title: string;
   task_number?: number;
   project?: string; // ชื่อโปรเจกต์

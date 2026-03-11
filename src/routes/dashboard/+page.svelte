@@ -7,7 +7,10 @@
   import { user, authLoading } from "$lib/stores/auth";
   import { _ } from "$lib/i18n";
   import { api } from "$lib/apis";
-  import { setWorkspaceId } from "$lib/stores/workspace";
+  import {
+    MY_TASKS_WORKSPACE_ID,
+    setWorkspaceId,
+  } from "$lib/stores/workspace";
   import WorkspaceSettings from "$lib/components/WorkspaceSettings.svelte";
   import {
     Plus,
@@ -86,6 +89,16 @@
   let workspaceTaskCounts: Record<string, number | null> = {};
   let showSortDropdown = false;
   let copiedId: string | null = null;
+  const myTasksHub: Workspace = {
+    id: MY_TASKS_WORKSPACE_ID,
+    name: "โฟกัสฮับ",
+    short_name: "FOCUS",
+    room_code: "my-tasks",
+    created_at: new Date().toISOString(),
+    owner_id: "",
+    color: "#0f766e",
+    icon: "Target",
+  };
 
   // Color/Icon options
   const COLORS = [
@@ -359,6 +372,18 @@
   }
 
   function enterWorkspace(workspace: Workspace) {
+    if (workspace.id === MY_TASKS_WORKSPACE_ID) {
+      setWorkspaceId(
+        workspace.id,
+        workspace.name,
+        workspace.owner_id,
+        workspace.color,
+        workspace.icon,
+        workspace.short_name,
+      );
+      goto(`${base}/workspace/${workspace.id}`);
+      return;
+    }
     trackRecent(workspace);
     if (workspace.id) {
       setWorkspaceId(
@@ -557,6 +582,69 @@
         </div>
       </div>
     </header>
+
+    <button
+      type="button"
+      on:click={() => enterWorkspace(myTasksHub)}
+      class="group relative w-full overflow-hidden rounded-[30px] border border-teal-300/35 bg-[radial-gradient(circle_at_top_right,_rgba(45,212,191,0.16),_transparent_30%),linear-gradient(135deg,_rgba(6,78,59,0.98),_rgba(8,80,73,0.92)_45%,_rgba(15,118,110,0.88))] px-5 py-5 text-left shadow-[0_18px_45px_rgba(13,148,136,0.14)] transition-all hover:-translate-y-0.5 hover:shadow-[0_24px_55px_rgba(13,148,136,0.22)] sm:px-6 sm:py-6"
+    >
+      <div class="absolute inset-y-0 right-0 w-40 bg-[radial-gradient(circle_at_center,_rgba(94,234,212,0.22),_transparent_68%)] opacity-80 blur-2xl"></div>
+      <div class="relative flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+        <div class="min-w-0 flex-1">
+          <p class="text-[11px] font-black uppercase tracking-[0.32em] text-teal-100/70">
+            {$_("dashboard__hub_eyebrow")}
+          </p>
+          <div class="mt-3 flex items-start gap-3 sm:gap-4">
+            <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/10 text-teal-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:h-14 sm:w-14">
+              <Target size={24} />
+            </div>
+            <div class="min-w-0">
+              <h2 class="text-[28px] font-black leading-none tracking-tight text-white sm:text-[32px]">
+                {$_("dashboard__hub_name")}
+              </h2>
+              <p class="mt-2 max-w-2xl text-sm leading-6 text-teal-50/82 sm:text-[15px]">
+                {$_("dashboard__hub_desc")}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex w-full max-w-[260px] flex-col gap-3 xl:w-auto">
+          <div class="rounded-[24px] border border-white/10 bg-slate-950/22 px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-sm">
+            <p class="text-[10px] font-black uppercase tracking-[0.34em] text-teal-100/58">
+              {$_("dashboard__hub_active_tasks")}
+            </p>
+            <div class="mt-2 flex items-end gap-2">
+              <p class="text-4xl font-black leading-none tracking-tight text-white">
+                {workspaceTaskCounts[MY_TASKS_WORKSPACE_ID] ?? 0}
+              </p>
+              <span class="pb-1 text-xs font-semibold uppercase tracking-[0.2em] text-teal-100/60">
+                {$_("dashboard__hub_items")}
+              </span>
+            </div>
+          </div>
+          <div class="relative">
+            <div class="absolute inset-0 rounded-[22px] bg-white/10 opacity-0 blur-xl transition-all duration-300 group-hover:opacity-100"></div>
+            <div class="relative inline-flex h-14 w-full items-center justify-between rounded-[22px] border border-white/12 bg-[linear-gradient(135deg,_rgba(255,255,255,0.16),_rgba(255,255,255,0.08))] px-4 text-white shadow-[0_10px_30px_rgba(0,0,0,0.14),inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-md transition-all duration-300 group-hover:-translate-y-0.5 group-hover:border-white/18 group-hover:bg-[linear-gradient(135deg,_rgba(255,255,255,0.22),_rgba(255,255,255,0.10))]">
+              <div class="flex flex-col">
+                <span class="text-[10px] font-black uppercase tracking-[0.28em] text-teal-50/65">
+                  {$_("dashboard__hub_open_label")}
+                </span>
+                <span class="mt-0.5 text-sm font-bold tracking-wide">
+                  {$_("dashboard__hub_open_name")}
+                </span>
+              </div>
+              <div class="flex h-9 w-9 items-center justify-center rounded-full border border-white/12 bg-white/10 transition-all duration-300 group-hover:bg-white/16">
+                <ArrowRight
+                  size={18}
+                  class="transition-all duration-300 group-hover:translate-x-0.5"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </button>
 
     {#if loading || $authLoading}
       <div

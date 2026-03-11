@@ -16,6 +16,13 @@
   export let isFiltersOpen: boolean = false;
   export let isOwner: boolean = false;
   export let isMyTasksActive: boolean = false;
+  export let showTeam: boolean = true;
+  export let showProjects: boolean = true;
+  export let showSprints: boolean = true;
+  export let showSummary: boolean = true;
+  export let showDailyReflect: boolean = true;
+  export let showWorkspaceSettings: boolean = true;
+  export let showMilestones: boolean = true;
 
   const dispatch = createEventDispatcher();
 
@@ -75,15 +82,17 @@
       <Filter size={20} />
     </button>
 
-    <button
-      on:click={openWorkerManager}
-      class="flex items-center justify-center w-12 h-12 shrink-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-all shadow-sm"
-      title={$_("page__team")}
-    >
-      <Users size={20} />
-    </button>
+    {#if showTeam}
+      <button
+        on:click={openWorkerManager}
+        class="flex items-center justify-center w-12 h-12 shrink-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-all shadow-sm"
+        title={$_("page__team")}
+      >
+        <Users size={20} />
+      </button>
+    {/if}
 
-    {#if isOwner}
+    {#if isOwner && showWorkspaceSettings}
       <button
         on:click={openWorkspaceSettings}
         class="flex items-center justify-center w-12 h-12 shrink-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-all shadow-sm"
@@ -107,43 +116,51 @@
       class="h-8 w-px bg-gray-200 dark:bg-gray-700 mx-1 hidden md:block"
     ></div>
 
-    <button
-      on:click={openProjectManager}
-      class="flex items-center gap-2 px-4 h-12 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-400 font-bold text-[11px] uppercase tracking-widest transition-all shadow-sm hover:text-primary whitespace-nowrap"
-      title={$_("page__projects")}
-    >
-      <Folder size={16} />
-      <span class="hidden lg:inline">{$_("page__projects")}</span>
-    </button>
+    {#if showProjects}
+      <button
+        on:click={openProjectManager}
+        class="flex items-center gap-2 px-4 h-12 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-400 font-bold text-[11px] uppercase tracking-widest transition-all shadow-sm hover:text-primary whitespace-nowrap"
+        title={$_("page__projects")}
+      >
+        <Folder size={16} />
+        <span class="hidden lg:inline">{$_("page__projects")}</span>
+      </button>
+    {/if}
 
-    <button
-      on:click={openSprintManager}
-      class="flex items-center gap-2 px-4 h-12 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-400 font-bold text-[11px] uppercase tracking-widest transition-all shadow-sm hover:text-amber-500 whitespace-nowrap"
-      title={$_("page__sprint")}
-    >
-      <Flag size={16} />
-      <span class="hidden lg:inline">{$_("page__sprint")}</span>
-    </button>
+    {#if showSprints}
+      <button
+        on:click={openSprintManager}
+        class="flex items-center gap-2 px-4 h-12 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-400 font-bold text-[11px] uppercase tracking-widest transition-all shadow-sm hover:text-amber-500 whitespace-nowrap"
+        title={$_("page__sprint")}
+      >
+        <Flag size={16} />
+        <span class="hidden lg:inline">{$_("page__sprint")}</span>
+      </button>
+    {/if}
 
-    <button
-      on:click={openMonthlySummary}
-      class="flex items-center gap-2 px-4 h-12 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-400 font-bold text-[11px] uppercase tracking-widest transition-all shadow-sm hover:text-purple-500 whitespace-nowrap"
-      title={$_("page__summary_30_days")}
-    >
-      <CalendarDays size={16} />
-      <span class="hidden lg:inline">{$_("page__summary_30_days")}</span>
-    </button>
+    {#if showSummary}
+      <button
+        on:click={openMonthlySummary}
+        class="flex items-center gap-2 px-4 h-12 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-400 font-bold text-[11px] uppercase tracking-widest transition-all shadow-sm hover:text-purple-500 whitespace-nowrap"
+        title={$_("page__summary_30_days")}
+      >
+        <CalendarDays size={16} />
+        <span class="hidden lg:inline">{$_("page__summary_30_days")}</span>
+      </button>
+    {/if}
 
-    <button
-      on:click={openDailyReflect}
-      class="flex items-center gap-2 px-4 h-12 bg-blue-500/5 border border-blue-500/10 rounded-xl hover:bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold text-[11px] uppercase tracking-widest transition-all shadow-sm whitespace-nowrap"
-      title={$_("dailyReflect__btn_open")}
-    >
-      <MessageSquareQuote size={16} />
-      <span class="hidden lg:inline">{$_("dailyReflect__btn_open")}</span>
-    </button>
+    {#if showDailyReflect}
+      <button
+        on:click={openDailyReflect}
+        class="flex items-center gap-2 px-4 h-12 bg-blue-500/5 border border-blue-500/10 rounded-xl hover:bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold text-[11px] uppercase tracking-widest transition-all shadow-sm whitespace-nowrap"
+        title={$_("dailyReflect__btn_open")}
+      >
+        <MessageSquareQuote size={16} />
+        <span class="hidden lg:inline">{$_("dailyReflect__btn_open")}</span>
+      </button>
+    {/if}
 
-    {#if isOwner}
+    {#if isOwner && showMilestones}
       <button
         on:click={openMilestoneManager}
         class="flex items-center gap-2 px-4 h-12 bg-indigo-500/5 border border-indigo-500/10 rounded-xl hover:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-bold text-[11px] uppercase tracking-widest transition-all shadow-sm whitespace-nowrap"

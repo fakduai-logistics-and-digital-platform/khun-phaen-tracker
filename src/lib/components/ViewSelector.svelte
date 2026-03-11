@@ -17,6 +17,8 @@
   export let currentView: string;
   export let visibleTabs: { id: TabId; icon: string }[] = [];
   export let isTabSettingsOpen: boolean = false;
+  export let showAddTask: boolean = true;
+  export let hiddenTabIds: TabId[] = [];
 
   const dispatch = createEventDispatcher();
 
@@ -38,7 +40,7 @@
 </script>
 
 <div
-  class="relative z-20 flex flex-col lg:flex-row gap-3 items-center bg-white/50 dark:bg-gray-900/30 p-2 rounded-2xl border border-gray-200/50 dark:border-gray-800/50 backdrop-blur-sm shadow-sm transition-all"
+  class="relative z-40 flex flex-col lg:flex-row gap-3 items-center overflow-visible bg-white/50 dark:bg-gray-900/30 p-2 rounded-2xl border border-gray-200/50 dark:border-gray-800/50 backdrop-blur-sm shadow-sm transition-all"
 >
   <div
     class="flex-1 flex p-1 bg-gray-200/80 dark:bg-gray-800/80 rounded-xl transition-all w-full overflow-x-auto scrollbar-none"
@@ -89,18 +91,24 @@
 
     {#if isTabSettingsOpen}
       <div
-        class="absolute top-[calc(100%+1rem)] right-0 z-30 animate-fade-in origin-top-right"
+        class="absolute top-[calc(100%+1rem)] right-0 z-[120] animate-fade-in origin-top-right"
       >
-        <TabSettings on:close={closeTabSettings} on:save={closeTabSettings} />
+        <TabSettings
+          {hiddenTabIds}
+          on:close={closeTabSettings}
+          on:save={closeTabSettings}
+        />
       </div>
     {/if}
 
-    <button
-      on:click={handleAddTask}
-      class="flex-1 lg:flex-none flex items-center justify-center gap-3 px-6 h-12 bg-primary hover:bg-primary-dark text-white rounded-xl font-black uppercase tracking-widest transition-all shadow-sm ring-1 ring-white/5 text-sm whitespace-nowrap active:scale-95"
-    >
-      <Plus size={22} strokeWidth={3} />
-      <span>{$_("page__add_task")}</span>
-    </button>
+    {#if showAddTask}
+      <button
+        on:click={handleAddTask}
+        class="flex-1 lg:flex-none flex items-center justify-center gap-3 px-6 h-12 bg-primary hover:bg-primary-dark text-white rounded-xl font-black uppercase tracking-widest transition-all shadow-sm ring-1 ring-white/5 text-sm whitespace-nowrap active:scale-95"
+      >
+        <Plus size={22} strokeWidth={3} />
+        <span>{$_("page__add_task")}</span>
+      </button>
+    {/if}
   </div>
 </div>

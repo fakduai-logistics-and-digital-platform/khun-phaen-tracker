@@ -76,10 +76,10 @@
 								<div class="flex h-7 w-7 items-center justify-center rounded-xl bg-white/65 dark:bg-white/10" style="color: {$currentWorkspaceColor || '#6366f1'}">
 									<svelte:component this={getIcon($currentWorkspaceIcon)} size={14} />
 								</div>
-								<div class="min-w-0">
-									<p class="text-[10px] font-black uppercase tracking-[0.28em] text-slate-500 dark:text-slate-300/80">
-										Workspace
-									</p>
+									<div class="min-w-0">
+										<p class="text-[10px] font-black uppercase tracking-[0.28em] text-slate-500 dark:text-slate-300/80">
+											{$_('statsPanel__workspace')}
+										</p>
 									<p 
 										class="max-w-[60vw] truncate text-sm font-black tracking-wide"
 										style="color: {$currentWorkspaceColor || '#4338ca'}"

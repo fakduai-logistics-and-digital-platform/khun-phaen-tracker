@@ -11,6 +11,8 @@
 		save: void;
 	}>();
 
+	export let hiddenTabIds: TabId[] = [];
+
 	// Local copy for editing
 	let editingTabs: TabConfig[] = [];
 	let hasChanges = false;
@@ -22,9 +24,14 @@
 	// Subscribe to get initial values
 	const unsubscribe = tabSettings.subscribe(tabs => {
 		if (editingTabs.length === 0) {
-			editingTabs = [...tabs];
+			editingTabs = tabs.filter((tab) => !hiddenTabIds.includes(tab.id));
 		}
 	});
+
+	$: visibleStoreTabs = $tabSettings.filter((tab) => !hiddenTabIds.includes(tab.id));
+	$: if (editingTabs.length > 0) {
+		editingTabs = editingTabs.filter((tab) => !hiddenTabIds.includes(tab.id));
+	}
 
 	function getIcon(iconName: string) {
 		switch (iconName) {
@@ -125,7 +132,7 @@
 	}
 
 	function handleReset() {
-		editingTabs = [
+		const defaultTabs: TabConfig[] = [
 			{ id: 'list', label: 'list', icon: 'List', enabled: true },
 			{ id: 'calendar', label: 'calendar', icon: 'CalendarDays', enabled: true },
 			{ id: 'kanban', label: 'kanban', icon: 'Columns3', enabled: true },
@@ -133,18 +140,20 @@
 			{ id: 'gantt', label: 'gantt', icon: 'GanttChart', enabled: true },
 			{ id: 'workload', label: 'workload', icon: 'UsersRound', enabled: true }
 		];
+		editingTabs = defaultTabs.filter((tab) => !hiddenTabIds.includes(tab.id));
 		hasChanges = true;
 	}
 
 	function handleSave() {
-		tabSettings.set(editingTabs);
+		const hiddenTabs = $tabSettings.filter((tab) => hiddenTabIds.includes(tab.id));
+		tabSettings.set([...editingTabs, ...hiddenTabs]);
 		hasChanges = false;
 		dispatch('save');
 	}
 
 	function handleCancel() {
 		// Restore from store
-		const current = $tabSettings;
+		const current = visibleStoreTabs;
 		editingTabs = [...current];
 		hasChanges = false;
 		dispatch('close');

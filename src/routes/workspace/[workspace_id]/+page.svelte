@@ -14,6 +14,7 @@
   import { connectRealtime, disconnectRealtime } from "$lib/stores/realtime";
   import { user } from "$lib/stores/auth";
   import {
+    MY_TASKS_WORKSPACE_ID,
     currentWorkspaceOwnerId,
     setWorkspaceId,
   } from "$lib/stores/workspace";
@@ -93,6 +94,7 @@
     assignee_id: string | number | null;
   };
   const MY_TASKS_FILTER_STORAGE_KEY = "workspace-my-tasks-filter";
+  $: isMyTasksWorkspace = $page.params.workspace_id === MY_TASKS_WORKSPACE_ID;
   $: visibleMilestones = milestones.filter((m) => !m.is_hidden);
 
   async function loadAssigneeGroups() {
@@ -106,7 +108,7 @@
 
   async function fetchMilestones() {
     const wsId = $page.params.workspace_id;
-    if (!wsId) return;
+    if (!wsId || wsId === MY_TASKS_WORKSPACE_ID) return;
     try {
       const res = await api.workspaces.getMilestones(wsId);
       if (res.ok) {
@@ -169,13 +171,14 @@
     myAssigneeId !== null &&
     String($filters?.assignee_id) === String(myAssigneeId);
   $: isOwner =
-    $currentWorkspaceOwnerId && $user?.id
+    !isMyTasksWorkspace && $currentWorkspaceOwnerId && $user?.id
       ? $currentWorkspaceOwnerId === $user.id
       : false;
 
   import { tabSettings } from "$lib/stores/tabSettings";
   $: visibleTabs = $tabSettings
     .filter((t) => t.enabled !== false)
+    .filter((t) => !(isMyTasksWorkspace && t.id === "workload"))
     .map((t) => ({ id: t.id, icon: t.icon }));
 
   $: if (browser && $hasAccess && !$checkingAccess && $filters) {
@@ -204,7 +207,28 @@
   onMount(async () => {
     const workspaceId = $page.params.workspace_id;
     const urlRoom = new URLSearchParams(window.location.search).get("room");
-    if (!urlRoom || !workspaceId) return goto(`${base}/dashboard`);
+    if (!workspaceId) return goto(`${base}/dashboard`);
+    if (workspaceId === MY_TASKS_WORKSPACE_ID) {
+      checkingAccess.set(false);
+      hasAccess.set(true);
+      setWorkspaceId(
+        workspaceId,
+        "โฟกัสฮับ",
+        "",
+        "#0f766e",
+        "Target",
+        "FOCUS",
+      );
+      filters.set({ ...restoreFilters([]) });
+      if (get(currentView) === "workload") {
+        currentView.set("table");
+      }
+      await loadAssigneeGroups();
+      initWasmSearch();
+      document.addEventListener("keydown", keyboardHandler);
+      return;
+    }
+    if (!urlRoom) return goto(`${base}/dashboard`);
     try {
       const res = await api.workspaces.checkAccess(urlRoom);
       const data = await res.json();
@@ -347,6 +371,11 @@
       isFiltersOpen={$modals.filters}
       {isOwner}
       {isMyTasksActive}
+      showTeam={!isMyTasksWorkspace}
+      showProjects={!isMyTasksWorkspace}
+      showSprints={!isMyTasksWorkspace}
+      showWorkspaceSettings={!isMyTasksWorkspace}
+      showMilestones={!isMyTasksWorkspace}
       on:toggleFilters={() => uiActions.toggleModal("filters")}
       on:openWorkerManager={() => uiActions.openModal("workerManager")}
       on:openProjectManager={() => uiActions.openModal("projectManager")}
@@ -377,6 +406,8 @@
       currentView={$currentView}
       {visibleTabs}
       isTabSettingsOpen={$modals.tabSettings}
+      showAddTask={!isMyTasksWorkspace}
+      hiddenTabIds={isMyTasksWorkspace ? ["workload"] : []}
       on:switchView={(e) => viewActions.switchView(e.detail)}
       on:toggleTabSettings={() => uiActions.toggleModal("tabSettings")}
       on:closeTabSettings={() => uiActions.closeModal("tabSettings")}
@@ -488,6 +519,7 @@
         void openTaskModal(t);
       }}
       createTask={() => {
+        if (isMyTasksWorkspace) return;
         $editingTask = null;
         uiActions.openModal("form");
         updateUrlTask(null);

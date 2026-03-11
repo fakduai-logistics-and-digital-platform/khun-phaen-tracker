@@ -36,7 +36,10 @@
   import { base } from "$app/paths";
   import { api } from "$lib/apis";
 
-  import { clearWorkspaceId } from "$lib/stores/workspace";
+  import {
+    MY_TASKS_WORKSPACE_ID,
+    clearWorkspaceId,
+  } from "$lib/stores/workspace";
   import { githubStore } from "$lib/stores/github";
 
   let loading = true;
@@ -224,6 +227,9 @@
     $page.url.pathname.includes("/setup-password");
   $: isDashboard = $page.url.pathname.includes("/dashboard");
   $: isWorkspacePage = $page.url.pathname.includes("/workspace/");
+  $: isMyTasksWorkspacePage = $page.url.pathname.includes(
+    `/workspace/${MY_TASKS_WORKSPACE_ID}`,
+  );
   $: isSettingsPage = $page.url.pathname.includes("/settings");
   $: isUsersPage = $page.url.pathname.includes("/settings/users");
   $: isErrorPage = $page.status >= 400;
@@ -242,7 +248,7 @@
       const urlParams = new URLSearchParams(window.location.search);
       const urlRoom = urlParams.get("room");
 
-      if (!urlRoom && isWorkspacePage) {
+      if (!urlRoom && isWorkspacePage && !isMyTasksWorkspacePage) {
         goto(`${base}/dashboard`);
       }
     }

@@ -22,6 +22,7 @@ export const currentWorkspaceOwnerId = writable<string | null>(null);
 export const currentWorkspaceColor = writable<string | null>(null);
 export const currentWorkspaceIcon = writable<string | null>(null);
 export const currentWorkspaceShortName = writable<string | null>(null);
+export const MY_TASKS_WORKSPACE_ID = "__my_tasks__";
 
 const WS_KEY = "current-workspace-id";
 const WS_NAME_KEY = "current-workspace-name";
@@ -68,6 +69,9 @@ export function setWorkspaceId(
   if (ownerId) {
     currentWorkspaceOwnerId.set(ownerId);
     localStorage.setItem(WS_OWNER_KEY, ownerId);
+  } else {
+    currentWorkspaceOwnerId.set(null);
+    localStorage.removeItem(WS_OWNER_KEY);
   }
   if (color) {
     currentWorkspaceColor.set(color);
@@ -196,6 +200,63 @@ export async function loadWorkspaceData(params: {
   currentPage: number;
   pageSize: number;
 }): Promise<WorkspaceDataLoadResult> {
+  if (get(currentWorkspaceId) === MY_TASKS_WORKSPACE_ID) {
+    const taskFilters = buildTaskFilters(
+      params.filters,
+      [],
+      params.currentPage,
+      params.pageSize,
+    );
+    const [paginatedRes, allRes] = await Promise.all([
+      getTasks(taskFilters),
+      getTasks({ includeArchived: true, limit: 1000 }),
+    ]);
+
+    const paginatedValue: any = paginatedRes;
+    const paginatedTasks = Array.isArray(paginatedValue)
+      ? paginatedValue
+      : paginatedValue.tasks;
+    const totalTasks = Array.isArray(paginatedValue)
+      ? paginatedValue.length
+      : paginatedValue.total;
+    const totalPages = Array.isArray(paginatedValue)
+      ? Math.ceil(paginatedValue.length / params.pageSize) || 1
+      : paginatedValue.pages;
+
+    const allTasks = Array.isArray(allRes) ? allRes : allRes.tasks;
+    const categories = Array.from(
+      new Set(allTasks.map((task) => task.category).filter(Boolean)),
+    ).sort();
+    const projects = Array.from(
+      new Set(allTasks.map((task) => task.project).filter(Boolean)),
+    ).sort();
+    const assigneeMap = new Map<string, any>();
+    for (const task of allTasks) {
+      for (const assignee of task.assignees || []) {
+        const key = `${assignee.id}:${task.workspace_id || "global"}`;
+        if (!assigneeMap.has(key)) {
+          assigneeMap.set(key, assignee);
+        }
+      }
+    }
+
+    return {
+      failedApis: [],
+      paginatedTasks,
+      totalTasks,
+      totalPages,
+      allTasks,
+      monthlySummaryTasks: allTasks,
+      categories,
+      projects,
+      projectList: projects.map((name) => ({ name })),
+      assignees: Array.from(assigneeMap.values()),
+      workerStats: [],
+      projectStats: [],
+      stats: getStatsFromTasks(allTasks),
+    };
+  }
+
   const allTasksPromise = getTasks({ includeArchived: true, limit: 1000 });
   const categoriesPromise = getCategories();
   const projectsPromise = getProjects();

@@ -216,6 +216,189 @@ pub async fn list_tasks(
     }
 }
 
+pub async fn list_my_tasks(
+    State(state): State<SharedState>,
+    Query(filter): Query<TaskFilterQuery>,
+    headers: HeaderMap,
+    jar: CookieJar,
+) -> axum::response::Response {
+    let user_id = match extract_user_id(&headers, &jar, &state.jwt_secret) {
+        Some(id) => id,
+        None => {
+            return (
+                axum::http::StatusCode::UNAUTHORIZED,
+                axum::Json(serde_json::json!({ "error": "Not logged in" })),
+            )
+                .into_response()
+        }
+    };
+
+    let workspace_repo = WorkspaceRepository::new(&state.db);
+    let data_repo = DataRepository::new(&state.db);
+    let assigned_ws_ids = data_repo
+        .find_assigned_workspaces(&user_id.to_hex())
+        .await
+        .unwrap_or_default();
+
+    let workspaces = match crate::services::workspace_service::WorkspaceService::get_user_workspaces(
+        &workspace_repo,
+        &user_id,
+        assigned_ws_ids,
+    )
+    .await
+    {
+        Ok(items) => items,
+        Err(error) => {
+            return (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                axum::Json(serde_json::json!({ "error": error })),
+            )
+                .into_response()
+        }
+    };
+
+    let workspace_ids: Vec<ObjectId> = workspaces.iter().filter_map(|ws| ws.id).collect();
+    if workspace_ids.is_empty() {
+        return axum::Json(PaginatedTaskResponse {
+            success: true,
+            tasks: Vec::new(),
+            total: 0,
+            page: filter.page.unwrap_or(1).max(1),
+            limit: filter.limit.unwrap_or(20),
+            pages: 0,
+        })
+        .into_response();
+    }
+
+    let assignee_ids_by_workspace = match data_repo
+        .find_user_assignee_ids_by_workspace_ids(&user_id.to_hex(), &workspace_ids)
+        .await
+    {
+        Ok(map) => map,
+        Err(error) => {
+            return (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                axum::Json(serde_json::json!({ "error": format!("{}", error) })),
+            )
+                .into_response()
+        }
+    };
+
+    if assignee_ids_by_workspace.is_empty() {
+        return axum::Json(PaginatedTaskResponse {
+            success: true,
+            tasks: Vec::new(),
+            total: 0,
+            page: filter.page.unwrap_or(1).max(1),
+            limit: filter.limit.unwrap_or(20),
+            pages: 0,
+        })
+        .into_response();
+    }
+
+    match data_repo
+        .find_tasks_by_workspace_assignees(&assignee_ids_by_workspace, &filter)
+        .await
+    {
+        Ok((tasks, total)) => {
+            let limit = filter.limit.unwrap_or(20);
+            let page = filter.page.unwrap_or(1).max(1);
+            let pages = (total as f64 / limit as f64).ceil() as u64;
+            let workspace_map: std::collections::HashMap<String, _> = workspaces
+                .into_iter()
+                .filter_map(|workspace| workspace.id.map(|id| (id.to_hex(), workspace)))
+                .collect();
+            let assignee_map: std::collections::HashMap<(String, String), crate::models::data::AssigneeDocument> =
+                data_repo
+                    .find_assignees_by_workspace_ids(&workspace_ids)
+                    .await
+                    .unwrap_or_default()
+                    .into_iter()
+                    .filter_map(|assignee| {
+                        assignee.id.map(|id| {
+                            (
+                                (assignee.workspace_id.to_hex(), id.to_hex()),
+                                assignee,
+                            )
+                        })
+                    })
+                    .collect();
+
+            let enriched_tasks: Vec<serde_json::Value> = tasks
+                .into_iter()
+                .map(|task| {
+                    let ws_id = task.workspace_id.to_hex();
+                    let workspace = workspace_map.get(&ws_id);
+                    let assignees = task
+                        .assignee_ids
+                        .clone()
+                        .unwrap_or_default()
+                        .into_iter()
+                        .filter_map(|assignee_id| {
+                            assignee_map
+                                .get(&(ws_id.clone(), assignee_id.clone()))
+                                .map(|assignee| {
+                                    serde_json::json!({
+                                        "_id": assignee.id.map(|id| id.to_hex()),
+                                        "name": assignee.name,
+                                        "color": assignee.color,
+                                        "discord_id": assignee.discord_id,
+                                        "user_id": assignee.user_id,
+                                        "email": serde_json::Value::Null,
+                                        "created_at": assignee.created_at,
+                                    })
+                                })
+                        })
+                        .collect::<Vec<_>>();
+
+                    serde_json::json!({
+                        "_id": task.id.map(|id| id.to_hex()),
+                        "workspace_id": ws_id,
+                        "workspace_name": workspace.map(|ws| ws.name.clone()).unwrap_or_default(),
+                        "workspace_short_name": workspace.and_then(|ws| ws.short_name.clone()),
+                        "workspace_color": workspace.and_then(|ws| ws.color.clone()),
+                        "workspace_icon": workspace.and_then(|ws| ws.icon.clone()),
+                        "title": task.title,
+                        "task_number": task.task_number,
+                        "project": task.project,
+                        "duration_minutes": task.duration_minutes,
+                        "start_date": task.start_date,
+                        "date": task.date,
+                        "end_date": task.end_date,
+                        "due_date": task.due_date,
+                        "status": task.status,
+                        "category": task.category,
+                        "notes": task.notes,
+                        "attachments": task.attachments,
+                        "assignee_ids": task.assignee_ids,
+                        "assignees": assignees,
+                        "sprint_id": task.sprint_id,
+                        "is_archived": task.is_archived,
+                        "checklist": task.checklist,
+                        "created_at": task.created_at,
+                        "updated_at": task.updated_at,
+                    })
+                })
+                .collect();
+
+            axum::Json(serde_json::json!({
+                "success": true,
+                "tasks": enriched_tasks,
+                "total": total,
+                "page": page,
+                "limit": limit,
+                "pages": pages,
+            }))
+            .into_response()
+        }
+        Err(error) => (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            axum::Json(serde_json::json!({ "error": format!("{}", error) })),
+        )
+            .into_response(),
+    }
+}
+
 pub async fn get_next_task_number(
     State(state): State<SharedState>,
     Path(ws_id): Path<String>,

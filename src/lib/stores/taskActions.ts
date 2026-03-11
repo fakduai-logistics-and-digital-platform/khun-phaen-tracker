@@ -62,7 +62,10 @@ export function createTaskActions(deps: TaskActionDeps) {
 
         deps.setEditingTask(null); // Clear edit state
 
-        await updateTask(editingTask.id!, event.detail);
+        await updateTask(editingTask.id!, {
+          ...event.detail,
+          workspace_id: editingTask.workspace_id,
+        });
         deps.notify(deps.t("page__update_task_success"));
         deps.trackRealtime("update-task");
       } else {
@@ -118,6 +121,7 @@ export function createTaskActions(deps: TaskActionDeps) {
     try {
       await updateTask(editingTask.id!, {
         checklist: event.detail.checklist,
+        workspace_id: editingTask.workspace_id,
       });
       // Update editingTask reference so state stays in sync
       deps.setEditingTask({
@@ -153,7 +157,10 @@ export function createTaskActions(deps: TaskActionDeps) {
         patchTaskChecklist(previousFilteredTasks, taskId, updatedChecklist),
       );
 
-      await updateTask(taskId, { checklist: updatedChecklist });
+      await updateTask(taskId, {
+        checklist: updatedChecklist,
+        workspace_id: task.workspace_id,
+      });
       deps.trackRealtime("toggle-checklist");
     } catch (e) {
       deps.setTasks(previousTasks);
@@ -187,7 +194,8 @@ export function createTaskActions(deps: TaskActionDeps) {
     });
     if (!confirmed) return;
     try {
-      await deleteTask(id);
+      const task = deps.getTasks().find((item) => String(item.id) === String(id));
+      await deleteTask(id, task);
       await deps.loadData();
       deps.notify(deps.t("page__delete_task_success"));
       deps.trackRealtime("delete-task");
@@ -210,7 +218,12 @@ export function createTaskActions(deps: TaskActionDeps) {
 
     try {
       const deleteResults = await Promise.allSettled(
-        ids.map((id) => deleteTask(id)),
+        ids.map((id) =>
+          deleteTask(
+            id,
+            deps.getTasks().find((task) => String(task.id) === String(id)),
+          ),
+        ),
       );
       const deletedCount = deleteResults.filter(
         (result) => result.status === "fulfilled",
@@ -263,7 +276,8 @@ export function createTaskActions(deps: TaskActionDeps) {
     }
 
     try {
-      await updateTask(id, { status });
+      const currentTask = oldTasks.find((task) => String(task.id) === String(id));
+      await updateTask(id, { status, workspace_id: currentTask?.workspace_id });
       deps.trackRealtime("update-task-status");
     } catch (e) {
       deps.setTasks(oldTasks);
@@ -287,7 +301,11 @@ export function createTaskActions(deps: TaskActionDeps) {
     deps.setFilteredTasks(applyStatus(previousFilteredTasks));
 
     try {
-      await updateTask(id, { status: newStatus });
+      const currentTask = previousTasks.find((task) => task.id === id);
+      await updateTask(id, {
+        status: newStatus,
+        workspace_id: currentTask?.workspace_id,
+      });
       deps.trackRealtime("update-task-status");
     } catch (e) {
       deps.setTasks(previousTasks);
@@ -309,7 +327,10 @@ export function createTaskActions(deps: TaskActionDeps) {
     }
 
     try {
-      await updateTask(taskToStart.id, { status: "in-progress" });
+      await updateTask(taskToStart.id, {
+        status: "in-progress",
+        workspace_id: taskToStart.workspace_id,
+      });
       await deps.loadData();
       deps.trackRealtime("update-task-status");
       deps.notify(

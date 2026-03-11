@@ -20,7 +20,11 @@ import type {
 } from "./types";
 import { get } from "svelte/store";
 import { api } from "./apis";
-import { getWorkspaceId, loadWorkspaceId } from "./stores/workspace";
+import {
+  MY_TASKS_WORKSPACE_ID,
+  getWorkspaceId,
+  loadWorkspaceId,
+} from "./stores/workspace";
 import { broadcastChange } from "./stores/realtime";
 import { user as userStore } from "./stores/auth";
 
@@ -61,6 +65,22 @@ function wsId(): string {
   return getWorkspaceId();
 }
 
+function isMyTasksScope(targetWsId?: string): boolean {
+  return (targetWsId || wsId()) === MY_TASKS_WORKSPACE_ID;
+}
+
+function resolveTaskWorkspaceId(taskOrId?: Partial<Task> | string | number | null): string {
+  if (
+    taskOrId &&
+    typeof taskOrId === "object" &&
+    typeof taskOrId.workspace_id === "string" &&
+    taskOrId.workspace_id
+  ) {
+    return taskOrId.workspace_id;
+  }
+  return wsId();
+}
+
 function extractId(doc: any): string {
   if (doc._id?.$oid) return doc._id.$oid;
   if (typeof doc._id === "string") return doc._id;
@@ -78,6 +98,14 @@ function docToTask(doc: any): Task {
     (!hasExplicitStartDate ? doc.date || undefined : undefined);
   return {
     id: extractId(doc),
+    workspace_id:
+      typeof doc.workspace_id === "object" && doc.workspace_id?.$oid
+        ? doc.workspace_id.$oid
+        : doc.workspace_id || undefined,
+    workspace_name: doc.workspace_name || undefined,
+    workspace_short_name: doc.workspace_short_name || undefined,
+    workspace_color: doc.workspace_color || undefined,
+    workspace_icon: doc.workspace_icon || undefined,
     title: doc.title || "",
     task_number:
       typeof doc.task_number === "number" ? doc.task_number : undefined,
@@ -246,7 +274,11 @@ export async function updateTask(
   if (updates.checklist !== undefined)
     payload.checklist = updates.checklist || null;
 
-  const res = await api.data.tasks.update(wsId(), String(id), payload);
+  const res = await api.data.tasks.update(
+    resolveTaskWorkspaceId(updates),
+    String(id),
+    payload,
+  );
   const data = await res.json();
   if (!res.ok) {
     throw new Error(data.error || "Failed to update task");
@@ -258,8 +290,15 @@ export async function updateTask(
   broadcastChange("task", "update", String(id), updatePayload);
 }
 
-export async function deleteTask(id: string | number): Promise<void> {
-  const res = await api.data.tasks.delete(wsId(), String(id));
+export async function deleteTask(
+  id: string | number,
+  taskOverride?: Partial<Task> | null,
+): Promise<void> {
+  const task = taskOverride || (await getTaskById(id));
+  const res = await api.data.tasks.delete(
+    resolveTaskWorkspaceId(task),
+    String(id),
+  );
   if (!res.ok) {
     const data = await res.json();
     throw new Error(data.error || "Failed to delete task");
@@ -275,7 +314,12 @@ export async function getTaskComments(
   if (options.page) params.page = String(options.page);
   if (options.limit) params.limit = String(options.limit);
 
-  const res = await api.data.comments.list(wsId(), String(taskId), params);
+  const task = await getTaskById(taskId);
+  const res = await api.data.comments.list(
+    resolveTaskWorkspaceId(task),
+    String(taskId),
+    params,
+  );
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Failed to fetch task comments");
 
@@ -300,7 +344,12 @@ export async function createTaskComment(
     formData.append("images", file);
   }
 
-  const res = await api.data.comments.create(wsId(), String(taskId), formData);
+  const task = await getTaskById(taskId);
+  const res = await api.data.comments.create(
+    resolveTaskWorkspaceId(task),
+    String(taskId),
+    formData,
+  );
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Failed to create comment");
   const comment = docToTaskComment(data.comment || {});
@@ -318,7 +367,7 @@ export async function getCommentImages(
   if (options.limit) params.limit = String(options.limit);
 
   const res = await api.data.comments.images(
-    wsId(),
+    resolveTaskWorkspaceId(await getTaskById(taskId)),
     String(taskId),
     String(commentId),
     params,
@@ -340,7 +389,7 @@ export async function deleteTaskComment(
   commentId: string | number,
 ): Promise<void> {
   const res = await api.data.comments.delete(
-    wsId(),
+    resolveTaskWorkspaceId(await getTaskById(taskId)),
     String(taskId),
     String(commentId),
   );
@@ -355,7 +404,7 @@ export async function updateTaskCommentText(
   content: string,
 ): Promise<void> {
   const res = await api.data.comments.update(
-    wsId(),
+    resolveTaskWorkspaceId(await getTaskById(taskId)),
     String(taskId),
     String(commentId),
     { content },
@@ -371,7 +420,7 @@ export async function toggleTaskCommentReaction(
   emoji: string,
 ): Promise<TaskComment> {
   const res = await api.data.comments.toggleReaction(
-    wsId(),
+    resolveTaskWorkspaceId(await getTaskById(taskId)),
     String(taskId),
     String(commentId),
     { emoji },
@@ -452,7 +501,9 @@ export async function getTasks(
   if (filter?.page) params.page = String(filter.page);
   if (filter?.limit) params.limit = String(filter.limit);
 
-  const res = await api.data.tasks.list(wsId(), params);
+  const res = isMyTasksScope()
+    ? await api.my.tasks.list(params)
+    : await api.data.tasks.list(wsId(), params);
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Failed to fetch tasks");
 
@@ -474,6 +525,18 @@ export async function getTasks(
 }
 
 async function enrichTasksWithAssignees(tasks: Task[]): Promise<Task[]> {
+  if (isMyTasksScope()) {
+    return tasks.map((task) => {
+      if (task.assignees && task.assignees.length > 0) {
+        return {
+          ...task,
+          assignee_id: task.assignees[0]?.id ?? null,
+          assignee: task.assignees[0] ?? null,
+        };
+      }
+      return task;
+    });
+  }
   try {
     const rawAssignees = await getAssignees();
     const assigneeMap = new Map(rawAssignees.map((a) => [String(a.id), a]));
@@ -506,6 +569,9 @@ export async function getTaskById(id: string | number): Promise<Task | null> {
 }
 
 export async function getNextTaskNumber(): Promise<number> {
+  if (isMyTasksScope()) {
+    throw new Error("Task number is not available in all-workspaces view");
+  }
   const res = await api.data.tasks.nextNumber(wsId());
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Failed to fetch next task number");
@@ -545,6 +611,18 @@ export async function getProjects(): Promise<string[]> {
 }
 
 export async function getProjectsList(): Promise<Project[]> {
+  if (isMyTasksScope()) {
+    const result = await getTasks({ includeArchived: true, limit: 1000 });
+    const tasks = Array.isArray(result) ? result : result.tasks;
+    return Array.from(
+      new Map(
+        tasks
+          .filter((task) => task.project)
+          .map((task) => [String(task.project), { name: task.project || "" }]),
+      ).values(),
+    );
+  }
+
   const now = Date.now();
   if (_projectsCache && now - _lastProjectFetch < CACHE_TTL) {
     return _projectsCache;
@@ -617,6 +695,21 @@ export async function deleteProject(id: string | number): Promise<void> {
 // ===== Assignee Functions =====
 
 export async function getAssignees(forceRefresh = false): Promise<Assignee[]> {
+  if (isMyTasksScope()) {
+    const result = await getTasks({ includeArchived: true, limit: 1000 });
+    const tasks = Array.isArray(result) ? result : result.tasks;
+    const merged = new Map<string, Assignee>();
+    for (const task of tasks) {
+      for (const assignee of task.assignees || []) {
+        const key = `${task.workspace_id || "global"}:${String(assignee.id)}`;
+        if (!merged.has(key)) {
+          merged.set(key, assignee);
+        }
+      }
+    }
+    return Array.from(merged.values());
+  }
+
   const now = Date.now();
   if (
     !forceRefresh &&
@@ -637,6 +730,22 @@ export async function getAssignees(forceRefresh = false): Promise<Assignee[]> {
 export async function getAssigneeStats(): Promise<
   { id: string; taskCount: number }[]
 > {
+  if (isMyTasksScope()) {
+    const tasksResult = await getTasks({ includeArchived: true, limit: 1000 });
+    const tasks = Array.isArray(tasksResult) ? tasksResult : tasksResult.tasks;
+    const counts = new Map<string, number>();
+    for (const task of tasks) {
+      for (const assignee of task.assignees || []) {
+        const key = `${task.workspace_id || "global"}:${String(assignee.id)}`;
+        counts.set(key, (counts.get(key) || 0) + 1);
+      }
+    }
+    return Array.from(counts.entries()).map(([id, taskCount]) => ({
+      id,
+      taskCount,
+    }));
+  }
+
   const res = await api.data.assignees.stats(wsId());
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Failed to fetch assignee stats");
@@ -649,6 +758,10 @@ export async function getAssigneeStats(): Promise<
 export async function getAssigneeGroups(
   forceRefresh = false,
 ): Promise<AssigneeGroup[]> {
+  if (isMyTasksScope()) {
+    return [];
+  }
+
   const now = Date.now();
   if (
     !forceRefresh &&
@@ -763,6 +876,10 @@ export async function deleteAssignee(id: string | number): Promise<void> {
 // ===== Sprint Functions =====
 
 export async function getSprints(): Promise<Sprint[]> {
+  if (isMyTasksScope()) {
+    return [];
+  }
+
   const now = Date.now();
   if (_sprintsCache && now - _lastSprintFetch < CACHE_TTL) {
     return _sprintsCache;

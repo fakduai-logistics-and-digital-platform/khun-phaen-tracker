@@ -307,6 +307,19 @@ export const api = {
       });
     },
   },
+  my: {
+    tasks: {
+      list: (filter?: Record<string, string>): Promise<Response> => {
+        const params = filter
+          ? "?" + new URLSearchParams(filter).toString()
+          : "";
+        return fetch(`${API_BASE_URL}/my/tasks${params}`, {
+          headers: api.data._headers(),
+          credentials: "include",
+        });
+      },
+    },
+  },
   workspaces: {
     getList: async (): Promise<Response> => {
       let token = "";

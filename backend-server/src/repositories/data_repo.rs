@@ -90,12 +90,11 @@ impl DataRepository {
 
     // ===== TASKS =====
 
-    pub async fn find_tasks(
-        &self,
-        workspace_id: &ObjectId,
+    fn build_task_query(
+        workspace_filter: Document,
         filter: &TaskFilterQuery,
-    ) -> mongodb::error::Result<(Vec<TaskDocument>, u64)> {
-        let mut query = doc! { "workspace_id": workspace_id };
+    ) -> Document {
+        let mut query = workspace_filter;
 
         // Status filter
         if let Some(status) = &filter.status {
@@ -131,7 +130,6 @@ impl DataRepository {
             }
         }
 
-        // By default exclude archived unless explicitly requested
         if filter.status.is_none() && !filter.include_archived.unwrap_or(false) {
             query.insert("is_archived", false);
         }
@@ -171,7 +169,6 @@ impl DataRepository {
             }
         }
 
-        // Date range
         if filter.start_date.is_some() || filter.end_date.is_some() {
             let mut date_query = Document::new();
             if let Some(sd) = &filter.start_date {
@@ -183,7 +180,6 @@ impl DataRepository {
             query.insert("date", date_query);
         }
 
-        // Due date range
         if filter.due_start_date.is_some() || filter.due_end_date.is_some() {
             let mut due_query = Document::new();
             if let Some(sd) = &filter.due_start_date {
@@ -195,7 +191,6 @@ impl DataRepository {
             query.insert("due_date", due_query);
         }
 
-        // Due date preset filter (server-side)
         if let Some(preset) = &filter.due_preset {
             let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
             match preset.as_str() {
@@ -229,6 +224,16 @@ impl DataRepository {
             }
         }
 
+        query
+    }
+
+    pub async fn find_tasks(
+        &self,
+        workspace_id: &ObjectId,
+        filter: &TaskFilterQuery,
+    ) -> mongodb::error::Result<(Vec<TaskDocument>, u64)> {
+        let query = Self::build_task_query(doc! { "workspace_id": workspace_id }, filter);
+
         // Count total matching documents before pagination
         let total = self.tasks.count_documents(query.clone(), None).await?;
 
@@ -256,6 +261,64 @@ impl DataRepository {
             .skip(skip)
             .build();
 
+        let mut cursor = self.tasks.find(query, find_options).await?;
+        let mut tasks = Vec::new();
+        while let Some(result) = cursor.next().await {
+            match result {
+                Ok(doc) => tasks.push(doc),
+                Err(e) => return Err(e),
+            }
+        }
+        Ok((tasks, total))
+    }
+
+    pub async fn find_tasks_by_workspace_assignees(
+        &self,
+        workspace_assignee_map: &HashMap<ObjectId, Vec<String>>,
+        filter: &TaskFilterQuery,
+    ) -> mongodb::error::Result<(Vec<TaskDocument>, u64)> {
+        let workspace_or_filters: Vec<Bson> = workspace_assignee_map
+            .iter()
+            .filter(|(_, assignee_ids)| !assignee_ids.is_empty())
+            .map(|(workspace_id, assignee_ids)| {
+                Bson::Document(doc! {
+                    "workspace_id": workspace_id,
+                    "assignee_ids": { "$in": assignee_ids }
+                })
+            })
+            .collect();
+
+        if workspace_or_filters.is_empty() {
+            return Ok((Vec::new(), 0));
+        }
+
+        let query = Self::build_task_query(
+            doc! { "$or": workspace_or_filters },
+            &TaskFilterQuery {
+                assignee_id: None,
+                ..filter.clone()
+            },
+        );
+        let total = self.tasks.count_documents(query.clone(), None).await?;
+        let limit = filter.limit.unwrap_or(20);
+        let page = filter.page.unwrap_or(1).max(1);
+        let skip = (page - 1) * limit;
+        let sort_field = match filter.sort_by.as_deref() {
+            Some("date") | Some("created_at") | Some("updated_at") | Some("task_number")
+            | Some("title") | Some("status") | Some("due_date") | Some("start_date") => {
+                filter.sort_by.as_deref().unwrap_or("updated_at")
+            }
+            _ => "updated_at",
+        };
+        let sort_direction = match filter.sort_order.as_deref() {
+            Some("asc") | Some("1") => 1,
+            _ => -1,
+        };
+        let find_options = mongodb::options::FindOptions::builder()
+            .sort(doc! { sort_field: sort_direction, "_id": -1 })
+            .limit(limit as i64)
+            .skip(skip)
+            .build();
         let mut cursor = self.tasks.find(query, find_options).await?;
         let mut tasks = Vec::new();
         while let Some(result) = cursor.next().await {
@@ -310,6 +373,24 @@ impl DataRepository {
         id: &ObjectId,
     ) -> mongodb::error::Result<Option<TaskDocument>> {
         self.tasks.find_one(doc! { "_id": id }, None).await
+    }
+
+    pub async fn find_assignees_by_workspace_ids(
+        &self,
+        workspace_ids: &[ObjectId],
+    ) -> mongodb::error::Result<Vec<AssigneeDocument>> {
+        let mut cursor = self
+            .assignees
+            .find(doc! { "workspace_id": { "$in": workspace_ids } }, None)
+            .await?;
+        let mut assignees = Vec::new();
+        while let Some(result) = cursor.next().await {
+            match result {
+                Ok(doc) => assignees.push(doc),
+                Err(e) => return Err(e),
+            }
+        }
+        Ok(assignees)
     }
 
     pub async fn create_task(
@@ -727,6 +808,30 @@ impl DataRepository {
         Ok(results)
     }
 
+    pub async fn count_tasks_by_workspace_assignees(
+        &self,
+        workspace_assignee_map: &HashMap<ObjectId, Vec<String>>,
+    ) -> mongodb::error::Result<Vec<(ObjectId, u64)>> {
+        let mut results = Vec::new();
+        for (ws_id, assignee_ids) in workspace_assignee_map {
+            let count = if assignee_ids.is_empty() {
+                0
+            } else {
+                self.tasks
+                    .count_documents(
+                        doc! {
+                            "workspace_id": ws_id,
+                            "assignee_ids": { "$in": assignee_ids }
+                        },
+                        None,
+                    )
+                    .await?
+            };
+            results.push((*ws_id, count));
+        }
+        Ok(results)
+    }
+
     pub async fn find_assigned_workspaces(
         &self,
         user_id_hex: &str,
@@ -743,6 +848,38 @@ impl DataRepository {
             }
         }
         Ok(w_ids)
+    }
+
+    pub async fn find_user_assignee_ids_by_workspace_ids(
+        &self,
+        user_id_hex: &str,
+        workspace_ids: &[ObjectId],
+    ) -> mongodb::error::Result<HashMap<ObjectId, Vec<String>>> {
+        let mut cursor = self
+            .assignees
+            .find(
+                doc! {
+                    "user_id": user_id_hex,
+                    "workspace_id": { "$in": workspace_ids }
+                },
+                None,
+            )
+            .await?;
+        let mut result: HashMap<ObjectId, Vec<String>> = HashMap::new();
+        while let Some(item) = cursor.next().await {
+            match item {
+                Ok(doc) => {
+                    if let Some(assignee_id) = doc.id {
+                        result
+                            .entry(doc.workspace_id)
+                            .or_default()
+                            .push(assignee_id.to_hex());
+                    }
+                }
+                Err(e) => return Err(e),
+            }
+        }
+        Ok(result)
     }
 
     pub async fn create_assignee(

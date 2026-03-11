@@ -1,6 +1,11 @@
 <script lang="ts">
   import { createEventDispatcher, onDestroy } from 'svelte';
   import { GitBranch, X, Copy, Check } from 'lucide-svelte';
+  import {
+    getBranchSlug as buildBranchSlug,
+    getCheckoutCommand as buildCheckoutCommand,
+    getComputedBranchName as buildComputedBranchName
+  } from '$lib/utils/branch-name';
 
   const dispatch = createEventDispatcher<{ close: void }>();
 
@@ -23,6 +28,7 @@
 
   let copyFeedbackTimer: ReturnType<typeof setTimeout> | null = null;
   let translateDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+  let activeTranslateRequestId = 0;
 
   interface BuiltInTranslatorInstance {
     translate(input: string): Promise<string>;
@@ -92,41 +98,36 @@
     return translatorInitPromise;
   }
 
-  function slugifyBranchSegment(input: string): string {
-    if (!input || !input.trim()) return 'untitled-task';
-
-    return input
-      .normalize('NFKD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/["']/g, '')
-      .toLowerCase()
-      .trim()
-      .replace(/&/g, ' and ')
-      .replace(/\s+/g, '-')
-      .replace(/[^a-z0-9-]+/g, '-')
-      .replace(/-{2,}/g, '-')
-      .replace(/^-+|-+$/g, '') || 'untitled-task';
-  }
-
-  function getWorkItemPrefix(): string {
-    const ws = (workspaceShortName || '').trim().toUpperCase().replace(/\s+/g, '').slice(0, 4);
-    if (ws && taskNumber) return `${ws}-${taskNumber}`;
-    if (ws) return ws;
-    return '';
-  }
-
   function getBranchSlug(): string {
-    return slugifyBranchSegment(translatedTitle || editableTitle || title);
+    return buildBranchSlug({
+      translatedTitle,
+      editableTitle,
+      title,
+      workspaceShortName,
+      taskNumber
+    });
   }
 
   function getComputedBranchName(): string {
-    const workItem = getWorkItemPrefix();
-    const slug = getBranchSlug();
-    return workItem ? `${gitFlowType}/${workItem}-${slug}` : `${gitFlowType}/${slug}`;
+    return buildComputedBranchName({
+      gitFlowType,
+      workspaceShortName,
+      taskNumber,
+      translatedTitle,
+      editableTitle,
+      title
+    });
   }
 
   function getCheckoutCommand(): string {
-    return `git checkout -b ${getComputedBranchName()}`;
+    return buildCheckoutCommand({
+      gitFlowType,
+      workspaceShortName,
+      taskNumber,
+      translatedTitle,
+      editableTitle,
+      title
+    });
   }
 
   async function translateTitle(input: string): Promise<{ text: string; translated: boolean }> {
@@ -171,6 +172,7 @@
 
   async function updateBranchPreview(rawTitle: string) {
     const cleanedTitle = rawTitle.trim();
+    const requestId = ++activeTranslateRequestId;
 
     if (!cleanedTitle) {
       translatedTitle = '';
@@ -183,8 +185,10 @@
     isTranslatingBranch = true;
     branchMessage = 'กำลังแปลชื่อ task เป็นภาษาอังกฤษ...';
     branchMessageType = 'info';
+    translatedTitle = '';
 
     const { text, translated } = await translateTitle(cleanedTitle);
+    if (requestId !== activeTranslateRequestId) return;
 
     translatedTitle = text;
     isTranslatingBranch = false;

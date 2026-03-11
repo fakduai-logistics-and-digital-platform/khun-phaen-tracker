@@ -109,12 +109,29 @@ pub async fn get_workspaces_stats_handler(
 
     let ws_ids: Vec<ObjectId> = workspaces.iter().filter_map(|w| w.id).collect();
 
+    let my_assignee_map = data_repo
+        .find_user_assignee_ids_by_workspace_ids(&user_id.to_hex(), &ws_ids)
+        .await
+        .unwrap_or_default();
+
     match data_repo.count_tasks_by_workspaces(&ws_ids).await {
         Ok(counts) => {
             let stats: serde_json::Map<String, serde_json::Value> = counts
                 .into_iter()
                 .map(|(id, count)| (id.to_hex(), serde_json::Value::from(count)))
                 .collect();
+            let total_my_tasks: i64 = data_repo
+                .count_tasks_by_workspace_assignees(&my_assignee_map)
+                .await
+                .unwrap_or_default()
+                .into_iter()
+                .map(|(_, count)| count as i64)
+                .sum();
+            let mut stats = stats;
+            stats.insert(
+                "__my_tasks__".to_string(),
+                serde_json::Value::from(total_my_tasks),
+            );
             axum::Json(serde_json::json!({ "success": true, "task_counts": stats })).into_response()
         }
         Err(e) => (

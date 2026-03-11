@@ -163,6 +163,8 @@
 
   $: activeSprint = sprints.find((s) => s.status === "active");
   $: workspaceBadgePrefix = (
+    editingTask?.workspace_short_name ||
+    editingTask?.workspace_name ||
     $currentWorkspaceShortName ||
     $currentWorkspaceName ||
     ""

@@ -237,6 +237,7 @@ async fn main() {
             "/api/workspaces/access/:room_code",
             get(handlers::workspace_handler::check_workspace_access_handler),
         )
+        .route("/api/my/tasks", get(handlers::data_handler::list_my_tasks))
         // Data routes (workspace-scoped)
         .route(
             "/api/workspaces/:ws_id/tasks",

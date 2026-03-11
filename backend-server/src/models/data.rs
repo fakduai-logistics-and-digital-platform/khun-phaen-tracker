@@ -308,7 +308,7 @@ pub struct UpdateSprintRequest {
 
 // ===== Filter / Query =====
 
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize, Default, Clone)]
 pub struct TaskFilterQuery {
     pub status: Option<String>,
     pub category: Option<String>,
