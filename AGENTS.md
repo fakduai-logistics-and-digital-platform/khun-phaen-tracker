@@ -6,6 +6,8 @@ This repository is Khun Phaen Tracker: a local-first SvelteKit task tracker with
 
 ## Operating Principles
 
+- On session start, remove stale `.claude/worktrees/*` entries if safe; if removal fails because a worktree may be active or locked, leave it alone.
+- If you create or use a Claude worktree during a task, clean it up before finishing when it is no longer needed.
 - Read the surrounding code before editing and follow existing conventions unless they are clearly harmful.
 - Prefer the smallest behavior-preserving change that solves the issue.
 - Keep state local unless shared state is genuinely needed.

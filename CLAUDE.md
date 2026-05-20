@@ -36,6 +36,8 @@ Use project-installed skills only when their trigger matches, to avoid loading e
 
 ## Working Style
 
+- On session start, remove stale `.claude/worktrees/*` entries if safe; if removal fails because a worktree may be active or locked, leave it alone.
+- If you create or use a Claude worktree during a task, clean it up before finishing when it is no longer needed.
 - Read surrounding code before editing.
 - Prefer direct, boring solutions over new abstractions.
 - Do not rewrite broad areas unless user explicitly asks.
