@@ -12,6 +12,7 @@
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"test": "vitest run",
+		"lint:design": "npx @google/design.md lint DESIGN.md",
 		"storybook": "storybook dev -p 6006",
 		"build-storybook": "storybook build"
 	},

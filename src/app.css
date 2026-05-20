@@ -18,11 +18,114 @@
   --color-gray-700: #374151;
   --color-gray-800: #1f2937;
   --color-gray-900: #111827;
+
+  --color-surface-canvas: #f9fafb;
+  --color-surface-card: #ffffff;
+  --color-surface-muted: #f3f4f6;
+  --color-surface-inverse: #111827;
+  --color-border-subtle: #e5e7eb;
+  --color-border-strong: #d1d5db;
+  --color-text-primary: #111827;
+  --color-text-secondary: #4b5563;
+  --color-text-muted: #6b7280;
+  --color-text-inverse: #ffffff;
+
+  --font-sans: 'Inter', 'Noto Sans Thai', 'Thai Fallback', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+
+  --radius-control: 0.5rem;
+  --radius-card: 0.5rem;
+  --radius-panel: 0.75rem;
+  --radius-pill: 9999px;
+
+  --shadow-card: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-card-hover: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-floating: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+
+  --spacing-touch: 2.5rem;
+  --spacing-navbar: 4rem;
+  --spacing-card: 0.75rem;
+  --spacing-panel: 1rem;
+
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --animate-fade-in: fadeIn 0.2s var(--ease-standard) forwards;
+}
+
+:root {
+  --surface-canvas: #f9fafb;
+  --surface-card: #ffffff;
+  --surface-muted: #f3f4f6;
+  --surface-inverse: #111827;
+  --border-subtle: #e5e7eb;
+  --border-strong: #d1d5db;
+  --text-primary: #111827;
+  --text-secondary: #4b5563;
+  --text-muted: #6b7280;
+  --text-inverse: #ffffff;
 }
 
 /* Dark mode colors */
 .dark {
   color-scheme: dark;
+  --surface-canvas: #111827;
+  --surface-card: #1f2937;
+  --surface-muted: #374151;
+  --surface-inverse: #ffffff;
+  --border-subtle: #374151;
+  --border-strong: #4b5563;
+  --text-primary: #f3f4f6;
+  --text-secondary: #d1d5db;
+  --text-muted: #9ca3af;
+  --text-inverse: #111827;
+}
+
+@utility surface-canvas {
+  background-color: var(--surface-canvas);
+}
+
+@utility surface-card {
+  background-color: var(--surface-card);
+}
+
+@utility surface-muted {
+  background-color: var(--surface-muted);
+}
+
+@utility border-subtle {
+  border-color: var(--border-subtle);
+}
+
+@utility border-strong {
+  border-color: var(--border-strong);
+}
+
+@utility text-app-primary {
+  color: var(--text-primary);
+}
+
+@utility text-app-secondary {
+  color: var(--text-secondary);
+}
+
+@utility text-app-muted {
+  color: var(--text-muted);
+}
+
+@utility touch-target {
+  min-height: var(--spacing-touch);
+  min-width: var(--spacing-touch);
+}
+
+@utility shadow-card {
+  box-shadow: var(--shadow-card);
+}
+
+@utility shadow-card-hover {
+  box-shadow: var(--shadow-card-hover);
+}
+
+@utility shadow-floating {
+  box-shadow: var(--shadow-floating);
 }
 
 /* Font for Thai support - prioritize Thai fonts for Thai characters */
