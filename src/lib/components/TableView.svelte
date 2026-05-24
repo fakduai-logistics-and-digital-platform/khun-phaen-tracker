@@ -35,6 +35,16 @@
   import PriorityBadge from "./PriorityBadge.svelte";
   import { columnSettings } from "$lib/stores/columnSettings";
   import { currentWorkspaceShortName } from "$lib/stores/workspace";
+  import type { TaskType } from "$lib/utils/branch-name";
+
+  const TASK_TYPE_BADGE: Record<TaskType, { label: string; bg: string; text: string }> = {
+    feature: { label: "feat", bg: "bg-indigo-500/15 dark:bg-indigo-400/15", text: "text-indigo-700 dark:text-indigo-300" },
+    bug: { label: "bug", bg: "bg-red-500/15 dark:bg-red-400/15", text: "text-red-700 dark:text-red-300" },
+    optimize: { label: "perf", bg: "bg-amber-500/15 dark:bg-amber-400/15", text: "text-amber-700 dark:text-amber-300" },
+    refactor: { label: "refactor", bg: "bg-purple-500/15 dark:bg-purple-400/15", text: "text-purple-700 dark:text-purple-300" },
+    docs: { label: "docs", bg: "bg-sky-500/15 dark:bg-sky-400/15", text: "text-sky-700 dark:text-sky-300" },
+    chore: { label: "chore", bg: "bg-gray-500/15 dark:bg-gray-400/15", text: "text-gray-700 dark:text-gray-300" },
+  };
 
   export let tasks: Task[] = [];
   export let sprints: Sprint[] = [];
@@ -800,6 +810,14 @@
                   <div
                     class="font-semibold text-gray-900 dark:text-white text-sm truncate leading-tight"
                   >
+                    {#if task.task_type && TASK_TYPE_BADGE[task.task_type as TaskType]}
+                      {@const badge = TASK_TYPE_BADGE[task.task_type as TaskType]}
+                      <span
+                        class="inline-flex items-center mr-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide {badge.bg} {badge.text}"
+                      >
+                        {badge.label}
+                      </span>
+                    {/if}
                     {#if task.task_number}
                       <span class="text-gray-500 dark:text-gray-400 mr-1.5 text-[10px] font-bold">
                         {task.workspace_short_name || $currentWorkspaceShortName || "TASK"}-{task.task_number}

@@ -276,6 +276,7 @@
 	"taskForm__task_type_refactor": "Refactor",
 	"taskForm__task_type_docs": "Docs",
 	"taskForm__task_type_chore": "Chore",
+	"taskForm__task_type_label": "Type",
 	"taskForm__category_label": "Category",
 	"taskForm__notes_label": "Notes",
 	"taskForm__notes_placeholder": "Additional details...",

@@ -275,6 +275,7 @@
 	"taskForm__task_type_refactor": "รีแฟกเตอร์",
 	"taskForm__task_type_docs": "เอกสาร",
 	"taskForm__task_type_chore": "งานเสริม",
+	"taskForm__task_type_label": "ประเภท",
 	"taskForm__category_label": "หมวดหมู่",
 	"taskForm__notes_label": "บันทึก",
 	"taskForm__notes_placeholder": "รายละเอียดเพิ่มเติม...",

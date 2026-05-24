@@ -26,6 +26,7 @@
     Sprint,
     ChecklistItem,
   } from "$lib/types";
+  import { TASK_TYPES, type TaskType } from "$lib/utils/branch-name";
   import { get } from "svelte/store";
   import { isImage, processFilesForPreview, revokePreview } from "$lib/utils/file";
   import { user } from "$lib/stores/auth";
@@ -1699,6 +1700,35 @@
                     on:select={(e: CustomEvent<any>) =>
                       handleUpdateTask({ status: e.detail })}
                     showSearch={false}
+                  />
+                </div>
+              </div>
+
+              <div
+                class="col-span-2 grid grid-cols-subgrid items-center min-h-[32px] -mx-2 px-2 rounded-md hover:bg-slate-500/5 transition-colors group"
+              >
+                <div
+                  class="flex items-center gap-2 text-[13px] text-slate-500 dark:text-slate-400"
+                >
+                  <Tag
+                    size={14}
+                    class="opacity-70 group-hover:opacity-100 transition-opacity"
+                  />
+                  <span>{$_("taskForm__task_type_label")}</span>
+                </div>
+                <div
+                  class="flex items-center justify-start min-w-0 property-select"
+                >
+                  <SearchableSelect
+                    value={task.task_type || "feature"}
+                    options={TASK_TYPES.map((t) => ({
+                      value: t,
+                      label: $_(`taskForm__task_type_${t}`),
+                    }))}
+                    on:select={(e: CustomEvent<any>) =>
+                      handleUpdateTask({
+                        task_type: e.detail as TaskType,
+                      })}
                   />
                 </div>
               </div>

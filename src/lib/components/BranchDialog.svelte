@@ -41,6 +41,8 @@
   let copySucceeded = false;
   let copiedField: 'branch' | 'command' | null = null;
   let wasOpen = false;
+  let userOverrodePrefix = false;
+  let lastSyncedTaskType: TaskType | null | undefined = undefined;
 
   let copyFeedbackTimer: ReturnType<typeof setTimeout> | null = null;
   let translateDebounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -299,12 +301,25 @@
   $: if (show && !wasOpen) {
     editableTitle = title;
     gitFlowType = getBranchPrefixForTaskType(taskType);
+    lastSyncedTaskType = taskType;
+    userOverrodePrefix = false;
     void updateBranchPreview(editableTitle);
     wasOpen = true;
   }
 
   $: if (!show && wasOpen) {
     wasOpen = false;
+  }
+
+  $: if (show && taskType !== lastSyncedTaskType) {
+    lastSyncedTaskType = taskType;
+    if (!userOverrodePrefix) {
+      gitFlowType = getBranchPrefixForTaskType(taskType);
+    }
+  }
+
+  function handlePrefixChange() {
+    userOverrodePrefix = true;
   }
 
   onDestroy(() => {
@@ -353,6 +368,7 @@
             <select
               id="git-flow-prefix"
               bind:value={gitFlowType}
+              on:change={handlePrefixChange}
               class="w-full h-11 px-4 bg-white/5 border border-white/10 rounded-xl text-white text-[13px] appearance-none focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all cursor-pointer"
             >
               {#each gitFlowTypes as flow}
