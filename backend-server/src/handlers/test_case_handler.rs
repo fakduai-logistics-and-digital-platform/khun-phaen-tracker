@@ -985,6 +985,7 @@ pub async fn convert_test_case_to_task(
         due_date: None,
         status: "todo".to_string(),
         priority: test_case.priority,
+        task_type: None,
         category: "อื่นๆ".to_string(),
         notes,
         attachments: None,

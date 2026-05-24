@@ -1907,6 +1907,7 @@
       title={task.title}
       workspaceShortName={task.workspace_short_name || projectShortName || $currentWorkspaceShortName || ""}
       taskNumber={task.task_number || null}
+      taskType={task.task_type}
       on:close={closeBranchDialog}
     />
   {/if}

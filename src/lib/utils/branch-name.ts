@@ -1,5 +1,46 @@
+export type GitFlowType =
+  | 'feature'
+  | 'bugfix'
+  | 'hotfix'
+  | 'release'
+  | 'perf'
+  | 'refactor'
+  | 'docs'
+  | 'chore';
+
+export type TaskType =
+  | 'feature'
+  | 'bug'
+  | 'optimize'
+  | 'refactor'
+  | 'docs'
+  | 'chore';
+
+export const TASK_TYPES: readonly TaskType[] = [
+  'feature',
+  'bug',
+  'optimize',
+  'refactor',
+  'docs',
+  'chore'
+] as const;
+
+export const TASK_TYPE_BRANCH_PREFIX: Record<TaskType, GitFlowType> = {
+  feature: 'feature',
+  bug: 'bugfix',
+  optimize: 'perf',
+  refactor: 'refactor',
+  docs: 'docs',
+  chore: 'chore'
+};
+
+export function getBranchPrefixForTaskType(taskType: TaskType | null | undefined): GitFlowType {
+  if (!taskType) return 'feature';
+  return TASK_TYPE_BRANCH_PREFIX[taskType] ?? 'feature';
+}
+
 export interface BranchNameOptions {
-  gitFlowType: 'feature' | 'bugfix' | 'hotfix' | 'release';
+  gitFlowType: GitFlowType;
   workspaceShortName?: string;
   taskNumber?: number | null;
   translatedTitle?: string;
@@ -12,7 +53,7 @@ export function slugifyBranchSegment(input: string): string {
 
   return input
     .normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[̀-ͯ]/g, '')
     .replace(/["']/g, '')
     .toLowerCase()
     .trim()

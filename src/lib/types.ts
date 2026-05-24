@@ -1,3 +1,7 @@
+export type { TaskType } from "./utils/branch-name";
+export { TASK_TYPES } from "./utils/branch-name";
+import type { TaskType } from "./utils/branch-name";
+
 export interface Project {
   id?: string | number;
   name: string;
@@ -56,6 +60,7 @@ export interface Task {
   date: string; // YYYY-MM-DD
   status: "pending" | "todo" | "in-progress" | "in-test" | "done";
   priority?: "urgent" | "high" | "medium" | "low" | "none";
+  task_type?: TaskType;
   category: string;
   notes: string;
   assignee_ids?: (string | number)[]; // Array of assignee IDs (multiple assignees)

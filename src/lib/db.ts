@@ -167,6 +167,7 @@ function docToTask(doc: any): Task {
     end_date: resolvedDueDate,
     status: doc.status || "todo",
     priority: doc.priority || "none",
+    task_type: doc.task_type || undefined,
     category: doc.category || "อื่นๆ",
     notes: doc.notes || "",
     assignee_ids: assigneeIds,
@@ -283,6 +284,7 @@ export async function addTask(
     end_date: task.end_date || null,
     status: task.status,
     priority: task.priority || "none",
+    task_type: task.task_type || null,
     category: task.category || "อื่นๆ",
     notes: task.notes || "",
     assignee_ids: task.assignee_ids && task.assignee_ids.length > 0
@@ -345,6 +347,7 @@ export async function updateTask(
     payload.end_date = updates.end_date || null;
   if (updates.status !== undefined) payload.status = updates.status;
   if (updates.priority !== undefined) payload.priority = updates.priority;
+  if (updates.task_type !== undefined) payload.task_type = updates.task_type;
   if (updates.category !== undefined) payload.category = updates.category;
   if (updates.notes !== undefined) payload.notes = updates.notes;
   if (updates.assignee_ids !== undefined)

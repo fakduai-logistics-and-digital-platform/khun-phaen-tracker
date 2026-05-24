@@ -6,19 +6,32 @@
   import { currentWorkspaceName, currentWorkspaceShortName } from '$lib/stores/workspace';
   import {
     getBranchSlug as buildBranchSlug,
+    getBranchPrefixForTaskType,
     getCheckoutCommand as buildCheckoutCommand,
-    getComputedBranchName as buildComputedBranchName
+    getComputedBranchName as buildComputedBranchName,
+    type GitFlowType,
+    type TaskType
   } from '$lib/utils/branch-name';
 
   const dispatch = createEventDispatcher<{ close: void }>();
 
   export let show = false;
   export let title = '';
-  export let gitFlowType: 'feature' | 'bugfix' | 'hotfix' | 'release' = 'feature';
+  export let gitFlowType: GitFlowType = 'feature';
   export let workspaceShortName = '';
   export let taskNumber: number | null = null;
+  export let taskType: TaskType | null | undefined = undefined;
 
-  const gitFlowTypes = ['feature', 'bugfix', 'hotfix', 'release'] as const;
+  const gitFlowTypes: readonly GitFlowType[] = [
+    'feature',
+    'bugfix',
+    'hotfix',
+    'release',
+    'perf',
+    'refactor',
+    'docs',
+    'chore'
+  ] as const;
 
   let editableTitle = '';
   let translatedTitle = '';
@@ -285,6 +298,7 @@
 
   $: if (show && !wasOpen) {
     editableTitle = title;
+    gitFlowType = getBranchPrefixForTaskType(taskType);
     void updateBranchPreview(editableTitle);
     wasOpen = true;
   }

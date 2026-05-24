@@ -105,6 +105,7 @@
   let end_date = "";
   let status: Task["status"] = "todo";
   let priority: string = "medium";
+  let task_type: import("$lib/utils/branch-name").TaskType | undefined = "feature";
   let category = "งานหลัก";
   let notes = "";
   let assignee_ids: (string | number)[] = [];
@@ -225,6 +226,7 @@
         (legacyDueDateOnly ? editingTask.date : "");
       status = editingTask.status || "todo";
       priority = editingTask.priority || "none";
+      task_type = editingTask.task_type;
       category = editingTask.category || "งานหลัก";
       notes = editingTask.notes || "";
       assignee_ids = (
@@ -244,6 +246,7 @@
       end_date = "";
       status = "todo";
       priority = "medium";
+      task_type = "feature";
       category = $taskDefaults.category || "งานหลัก";
       notes = "";
       if ($taskDefaults.assignee_id) {
@@ -1059,6 +1062,7 @@
       end_date: end_date || undefined,
       status,
       priority: priority as Task["priority"],
+      task_type,
       category,
       notes: notes.trim(),
       assignee_ids: assignee_ids.length > 0 ? assignee_ids : undefined,
@@ -1280,6 +1284,24 @@
                 <!-- Priority (Mock for now as it's not in schema yet?) -->
                 <div class="property-select min-w-[120px]">
                   <PrioritySelector bind:value={priority} />
+                </div>
+
+                <!-- Task type -->
+                <div class="property-select min-w-[120px]">
+                  <SearchableSelect
+                    id="task_type"
+                    bind:value={task_type}
+                    options={[
+                      { value: "feature", label: $_("taskForm__task_type_feature"), icon: CircleDot, iconClass: "text-indigo-400" },
+                      { value: "bug", label: $_("taskForm__task_type_bug"), icon: CircleDot, iconClass: "text-red-400" },
+                      { value: "optimize", label: $_("taskForm__task_type_optimize"), icon: CircleDot, iconClass: "text-yellow-400" },
+                      { value: "refactor", label: $_("taskForm__task_type_refactor"), icon: CircleDot, iconClass: "text-blue-400" },
+                      { value: "docs", label: $_("taskForm__task_type_docs"), icon: CircleDot, iconClass: "text-emerald-400" },
+                      { value: "chore", label: $_("taskForm__task_type_chore"), icon: CircleDot, iconClass: "text-gray-400" }
+                    ]}
+                    showSearch={false}
+                    minimal={true}
+                  />
                 </div>
 
                 <!-- Assignee -->
@@ -1803,6 +1825,7 @@
     {title}
     workspaceShortName={workspaceBadgePrefix}
     taskNumber={displayTaskNumber ?? null}
+    taskType={task_type}
     on:close={closeBranchDialog}
   />
 

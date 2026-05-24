@@ -330,6 +330,7 @@ pub async fn create_task(
             due_date: resolved_due_date.clone(),
             status: payload.status.clone(),
             priority: payload.priority.clone(),
+            task_type: payload.task_type.clone(),
             category: payload.category.clone(),
             notes: payload.notes.clone(),
             assignee_ids: payload.assignee_ids.clone(),
@@ -475,6 +476,16 @@ pub async fn update_task(
     }
     if let Some(v) = payload.priority.clone() {
         updates.insert("priority", v);
+    }
+    if let Some(v) = payload.task_type {
+        match v {
+            Some(t) => {
+                updates.insert("task_type", t);
+            }
+            None => {
+                updates.insert("task_type", mongodb::bson::Bson::Null);
+            }
+        }
     }
     if let Some(v) = payload.category {
         updates.insert("category", v);

@@ -104,6 +104,8 @@ pub struct TaskDocument {
     pub status: String,
     #[serde(default = "default_priority")]
     pub priority: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub task_type: Option<String>,
     #[serde(default = "default_category")]
     pub category: String,
     #[serde(default)]
@@ -157,6 +159,8 @@ pub struct CreateTaskRequest {
     pub status: String,
     #[serde(default = "default_priority")]
     pub priority: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub task_type: Option<String>,
     #[serde(default = "default_category")]
     pub category: String,
     #[serde(default)]
@@ -186,6 +190,7 @@ pub struct UpdateTaskRequest {
     pub due_date: Option<Option<String>>,
     pub status: Option<String>,
     pub priority: Option<String>,
+    pub task_type: Option<Option<String>>,
     pub category: Option<String>,
     pub notes: Option<String>,
     #[serde(default, deserialize_with = "deserialize_null_default")]
