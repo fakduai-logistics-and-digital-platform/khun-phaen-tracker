@@ -18,16 +18,12 @@ quick-xml = { version = "0.38", features = ["serialize"] }
 wasm-bindgen = "0.2"
 js-sys = "0.3"
 uuid = { version = "1", features = ["v4", "js"] }
-sha2 = { version = "0.10", features = ["oid"] }
-rsa = { version = "0.9", default-features = false, features = ["std"] }
+sha2 = "0.10"
 hmac = "0.12"
 base64 = "0.22"
 bcrypt = "0.16"
 getrandom = { version = "0.2", features = ["js"] }
 chrono = { version = "0.4", default-features = false, features = ["std", "serde"] }
-
-[dev-dependencies]
-rand = "0.8"
 
 [profile.dev]
 debug = 0

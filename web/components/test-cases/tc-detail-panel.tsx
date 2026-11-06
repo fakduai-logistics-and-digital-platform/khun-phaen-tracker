@@ -8,7 +8,7 @@ import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { fixedOptions, priorityOptions, statusOptions } from "./tc-options";
 import type { AssigneeOption, SidebarTab, Suite, TestCase, TestCaseAttachment } from "./tc-types";
-import { getAttachmentUrl } from "./use-tc-lightbox";
+import { StoredImage } from "@/components/shared/stored-image";
 import type { useTcDetail } from "./use-tc-detail";
 import { TestCaseStepList } from "./test-case-step-list";
 
@@ -386,9 +386,9 @@ export function TcDetailPanel({
                   onClick={() => onOpenAttachment(attachments, i)}
                   className="group relative aspect-square overflow-hidden rounded-lg border"
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={getAttachmentUrl(attachment.file_key)}
+                  <StoredImage
+                    fileKey={attachment.file_key}
+                    thumb
                     alt={attachment.filename}
                     className="size-full object-cover"
                   />

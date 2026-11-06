@@ -4,9 +4,8 @@ use serde_json::{json, Value};
 use std::collections::HashMap;
 use wasm_bindgen::JsValue;
 use worker::*;
-/// Tasks assigned to the caller (bound twice). Both subqueries run once, so only tasks in the caller's
-/// workspaces are scanned and each assignee id is matched against a small in-memory list.
-pub const MY_TASKS: &str = "d.kind='tasks' AND d.workspace_id IN(SELECT workspace_id FROM documents WHERE kind='assignees' AND json_extract(payload,'$.user_id')=?) AND EXISTS(SELECT 1 FROM json_each(json_extract(d.payload,'$.assignee_ids')) ids WHERE (d.workspace_id,ids.value) IN(SELECT workspace_id,id FROM documents WHERE kind='assignees' AND json_extract(payload,'$.user_id')=?))";
+/// Tasks assigned to the caller, through the trigger-maintained `task_assignees` reverse index.
+pub const MY_TASKS: &str = "d.kind='tasks' AND d.id IN(SELECT ta.task_id FROM documents a JOIN task_assignees ta ON ta.assignee_id=a.id AND ta.workspace_id=a.workspace_id WHERE a.kind='assignees' AND json_extract(a.payload,'$.user_id')=?)";
 #[derive(Default)]
 pub struct Filter {
     pub sql: String,
@@ -73,7 +72,10 @@ pub fn build(q: &HashMap<String, String>, today: &str) -> Filter {
                 None,
             )
         } else {
-            f.add("EXISTS(SELECT 1 FROM json_each(json_extract(d.payload,'$.assignee_ids')) WHERE value=?)",Some(v.clone()))
+            f.add(
+                "d.id IN(SELECT task_id FROM task_assignees WHERE assignee_id=?)",
+                Some(v.clone()),
+            )
         }
     }
     if let Some(v) = q.get("search").filter(|v| !v.is_empty()) {
@@ -139,7 +141,7 @@ pub async fn list(
             vec![ws.into()],
         )
     } else {
-        (MY_TASKS.into(),vec![user.id.clone().into(),user.id.clone().into()])
+        (MY_TASKS.into(), vec![user.id.clone().into()])
     };
     sql.push_str(&filter.sql);
     args.extend(filter.args.into_iter().map(JsValue::from));

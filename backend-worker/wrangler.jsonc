@@ -14,11 +14,7 @@
     "STORAGE_URL": "https://rust-fs.wk18k.qzz.io",
     "STORAGE_BUCKET": "khunphaen-assets",
     "STORAGE_REGION": "us-east-1",
-    "COOKIE_SECURE": "true",
-    // Cloudflare Access sign-in stays disabled until both are set (see README, "Cloudflare Access sign-in").
-    "ACCESS_TEAM_DOMAIN": "",
-    "ACCESS_AUD": "",
-    "ACCESS_RETURN_ORIGINS": "https://fakduai-logistics-and-digital-platform.github.io"
+    "COOKIE_SECURE": "true"
   },
   "d1_databases": [{
     "binding": "DB",
@@ -28,6 +24,8 @@
   }],
   // Short-TTL cache for public QA pages only; sessions and access checks always read D1.
   "kv_namespaces": [{ "binding": "CACHE", "id": "762066984f7e47a39035574a9e8000bf" }],
+  // Attachment thumbnails; each image is transformed once and the WebP is stored on RustFS.
+  "images": { "binding": "IMAGES" },
   "durable_objects": {
     "bindings": [{ "name": "WORKSPACES", "class_name": "WorkspaceRoom" },
       { "name": "AUTH", "class_name": "AuthService" },

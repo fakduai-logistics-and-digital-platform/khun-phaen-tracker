@@ -11,6 +11,15 @@ async fn cleanup(env: &Env) -> Result<()> {
             .await
             .is_ok_and(|r| (200..300).contains(&r.status_code()))
         {
+            // Best effort: a thumbnail exists only for images that were previewed.
+            let _ = s3_client::request(
+                env,
+                Method::Delete,
+                &crate::file_urls::thumb_key(key),
+                None,
+                "",
+            )
+            .await;
             db::run(
                 &db,
                 "DELETE FROM storage_delete_jobs WHERE file_key=?",

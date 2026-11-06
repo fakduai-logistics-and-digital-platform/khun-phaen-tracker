@@ -67,6 +67,12 @@ try {
  assert.equal((await ok('/api/my/tasks/stats','GET',undefined,dev.token)).stats.total,1);
  assert.equal((await ok(`${p}/projects/stats`)).stats.find(s=>s.id===project.id).taskCount,1);
  assert.equal((await ok(`${p}/assignees/stats`)).stats.find(s=>s.id===devWorker.id).taskCount,1);
+ await ok(`${p}/tasks/${task.id}`,'PUT',{assignee_ids:[qaWorker.id]});
+ assert.equal((await ok('/api/my/tasks','GET',undefined,dev.token)).total,0,'task_assignees follows reassignment');
+ assert.equal((await ok(`${p}/tasks?assignee_id=${qaWorker.id}`)).tasks[0].id,task.id);
+ assert.equal((await ok(`${p}/assignees/stats`)).stats.find(s=>s.id===devWorker.id).taskCount,0);
+ await ok(`${p}/tasks/${task.id}`,'PUT',{assignee_ids:[devWorker.id]});
+ assert.equal((await ok('/api/my/tasks','GET',undefined,dev.token)).total,1);
  await ok(`${p}/projects/${project.id}`,'PUT',{name:'Renamed'});
  assert.equal((await ok(`${p}/tasks/${task.id}`)).task.project,'Renamed');
  await Promise.all([ok(`${p}/tasks/${task.id}`,'PUT',{notes:'Concurrent notes'}),ok(`${p}/tasks/${task.id}`,'PUT',{priority:'urgent'})]);
@@ -181,10 +187,21 @@ try {
  const download=await fetch(`${base}/api/files/${file.file_key}`,{headers:headers(dev.token)});assert.equal(download.status,200);assert.equal(await download.text(),'attachment bytes');
  assert.equal((await request(`/api/files/${file.file_key}`,'GET',undefined,outsider.token)).status,403);
  assert.equal((await request(`/api/files/${file.file_key}`,'GET',undefined,null)).status,401);
+ // Signed links let <img src> load files without a bearer token, only after the normal access check.
+ const signed=(await ok('/api/files/sign','POST',{keys:[file.file_key,'missing/key']},dev.token)).urls;
+ assert.deepEqual(Object.keys(signed),[file.file_key]);
+ const viaLink=await fetch(base+signed[file.file_key]);assert.equal(viaLink.status,200);assert.equal(await viaLink.text(),'attachment bytes');
+ assert.match(viaLink.headers.get('cache-control'),/max-age=3600/);
+ assert.equal((await fetch(base+signed[file.file_key].replace(/sig=./,'sig=0'))).status,403,'tampered signature');
+ assert.equal((await fetch(base+signed[file.file_key].replace(/exp=\d+/,'exp=1'))).status,403,'expired link');
+ assert.deepEqual((await ok('/api/files/sign','POST',{keys:[file.file_key]},outsider.token)).urls,{},'outsiders get no link');
  const commentForm=new FormData();commentForm.append('content','A comment');commentForm.append('images',new Blob(['image'],{type:'image/png'}),'image.png');
  const comment=(await multipart(`${p}/tasks/${task.id}/comments`,commentForm,dev.token)).comment;
  const comments=await ok(`${p}/tasks/${task.id}/comments`);assert.equal(comments.total,1);assert.equal(comments.comments[0].created_by_name,'Dev name');
  assert.equal((await ok(`${p}/tasks/${task.id}/comments/${comment.id}/images`)).images.length,1);
+ const imageKey=(await ok(`${p}/tasks/${task.id}/comments/${comment.id}/images`)).images[0].file_key;
+ const thumb=await fetch(base+(await ok('/api/files/sign','POST',{keys:[imageKey]},dev.token)).urls[imageKey]+'&w=320');
+ assert.equal(thumb.status,200);assert.equal(await thumb.text(),'image','undecodable image falls back to the original');
  assert.equal((await request(`${p}/tasks/${noDate.id}/comments/${comment.id}`,'PUT',{content:'wrong parent'})).status,404);
  await ok(`${p}/tasks/${task.id}/comments/${comment.id}`,'PUT',{content:'Edited'},dev.token);
  await Promise.all([ok(`${p}/tasks/${task.id}/comments/${comment.id}/reactions`,'POST',{emoji:'👍'},dev.token),ok(`${p}/tasks/${task.id}/comments/${comment.id}/reactions`,'POST',{emoji:'🔥'},qa.token)]);

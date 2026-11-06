@@ -1,11 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { API_BASE_URL } from "@/lib/api/apis";
-
-export function getAttachmentUrl(fileKey: string): string {
-  return `${API_BASE_URL.replace(/\/api$/, "")}/api/files/${fileKey}`;
-}
+import { signedFileUrl } from "@/lib/api/file-urls";
 
 type LightboxImage = { src: string; alt: string };
 
@@ -28,9 +24,10 @@ export function useTcLightbox() {
   }, []);
 
   const openLightbox = useCallback(
-    (list: { file_key: string; filename?: string }[], startIndex: number) => {
-      const mapped = list.map((img) => ({
-        src: getAttachmentUrl(img.file_key),
+    async (list: { file_key: string; filename?: string }[], startIndex: number) => {
+      const urls = await Promise.all(list.map((img) => signedFileUrl(img.file_key)));
+      const mapped = list.map((img, i) => ({
+        src: urls[i] ?? "",
         alt: img.filename || "Image",
       }));
       setImages(mapped);

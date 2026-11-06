@@ -38,6 +38,35 @@ pub async fn authenticate(req: &Request, env: &Env) -> Result<Option<User>> {
     };
     db::first(&env.d1("DB")?, "SELECT u.* FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>? AND u.is_active=1", &[digest(&token).into(),db::now().into()]).await
 }
+/// Login is gated by Cloudflare Turnstile only when the TURNSTILE_SECRET_KEY secret is configured.
+async fn turnstile_passes(env: &Env, token: &str, ip: &str) -> Result<bool> {
+    let Ok(secret) = http::secret(env, "TURNSTILE_SECRET_KEY") else {
+        return Ok(true);
+    };
+    if token.is_empty() || token.len() > 2048 {
+        return Ok(false);
+    }
+    let headers = Headers::new();
+    headers.set("Content-Type", "application/json")?;
+    let mut init = RequestInit::new();
+    init.with_method(Method::Post)
+        .with_headers(headers)
+        .with_redirect(RequestRedirect::Manual)
+        .with_body(Some(
+            json!({"secret": secret, "response": token, "remoteip": ip})
+                .to_string()
+                .into(),
+        ));
+    let mut response = Fetch::Request(Request::new_with_init(
+        "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+        &init,
+    )?)
+    .send()
+    .await
+    .map_err(|_| Error::RustError("Turnstile verification request failed".into()))?;
+    let verdict: Value = response.json().await?;
+    Ok(verdict.get("success").and_then(Value::as_bool) == Some(true))
+}
 // All password work runs in a DO, whose CPU allowance supports bcrypt at its normal cost.
 #[durable_object]
 pub struct AuthService {
@@ -78,6 +107,10 @@ impl DurableObject for AuthService {
         }
         match path.as_str() {
             "/login" => {
+                let ip = req.headers().get("X-Client-IP")?.unwrap_or_default();
+                if !turnstile_passes(&self.env, http::text(&input, "turnstile_token"), &ip).await? {
+                    return http::error(400, "Human verification failed");
+                }
                 let email = http::text(&input, "email").trim().to_lowercase();
                 let user: Option<User> = db::first(
                     &db,

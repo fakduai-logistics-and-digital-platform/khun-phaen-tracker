@@ -22,6 +22,23 @@ export function AuthenticatedLayout({ children }: { children: React.ReactNode })
     setDefaultOpen(getCookie("sidebar_state") !== "false");
   }, []);
 
+  // Every page is a static file shared by all ids, so warming these few routes makes later navigation instant.
+  useEffect(() => {
+    const warm = () => {
+      for (const path of [
+        "/dashboard/",
+        "/workspaces/",
+        "/workspaces/overview/",
+        "/workspaces/test-cases/",
+        "/workspaces/task/",
+      ]) {
+        router.prefetch(path);
+      }
+    };
+    const idle = window.requestIdleCallback?.(warm) ?? window.setTimeout(warm, 500);
+    return () => (window.cancelIdleCallback ? window.cancelIdleCallback(idle) : window.clearTimeout(idle));
+  }, [router]);
+
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
   }, [loading, user, router]);
