@@ -1,7 +1,0 @@
-target/
-.env
-.env.*
-!.env.example
-*.db
-*.sqlite
-backend-server
