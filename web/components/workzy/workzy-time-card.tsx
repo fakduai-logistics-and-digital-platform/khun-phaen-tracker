@@ -8,7 +8,7 @@ function clock(iso: string, locale: string) {
   return new Date(iso).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
-/** Sidebar card with today's Workzy work time; renders nothing unless the user is linked and checked in. */
+/** Sidebar card with today's Workzy time; renders nothing unless the user is linked and has checked in today. */
 export function WorkzyTimeCard() {
   const { t, locale } = useI18n();
   const progress = useWorkzyTime();
@@ -19,7 +19,9 @@ export function WorkzyTimeCard() {
     const h = Math.floor(minutes / 60);
     return h > 0 ? t("workzy__dur_hm", { h, m: minutes % 60 }) : t("workzy__dur_m", { m: minutes });
   };
-  const done = progress.remainingSeconds === 0;
+  const worked = t("workzy__worked", { time: duration(progress.workedSeconds) });
+  const target = progress.kind === "target";
+  const done = progress.kind === "done" || (target && progress.remainingSeconds === 0);
 
   return (
     <section
@@ -28,19 +30,34 @@ export function WorkzyTimeCard() {
     >
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <span>Workzy</span>
-        <span className="tabular-nums">{t("workzy__checked_in_at", { time: clock(progress.checkIn, locale) })}</span>
+        <span className="tabular-nums">
+          {progress.checkOut
+            ? t("workzy__in_out", {
+                in: clock(progress.checkIn, locale),
+                out: clock(progress.checkOut, locale),
+              })
+            : t("workzy__checked_in_at", { time: clock(progress.checkIn, locale) })}
+        </span>
       </div>
       <p className="mt-2 text-sm font-medium tabular-nums">
-        {done ? t("workzy__done") : t("workzy__remaining", { time: duration(progress.remainingSeconds) })}
+        {target
+          ? done
+            ? t("workzy__done")
+            : t("workzy__remaining", { time: duration(progress.remainingSeconds) })
+          : worked}
       </p>
-      <Progress
-        value={progress.percent}
-        className="mt-2 h-1.5"
-        aria-label={t("workzy__worked", { time: duration(progress.workedSeconds) })}
-      />
+      {target && <Progress value={progress.percent} className="mt-2 h-1.5" aria-label={worked} />}
       <div className="mt-2 flex flex-wrap justify-between gap-x-2 text-xs text-muted-foreground tabular-nums">
-        <span>{t("workzy__worked", { time: duration(progress.workedSeconds) })}</span>
-        {!done && <span>{t("workzy__leave_at", { time: clock(progress.leaveAt, locale) })}</span>}
+        {target ? (
+          <>
+            <span>{worked}</span>
+            {!done && progress.leaveAt && (
+              <span>{t("workzy__leave_at", { time: clock(progress.leaveAt, locale) })}</span>
+            )}
+          </>
+        ) : (
+          <span>{progress.kind === "done" ? t("workzy__checked_out") : t("workzy__no_target")}</span>
+        )}
       </div>
     </section>
   );

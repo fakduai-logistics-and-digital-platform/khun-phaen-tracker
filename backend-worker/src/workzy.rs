@@ -46,9 +46,17 @@ async fn call(url: &str, method: Method, bearer: Option<&str>, body: Option<Valu
     Ok((status, response.json().await.unwrap_or(Value::Null)))
 }
 
-/// The few fields the work-time card needs, taken from Workzy's `work-time-state` response.
-pub fn summarize(state: &Value) -> Value {
-    let data = &state["data"];
+/// The few fields the work-time card needs, taken from Workzy's `integrations/today` response.
+pub fn summarize(body: &Value) -> Value {
+    let data = &body["data"]["state"];
+    let attendances: Vec<Value> = body["data"]["attendances"]
+        .as_array()
+        .map(|rows| {
+            rows.iter()
+                .map(|row| json!({"check_in": row["checkIn"], "check_out": row["checkOut"]}))
+                .collect()
+        })
+        .unwrap_or_default();
     let session = &data["session"];
     let policy = &data["day"]["policy"];
     json!({
@@ -64,6 +72,7 @@ pub fn summarize(state: &Value) -> Value {
         "credited_start": session["creditedStart"],
         "target_at": session["targetAt"],
         "closed_at": session["closedAt"],
+        "attendances": attendances,
     })
 }
 
@@ -134,7 +143,7 @@ pub async fn handle(req: &mut Request, env: &Env, user: &User, parts: &[&str]) -
                 return http::ok(json!({"connected":false}));
             };
             let (status, state) = call(
-                &format!("{base}/integrations/work-time-state"),
+                &format!("{base}/integrations/today"),
                 Method::Get,
                 Some(&linked.token),
                 None,
@@ -161,24 +170,27 @@ mod tests {
 
     #[test]
     fn keeps_only_the_card_fields() {
-        let state = json!({"data":{
+        let state = json!({"data":{"state":{
             "configured": true, "serverNow": "2026-11-24T05:00:00.000Z",
             "account": {"balance": 3600},
             "day": {"date":"2026-11-24","target":28800,"worked":0,"policy":{"breakStart":"12:00","breakEnd":"13:00","employeeCodes":[]}},
             "session": {"checkIn":"2026-11-24T02:00:00.000Z","creditedStart":"2026-11-24T02:00:00.000Z","targetAt":"2026-11-24T11:00:00.000Z","closedAt":null}
-        }});
+        },"attendances":[{"checkIn":"2026-11-24T02:00:00.000Z","checkOut":null}]}});
         let out = summarize(&state);
         assert_eq!(out["connected"], true);
         assert_eq!(out["day_target"], 28800);
         assert_eq!(out["break_start"], "12:00");
         assert_eq!(out["target_at"], "2026-11-24T11:00:00.000Z");
         assert!(out.get("account").is_none());
+        assert_eq!(out["attendances"][0]["check_in"], "2026-11-24T02:00:00.000Z");
+        assert!(out["attendances"][0]["check_out"].is_null());
     }
 
     #[test]
     fn no_session_means_not_checked_in() {
-        let out = summarize(&json!({"data":{"configured":true,"serverNow":"x","day":null,"session":null}}));
+        let out = summarize(&json!({"data":{"state":{"configured":true,"serverNow":"x","day":null,"session":null},"attendances":[]}}));
         assert!(out["check_in"].is_null());
         assert!(out["day_target"].is_null());
+        assert_eq!(out["attendances"].as_array().map(Vec::len), Some(0));
     }
 }
