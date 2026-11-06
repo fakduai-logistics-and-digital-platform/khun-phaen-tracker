@@ -1,0 +1,39 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "api",
+  "account_id": "d40451d72985811b7e50c6d47c03711e",
+  "main": "build/worker/shim.mjs",
+  "compatibility_date": "2026-11-06",
+  "workers_dev": true,
+  "triggers": { "crons": ["* * * * *"] },
+  "build": {
+    "command": "worker-build --release"
+  },
+  "vars": {
+    "ALLOWED_ORIGIN": "*",
+    "STORAGE_URL": "https://rust-fs.wk18k.qzz.io",
+    "STORAGE_BUCKET": "khunphaen-assets",
+    "STORAGE_REGION": "us-east-1",
+    "COOKIE_SECURE": "true"
+  },
+  "d1_databases": [{
+    "binding": "DB",
+    "database_name": "khun-phaen",
+    "database_id": "0c1d7cc0-38fa-4370-8973-97e4f0b71cc4",
+    "migrations_dir": "migrations"
+  }],
+  // Short-TTL cache for public QA pages only; sessions and access checks always read D1.
+  "kv_namespaces": [{ "binding": "CACHE", "id": "762066984f7e47a39035574a9e8000bf" }],
+  "durable_objects": {
+    "bindings": [{ "name": "WORKSPACES", "class_name": "WorkspaceRoom" },
+      { "name": "AUTH", "class_name": "AuthService" },
+      { "name": "STORAGE", "class_name": "RustFsService" },
+      { "name": "AI", "class_name": "AiGateway" },
+      { "name": "SCHEDULER", "class_name": "Scheduler" }]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["WorkspaceRoom", "AuthService"] },
+    { "tag": "v2", "new_sqlite_classes": ["RustFsService"] },
+    { "tag": "v3", "new_sqlite_classes": ["AiGateway", "Scheduler"] }
+  ]
+}

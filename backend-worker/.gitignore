@@ -1,0 +1,6 @@
+/target/
+/build/
+/.wrangler/
+.dev.vars
+/.migration/
+/db_mongo/

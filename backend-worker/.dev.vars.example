@@ -1,0 +1,6 @@
+# Set unique random values locally. Never commit .dev.vars.
+CONFIG_ENCRYPTION_KEY=
+INITIAL_SETUP_TOKEN=
+RUSTFS_ACCESS_KEY=
+RUSTFS_SECRET_KEY=
+STORAGE_URL=http://127.0.0.1:9000
