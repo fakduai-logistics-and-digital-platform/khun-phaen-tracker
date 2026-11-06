@@ -1,191 +1,61 @@
 # ขุนแผน (Khun Phaen)
 
-ระบบจัดการงานแบบ Self-hosted - ทำงานได้ทุกที่แม้ไม่มีอินเทอร์เน็ต
+ระบบจัดการงานสำหรับทีม: งาน สปรินต์ โปรเจกต์ ปฏิทิน คัมบัง Gantt เคสทดสอบ และการอัปเดตแบบเรียลไทม์
 
 > **ขุนแผน** (Khun Phaen) - ตั้งชื่อตามตัวละครในวรรณคดีไทยที่เป็นยอดนักวางแผน สามารถบริหารจัดการภารกิจได้อย่างมีประสิทธิภาพ
 
 ## ✨ ฟีเจอร์
 
-- ✅ **จัดการงาน** - เพิ่ม แก้ไข และลบงาน
-- 👥 **จัดการทีม** - เพิ่มสมาชิกและมอบหมายงาน
-- 📁 **จัดการโปรเจกต์** - แยกกลุ่มงานตามโปรเจกต์
-- 📅 **มุมมองปฏิทิน** - ดูตารางงานในรูปแบบปฏิทิน
-- 🎯 **คัมบังบอร์ด** - จัดการสถานะงานด้วยระบบ Drag & Drop
-- 📊 **สถิติงาน** - ดูรายงานและสถิติต่างๆ
-- 📤 **นำเข้า/ส่งออก** - รองรับ CSV และ PDF
-- 🌙 **Dark Mode** - รองรับธีมมืด
-- 🔄 **Real-time Sync** - ซิงค์ข้อมูลข้ามเครื่อง (เมื่อเปิด Sync Server)
-- 🎨 **Whiteboard** - วาดเขียนไอเดียประกอบการวางแผนด้วย Excalidraw
+- ✅ **จัดการงาน** - เพิ่ม แก้ไข ลบ เช็กลิสต์ ความคิดเห็น ไฟล์แนบ
+- 👥 **ทีมและโปรเจกต์** - สมาชิก กลุ่ม โปรเจกต์ สปรินต์ เป้าหมาย
+- 📅 **มุมมองงาน** - รายการ ปฏิทิน คัมบัง ตาราง Gantt และภาระงาน
+- 🧪 **เคสทดสอบ** - Suite, Test run, หน้า public แบบอ่านอย่างเดียว, นำเข้า/ส่งออก CSV
+- 📤 **นำเข้า/ส่งออก** - CSV, PDF, PNG, สไลด์
+- 🔄 **เรียลไทม์** - WebSocket ผ่าน Durable Objects
+- 🌙 **Dark mode และชุดสี** รองรับภาษาไทยและอังกฤษ
 
 ## 🏗️ โครงสร้างโปรเจกต์
 
 ```
 .
-├── src/                    # SvelteKit Frontend
-├── backend-server/            # Rust WebSocket Sync Server
-├── wasm-compress/          # WASM: LZ4 Compression
-├── wasm-crdt/              # WASM: CRDT สำหรับแก้ไขงานพร้อมกัน
-├── wasm-search/            # WASM: ระบบค้นหาข้อความ
-├── static/                 # Static assets
-└── build/                  # ไฟล์สำหรับ Production
+├── web/             # Frontend: Next.js (vinext) + shadcn/ui, export เป็น static ขึ้น GitHub Pages
+├── backend-worker/  # API: Rust Cloudflare Worker (D1 + Durable Objects), ไฟล์แนบผ่าน RustFS/S3
+├── scripts/         # ตั้งค่า worker, smoke test, นำเข้า MongoDB → D1
+└── tests/           # เทสต์ของ scripts/ (Vitest)
 ```
 
-## 🚀 การเริ่มต้นใช้งาน
+- รายละเอียด frontend: [web/README.md](web/README.md)
+- การตั้งค่าและตรวจสอบ backend: [backend-worker/README.md](backend-worker/README.md)
+- API ที่ deploy แล้ว: `https://api.khun-phaen.workers.dev` (`/api`, เรียลไทม์ที่ `/ws`, ตรวจสถานะที่ `/health`)
 
-### สิ่งที่ต้องมี
-
-- [Node.js](https://nodejs.org/) 18+ 
-- [Rust](https://rustup.rs/) (สำหรับ build backend-server หรือ WASM)
-
-### 1. ติดตั้ง Dependencies
+## 🛠️ รันในเครื่อง
 
 ```sh
+# Frontend (http://localhost:3100)
+cd web
 npm install
-```
-
-### 2. ตั้งค่า Environment Variables
-
-```sh
-cp .env.example .env
-```
-
-แก้ไขไฟล์ `.env` (ถ้าต้องการใช้งานฟีเจอร์ขั้นสูง):
-
-สำหรับ Backend `.env` ให้เพิ่มการตั้งค่าของ **ระบบที่เก็บไฟล์ (RustFS/S3)** ดังนี้ (ถ้าไม่ใช้ไฟล์แนบ สามารถละเว้นได้):
-```
-STORAGE_URL="http://127.0.0.1:9000"
-RUSTFS_ACCESS_KEY="rustfsadmin"
-RUSTFS_SECRET_KEY="rustfsadmin"
-STORAGE_BUCKET="khunphaen-assets"
-```
-**ข้อควรระวัง:** ระบบแบคเอนด์จะพยายามสร้าง Bucket ให้คุณโดยอัตโนมัติเมื่อเริ่มทำงาน แต่ถ้าคุณใช้ IP ของเซิร์ฟเวอร์แยกต่างหาก (เช่นใส่ `STORAGE_URL="http://45.xxx.xxx:9000"`) ระบบอาจจะโดนปฏิเสธการเข้าถึง (AccessDenied) ในกรณีนี้คุณต้องเข้าไปที่หน้า Console ของ RustFS เพื่อสร้าง Bucket ชื่อ `khunphaen-assets` (หรือตามที่คุณตั้งค่าไว้) ล่วงหน้าด้วยตนเองครับ
-
-
-
-### 3. รัน Development Server
-
-```sh
-# รัน frontend
 npm run dev
 
-# รันและเปิดเบราว์เซอร์อัตโนมัติ
-npm run dev -- --open
+# Backend worker (ที่รากของ repo)
+npm install
+npm run worker:setup
+npm run worker:dev
 ```
 
-หน้าเว็บจะอยู่ที่ `http://localhost:5173/khun-phaen-tracker`
+API ที่ deploy แล้วอนุญาต CORS เฉพาะ origin ของ GitHub Pages ดังนั้น `npm run dev` จึงเรียก API ผ่าน proxy ที่ตั้งไว้ใน `web/next.config.ts`
 
-### 4. รัน Sync Server (เสริม - สำหรับ Real-time Sync)
-
-ใน terminal ใหม่:
+## ✅ การตรวจสอบ
 
 ```sh
-cd backend-server
-cargo run --release
+cd web && npm run typecheck && npm run lint   # ต้องไม่มี warning
+npm test                                      # ที่ราก: scripts/
+npm run worker:check && npm run worker:test   # backend-worker
 ```
 
-Server จะรันอยู่ที่ `http://localhost:3001`
+## 🚀 การ Deploy
 
-## 🧪 การทดสอบ (Testing)
-
-โปรเจกต์นี้ใช้ `Vitest` ในการรันชุดทดสอบ
-
-```sh
-# รันเทสทั้งหมด
-npm test
-
-# รันเฉพาะเทสจำลองฐานข้อมูล
-npx vitest run src/lib/db.unit.test.ts
-```
-
-## 📚 Storybook (เอกสาร UI)
-
-ดูคอมโพเนนต์ต่างๆ ในรูปแบบแยกส่วน
-
-```sh
-npm run storybook
-```
-เปิดที่ `http://localhost:6006`
-
-## 🏭 การ Build สำหรับ Production
-
-```sh
-# Build Frontend
-npm run build
-
-# Build Sync Server (Binary)
-cd backend-server
-cargo build --release
-```
-
-## 🐳 Docker / Deployment
-
-คุณสามารถเลือกรันโปรเจกต์ผ่าน Docker ได้หลายวิธี ขึ้นอยู่กับฐานข้อมูลที่ต้องการใช้ (Local MongoDB หรือ Mongo Atlas) และรูปแบบที่คุณต้องการใช้งาน (รันทั้งหมด หรือเฉพาะส่วนหลังบ้าน)
-
-### ข้อกำหนดพื้นฐานก่อนใช้งาน Docker
-
-1. ต้องติดตั้ง Docker และ Docker Compose ในเครื่องเรียบร้อยแล้ว
-2. ตรวจสอบให้แน่ใจว่าไม่มีบริการอื่นรันค้างอยู่ในพอร์ต `8080`, `3001` และ `27017` (ถ้าใช้ Local MongoDB)
-3. หากใช้ MongoDB Atlas, กรุณาตรวจสอบให้แน่ใจว่าได้เพิ่ม IP ของเครื่องที่จะรันไว้ใน Network Access List บน Atlas แล้ว
-
-### วิธีที่ 1: รันทั้งหมด + ฐานข้อมูลแบบ Local (ค่าเริ่มต้น)
-
-วิธีนี้จะทำการรันทั้ง Frontend, Backend และ MongoDB Server แบบจำลองขึ้นมาในเครื่อง
-
-```sh
-# สั่งรันแบบ background
-docker compose up -d
-
-# ปิดการทำงาน
-docker compose down
-```
-
-หน้าเว็บจะสามารถเข้าถึงได้ที่: `http://localhost:8080/khun-phaen-tracker/`
-ระบบหลังบ้าน (API/WebSocket) จะอยู่ที่: `http://localhost:3001`
-ระบบเก็บไฟล์ (RustFS API) จะอยู่ที่พอร์ต: `9000`
-ระบบจัดการไฟล์ผ่านหน้าเว็บ (RustFS Console) จะอยู่ที่: `http://localhost:9001` (User/Passed พื้นฐาน: `rustfsadmin` / `rustfsadmin`)
-
-### วิธีที่ 2: รันทั้งหมด + ใช้ Mongo Atlas (ฐานข้อมูลคลาวด์)
-
-วิธีนี้จะรัน Frontend, Backend และระบบ Setup พิเศษที่จะเชื่อมตัวหลังบ้านเข้ากับ MongoDB Atlas เพื่อสร้างบัญชีแอดมินคนแรกให้อัตโนมัติ
-
-**ขั้นตอนที่ 1:** สร้างหรือแก้ไขไฟล์ `.env` ที่ root folder และเพิ่มการตั้งค่าสำหรับ Atlas/Setup Token ดังนี้:
-```env
-MONGODB_ATLAS_URI=mongodb+srv://<username>:<password>@cluster0.abcde.mongodb.net/tracker-db?retryWrites=true&w=majority
-INITIAL_SETUP_TOKEN=your-very-secret-token
-INITIAL_ADMIN_EMAIL=admin@example.com
-INITIAL_ADMIN_PASSWORD=password123
-INITIAL_ADMIN_NICKNAME=SuperAdmin
-```
-
-**ขั้นตอนที่ 2:** รันโปรเจกต์โดยระบุไฟล์สำหรับระบบ Atlas:
-```sh
-docker compose -f docker-compose.atlas.yml up -d
-```
-
-### วิธีที่ 3: รันแค่ Backend Server (ใช้ควบคู่ Mongo Atlas)
-
-เหมาะสำหรับการที่คุณฝาก Frontend ไว้บนโฮสต์อื่นๆ (เช่น Vercel, Github Pages ฯลฯ) แล้วต้องการรันหน้า API กับ WebSocket แยกลงบนเซิร์ฟเวอร์ด้วย Docker อย่างเดียว
-
-**ขั้นตอนที่ 1:** ย้ายเข้าไปในโฟลเดอร์รัน Backend โดยเฉพาะ:
-```sh
-cd backend-server
-```
-
-**ขั้นตอนที่ 2:** สร้างไฟล์ `.env` ไว้ในโฟลเดอร์ `backend-server`:
-```env
-MONGODB_ATLAS_URI=mongodb+srv://<username>:<password>@cluster0.abcde.mongodb.net/tracker-db?retryWrites=true&w=majority
-JWT_SECRET=your_jwt_secret_key_here
-INITIAL_SETUP_TOKEN=your-very-secret-token
-```
-
-**ขั้นตอนที่ 3:** เริ่มการทำงานของบริการหลังบ้านและชุดเชื่อมต่อ Atlas:
-```sh
-docker compose -f docker-compose.atlas.yml up -d
-```
-จากนั้นตัว API และ WebSocket จะรันพร้อมรับการเชื่อมต่ออยู่ที่ `http://localhost:3001`
+เมื่อ push เข้า `main` workflow `.github/workflows/deploy.yml` จะ build `web/` เป็นไฟล์ static (`npm run build:pages`) แล้วเผยแพร่ขึ้น GitHub Pages ในการตั้งค่า repo ให้เลือก **Pages → Source** เป็น *GitHub Actions* และตั้ง repository variables ได้ตามต้องการ: `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SERVER_URL`, `NEXT_PUBLIC_WS_URL`
 
 ## 📄 License
 
-โปรเจกต์นี้ใช้สัญญาอนุญาต [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/) - สามารถใช้งาน แก้ไข และแชร์ได้อย่างอิสระ แต่ห้ามนำไปใช้เชิงพาณิชย์
-
----
+โปรเจกต์นี้อยู่ภายใต้ [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/) - ใช้ แก้ไข และแจกจ่ายได้เฉพาะวัตถุประสงค์ที่ไม่ใช่เชิงพาณิชย์

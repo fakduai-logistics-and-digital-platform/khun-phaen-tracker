@@ -8,7 +8,7 @@ description: Ensures data model consistency across the full stack (IndexedDB, We
 This project stores data in three locations that must stay in sync:
 1. **IndexedDB** on the frontend (`src/lib/db.ts`)
 2. **WebSocket JSON messages** between frontend (`src/lib/stores/sync.ts`, `src/lib/stores/crdt-sync.ts`) and backend
-3. **MongoDB** on the Rust backend (`backend-server/src/`)
+3. **D1** on the Rust Worker backend (`backend-worker/`)
 
 When any data model changes, **all three layers must be updated together** or the system will silently lose data or break sync.
 
