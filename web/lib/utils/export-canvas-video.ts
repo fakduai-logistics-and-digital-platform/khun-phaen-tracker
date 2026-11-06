@@ -146,7 +146,6 @@ export function renderVideoSlide(
     ctx.fillStyle = "#dbeafe";
     ctx.fillRect(x, y, twinkle, twinkle);
   }
-  ctx.globalAlpha = 1;
 
   ctx.globalAlpha = 0.3;
   ctx.strokeStyle = "#ffffff22";
