@@ -1,0 +1,86 @@
+.rich-text-editor p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: var(--muted-foreground);
+  opacity: 0.7;
+  pointer-events: none;
+  height: 0;
+}
+
+.rich-text-editor p {
+  margin: 0.25rem 0;
+}
+
+.rich-text-editor h1,
+.rich-text-editor h2,
+.rich-text-editor h3 {
+  margin: 0.75rem 0 0.25rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.rich-text-editor h1 {
+  font-size: 1.5em;
+}
+
+.rich-text-editor h2 {
+  font-size: 1.25em;
+}
+
+.rich-text-editor h3 {
+  font-size: 1.1em;
+}
+
+.rich-text-editor ul {
+  list-style-type: disc;
+  padding-left: 1.5rem;
+}
+
+.rich-text-editor ol {
+  list-style-type: decimal;
+  padding-left: 1.5rem;
+}
+
+.rich-text-editor blockquote {
+  border-left: 3px solid var(--border);
+  padding-left: 1rem;
+  font-style: italic;
+  color: var(--muted-foreground);
+}
+
+.rich-text-editor code {
+  background: color-mix(in oklab, var(--foreground) 8%, transparent);
+  padding: 0.15em 0.4em;
+  border-radius: 0.25rem;
+  font-size: 0.85em;
+}
+
+.rich-text-editor pre {
+  background: color-mix(in oklab, var(--foreground) 6%, transparent);
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+}
+
+.rich-text-editor pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.rich-text-editor hr {
+  border-color: var(--border);
+  margin: 0.75rem 0;
+}
+
+.title-editor p {
+  margin: 0;
+}
+
+.title-editor p.is-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: var(--muted-foreground);
+  opacity: 0.7;
+  pointer-events: none;
+  height: 0;
+}

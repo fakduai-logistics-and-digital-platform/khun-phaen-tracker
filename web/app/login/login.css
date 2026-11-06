@@ -1,0 +1,9 @@
+/* Browsers repaint autofilled inputs with their own background; keep it on the dark card. */
+.login-shell input:-webkit-autofill,
+.login-shell input:-webkit-autofill:hover,
+.login-shell input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 30px var(--card) inset !important;
+  -webkit-text-fill-color: var(--foreground) !important;
+  caret-color: var(--foreground) !important;
+  transition: background-color 5000s ease-in-out 0s;
+}

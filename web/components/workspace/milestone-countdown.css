@@ -1,0 +1,84 @@
+@keyframes gentle-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes glow-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.3);
+  }
+  50% {
+    opacity: 0.88;
+    box-shadow: 0 0 14px rgba(16, 185, 129, 0.45);
+  }
+}
+
+@keyframes rocket-launch {
+  0% {
+    transform: rotate(-90deg) translate(0, 0);
+  }
+  10% {
+    transform: rotate(-90deg) translate(-1px, 1px);
+  }
+  20% {
+    transform: rotate(-90deg) translate(1px, -1px);
+  }
+  30% {
+    transform: rotate(-90deg) translate(-1px, 0);
+  }
+  40% {
+    transform: rotate(-90deg) translate(1px, 1px);
+  }
+  50% {
+    transform: rotate(-90deg) translate(0, -1px);
+  }
+  60% {
+    transform: rotate(-90deg) translate(-1px, 1px);
+  }
+  70% {
+    transform: rotate(-90deg) translate(1px, 0);
+  }
+  80% {
+    transform: rotate(-90deg) translate(0, 1px);
+  }
+  90% {
+    transform: rotate(-90deg) translate(-1px, -1px);
+  }
+  100% {
+    transform: rotate(-90deg) translate(0, 0);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-gentle-float {
+  animation: gentle-float 5s ease-in-out infinite;
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 4s ease-in-out infinite;
+}
+
+.animate-rocket-launch {
+  animation: rocket-launch 0.3s linear infinite;
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent 30%, rgba(255, 255, 255, 0.15) 50%, transparent 70%);
+  background-size: 200% 100%;
+  animation: shimmer 3s ease-in-out infinite;
+}

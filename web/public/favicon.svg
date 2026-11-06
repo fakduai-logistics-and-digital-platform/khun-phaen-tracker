@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <title>Khun Phaen</title>
+  <style>
+    .bg{fill:none}.a{fill:#0b1f4b}.b{fill:#f59e0b}
+    @media (prefers-color-scheme:dark){.bg{fill:#2563eb}.a{fill:#fff}.b{fill:#fbbf24}}
+  </style>
+  <rect class="bg" width="512" height="512" rx="112"/>
+  <path class="a" d="M106 347L256 260L406 347L406 407L256 320L106 407Z"/><path class="a" d="M156 238L256 180L356 238L356 298L256 240L156 298Z"/><path class="b" d="M206 129L256 100L306 129L306 189L256 160L206 189Z"/>
+</svg>

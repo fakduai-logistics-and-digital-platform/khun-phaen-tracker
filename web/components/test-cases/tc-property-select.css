@@ -1,0 +1,68 @@
+.tc-prop-select .property-trigger-btn {
+  background-color: transparent !important;
+  border: 1px solid var(--border) !important;
+  color: var(--muted-foreground) !important;
+  border-radius: 9999px !important;
+  height: 2rem !important;
+  padding-left: 0.75rem !important;
+  padding-right: 0.75rem !important;
+  font-size: 13px !important;
+  box-shadow: none !important;
+}
+
+.tc-prop-select .property-trigger-btn:hover {
+  background-color: var(--accent) !important;
+  border-color: var(--input) !important;
+}
+
+.tc-prop-select .property-trigger-btn span {
+  color: var(--foreground) !important;
+}
+
+.tc-prop-select .property-trigger-btn svg {
+  color: var(--muted-foreground) !important;
+}
+
+.tc-prop-select[data-status="draft"] .property-trigger-btn {
+  border-color: rgba(148, 163, 184, 0.35) !important;
+}
+.tc-prop-select[data-status="draft"] .property-trigger-btn span,
+.tc-prop-select[data-status="draft"] .property-trigger-btn svg {
+  color: #94a3b8 !important;
+}
+.tc-prop-select[data-status="actual"] .property-trigger-btn {
+  border-color: rgba(96, 165, 250, 0.5) !important;
+}
+.tc-prop-select[data-status="actual"] .property-trigger-btn span,
+.tc-prop-select[data-status="actual"] .property-trigger-btn svg {
+  color: #60a5fa !important;
+}
+.tc-prop-select[data-status="passed"] .property-trigger-btn {
+  border-color: rgba(52, 211, 153, 0.5) !important;
+}
+.tc-prop-select[data-status="passed"] .property-trigger-btn span,
+.tc-prop-select[data-status="passed"] .property-trigger-btn svg {
+  color: #34d399 !important;
+}
+.tc-prop-select[data-status="failed"] .property-trigger-btn {
+  border-color: rgba(248, 113, 113, 0.5) !important;
+}
+.tc-prop-select[data-status="failed"] .property-trigger-btn span,
+.tc-prop-select[data-status="failed"] .property-trigger-btn svg {
+  color: #f87171 !important;
+}
+.tc-prop-select[data-status="blocked"] .property-trigger-btn {
+  border-color: rgba(251, 146, 60, 0.5) !important;
+}
+.tc-prop-select[data-status="blocked"] .property-trigger-btn span,
+.tc-prop-select[data-status="blocked"] .property-trigger-btn svg {
+  color: #fb923c !important;
+}
+.tc-prop-select[data-status="deprecated"] .property-trigger-btn {
+  border-color: rgba(100, 116, 139, 0.3) !important;
+  opacity: 0.6;
+}
+.tc-prop-select[data-status="deprecated"] .property-trigger-btn span,
+.tc-prop-select[data-status="deprecated"] .property-trigger-btn svg {
+  color: #64748b !important;
+}
