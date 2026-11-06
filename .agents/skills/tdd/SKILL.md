@@ -120,7 +120,7 @@ Tests are colocated or placed in `*.test.ts` or `*.spec.ts` files (e.g., [db.uni
 ### Rust Backend (`cargo test`)
 Rust tests should be written in inline `cfg(test)` modules or in the `tests/` directory.
 * **Run tests:** `cargo test`
-* **Run specific test:** `cargo test --package khu-phaen-backend-server --lib -- <test_name>`
+* **Run specific test:** `cargo test --manifest-path backend-worker/Cargo.toml -- <test_name>`
 * Always check types and compilation using `cargo check` before running tests.
 
 ### Clean Code Guidelines

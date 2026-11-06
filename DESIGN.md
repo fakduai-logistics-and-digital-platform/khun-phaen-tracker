@@ -2,7 +2,7 @@
 title: Khun Phaen Tracker Design System
 description: Design system tokens and UI guidance for Khun Phaen Tracker.
 version: 1.0.0
-framework: SvelteKit
+framework: Next.js (vinext) + shadcn/ui
 styling: Tailwind CSS v4
 ---
 
@@ -10,12 +10,12 @@ styling: Tailwind CSS v4
 
 Design system guide for AI agents and contributors working on Khun Phaen Tracker, a local-first task, workspace, calendar, Kanban, and developer utility app.
 
-Use this file when adding or changing UI so generated screens feel consistent with the existing SvelteKit + Tailwind app.
+Use this file when adding or changing UI so generated screens feel consistent with the existing Next.js + shadcn/ui + Tailwind app (`web/`).
 
 
 ## Design Tokens
 
-Primary design tokens live in [src/app.css](src/app.css) under Tailwind v4 `@theme` and CSS custom properties.
+Primary design tokens live in [web/app/globals.css](web/app/globals.css) under Tailwind v4 `@theme` and CSS custom properties.
 
 Use Tailwind token utilities when possible:
 
@@ -58,7 +58,7 @@ Khun Phaen Tracker should feel like a focused productivity cockpit: calm, struct
 
 ## 2. Color Palette & Roles
 
-Use Tailwind classes backed by tokens from [src/app.css](src/app.css).
+Use Tailwind classes backed by tokens from [web/app/globals.css](web/app/globals.css).
 
 | Role | Token / Class | Hex | Use |
 | --- | --- | --- | --- |
@@ -87,7 +87,7 @@ Color rules:
 
 ## 3. Typography Rules
 
-Global font stack from [src/app.css](src/app.css):
+Global font stack from [web/app/globals.css](web/app/globals.css):
 
 ```css
 'Inter', 'Noto Sans Thai', 'Thai Fallback', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif
@@ -150,7 +150,7 @@ Rules:
 
 ### Cards and Panels
 
-Task/Kanban card baseline from [src/app.css](src/app.css):
+Task/Kanban card baseline from [web/app/globals.css](web/app/globals.css):
 
 ```html
 <div class="surface-card p-3 rounded-card shadow-card border border-subtle hover:shadow-card-hover transition-shadow">
@@ -174,7 +174,7 @@ Default pattern:
 
 Rules:
 
-- Inputs in `.app-surface` get dark mode styling from [src/app.css](src/app.css).
+- Inputs in `.app-surface` get dark mode styling from [web/app/globals.css](web/app/globals.css).
 - Always include visible focus state via `border-primary` and `ring-primary/20`.
 - Placeholder text should be muted: `placeholder:text-gray-400 dark:placeholder:text-gray-500`.
 
@@ -297,7 +297,7 @@ Responsive rules:
 When asking AI agents to create UI for this app, include:
 
 ```text
-Use DESIGN.md. Build SvelteKit + Tailwind UI matching Khun Phaen Tracker: local-first productivity dashboard, light/dark mode, Inter/Noto Sans Thai font stack, blue primary #3b82f6, gray surfaces, rounded-lg controls, bordered cards, shadow-sm cards, lucide-svelte icons, dense scannable workspace layout.
+Use DESIGN.md. Build Next.js + shadcn/ui + Tailwind UI matching Khun Phaen Tracker: local-first productivity dashboard, light/dark mode, Inter/Noto Sans Thai font stack, blue primary #3b82f6, gray surfaces, rounded-lg controls, bordered cards, shadow-sm cards, lucide-svelte icons, dense scannable workspace layout.
 ```
 
 Quick color reference:
