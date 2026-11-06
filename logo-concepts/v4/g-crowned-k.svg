@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <title>Khun Phaen - Crowned K</title>
+  <g transform="translate(12 12)">
+  <path d="M44 72V32L59 52L74 16L89 52L104 32V72Z" fill="#2563EB"/>
+  <path d="M52 80H96V216H52Z" fill="#0B1F4B"/>
+  <path d="M108 112L140 80H180L108 152Z" fill="#2563EB"/>
+  <path d="M108 160L164 216H116L108 208Z" fill="#0B1F4B"/>
+  </g>
+</svg>

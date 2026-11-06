@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <title>Khun Phaen - Khun Icon</title>
+  <ellipse cx="128" cy="188" rx="64" ry="56" fill="#F2C29B"/>
+  <path d="M60 150C64 100 92 56 116 30Q128 12 140 30C164 56 192 100 196 150Q128 130 60 150Z" fill="#1B2A6B"/>
+  <path d="M56 164Q128 144 200 164L198 140Q128 120 58 140Z" fill="#F2B134"/>
+  <circle cx="128" cy="86" r="16" fill="#E4572E"/>
+  <path d="M120 86L126 92L138 80" fill="none" stroke="#FFFFFF" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="104" cy="186" r="8" fill="#1A1A2E"/>
+  <circle cx="152" cy="186" r="8" fill="#1A1A2E"/>
+  <path d="M72 212Q100 198 128 212Q156 198 184 212Q156 230 128 220Q100 230 72 212Z" fill="#1A1A2E"/>
+</svg>

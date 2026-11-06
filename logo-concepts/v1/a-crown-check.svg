@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <title>Khun Phaen - Crown Check</title>
+  <path d="M48 200V98L92 146L128 70L164 146L208 98V200Z" fill="#3b82f6" stroke="#3b82f6" stroke-width="24" stroke-linejoin="round"/>
+  <path d="M96 168L118 188L162 148" fill="none" stroke="#FFC233" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="48" cy="90" r="18" fill="#FFC233"/>
+  <circle cx="128" cy="62" r="18" fill="#FFC233"/>
+  <circle cx="208" cy="90" r="18" fill="#FFC233"/>
+</svg>

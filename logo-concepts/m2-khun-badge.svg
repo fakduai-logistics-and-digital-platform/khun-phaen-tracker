@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <title>Khun Phaen - Khun Badge</title>
+  <defs><clipPath id="c"><circle cx="128" cy="128" r="124"/></clipPath></defs>
+  <circle cx="128" cy="128" r="124" fill="#F2B134"/>
+  <g clip-path="url(#c)"><g transform="translate(128 140) scale(0.92) translate(-128 -140)">
+  <path d="M36 256C36 214 70 192 128 192C186 192 220 214 220 256Z" fill="#1B2A6B"/>
+  <path d="M60 206L92 194L220 246V256H186Z" fill="#E4572E"/>
+  <path d="M108 176H148V204L128 214L108 204Z" fill="#E0A97E"/>
+  <path d="M104 190L128 214L152 190L152 182L128 196L104 182Z" fill="#FFF6E5"/>
+  <circle cx="84" cy="138" r="10" fill="#E0A97E"/>
+  <circle cx="172" cy="138" r="10" fill="#E0A97E"/>
+  <ellipse cx="128" cy="138" rx="46" ry="50" fill="#F2C29B"/>
+  <path d="M77 106C82 72 100 42 116 24Q128 10 140 24C156 42 174 72 179 106Q128 92 77 106Z" fill="#1B2A6B"/>
+  <path d="M76 116Q128 101 180 116L179 98Q128 84 77 98Z" fill="#F2B134"/>
+  <circle cx="128" cy="62" r="13" fill="#E4572E"/>
+  <path d="M121 62L126 67L136 57" fill="none" stroke="#FFFFFF" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M104 136Q112 126 120 136M136 136Q144 126 152 136" fill="none" stroke="#1A1A2E" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="98" cy="152" r="8" fill="#F08A6B" opacity="0.7"/>
+  <circle cx="158" cy="152" r="8" fill="#F08A6B" opacity="0.7"/>
+  <path d="M100 162Q114 154 128 162Q142 154 156 162Q142 172 128 166Q114 172 100 162Z" fill="#1A1A2E"/>
+  <path d="M118 176Q128 183 138 176" fill="none" stroke="#1A1A2E" stroke-width="4" stroke-linecap="round"/>
+  </g></g>
+</svg>
