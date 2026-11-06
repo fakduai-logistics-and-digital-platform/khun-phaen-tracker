@@ -1,0 +1,35 @@
+[package]
+name = "khun-phaen-worker"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+worker = { version = "0.8.7", features = ["d1"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+futures-util = "0.3"
+bytes = "1"
+multer = "3.1"
+aes-gcm = "0.10"
+quick-xml = { version = "0.38", features = ["serialize"] }
+wasm-bindgen = "0.2"
+js-sys = "0.3"
+uuid = { version = "1", features = ["v4", "js"] }
+sha2 = "0.10"
+hmac = "0.12"
+base64 = "0.22"
+bcrypt = "0.16"
+getrandom = { version = "0.2", features = ["js"] }
+chrono = { version = "0.4", default-features = false, features = ["std", "serde"] }
+
+[profile.dev]
+debug = 0
+incremental = false
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1

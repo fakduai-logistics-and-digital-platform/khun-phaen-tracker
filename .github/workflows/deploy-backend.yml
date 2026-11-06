@@ -1,0 +1,73 @@
+name: Deploy backend (Cloudflare Worker)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend-worker/**"
+      - ".github/workflows/deploy-backend.yml"
+  pull_request:
+    paths:
+      - "backend-worker/**"
+      - ".github/workflows/deploy-backend.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: backend-deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend-worker
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: backend-worker
+
+      - name: Unit tests
+        run: cargo test
+
+      - name: Check Worker target
+        run: cargo check --target wasm32-unknown-unknown
+
+  deploy:
+    needs: test
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: backend-worker
+
+      - name: Install worker-build
+        run: cargo install worker-build --version 0.8.7 --locked
+
+      # Migrations run before the new code goes live; runtime secrets stay in Cloudflare and are not touched.
+      - name: Apply D1 migrations and deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          workingDirectory: backend-worker
+          wranglerVersion: "4.158.0"
+          command: |
+            d1 migrations apply khun-phaen --remote
+            deploy
