@@ -19,9 +19,10 @@ assert.equal(r.status,200,`bootstrap: ${JSON.stringify(r.body)}`);
 r=await request('/api/auth/login','POST',{email:`admin-${suffix}@example.test`,password});
 assert.equal(r.status,200,`login: ${JSON.stringify(r.body)}`);let admin=r.body.token;
 assert.equal((await request('/api/auth/me','GET',undefined,admin)).body.role,'admin');
-// Workzy is off unless WORKZY_API_URL is set
-assert.deepEqual((await request('/api/integrations/workzy','GET',undefined,admin)).body,{enabled:false,connected:false});
-assert.equal((await request('/api/integrations/workzy/today','GET',undefined,admin)).status,404);
+// Workzy: enabled by WORKZY_API_URL, but nobody is linked yet (no network call is made)
+assert.deepEqual((await request('/api/integrations/workzy','GET',undefined,admin)).body,{enabled:true,connected:false,employee_code:null});
+assert.deepEqual((await request('/api/integrations/workzy/today','GET',undefined,admin)).body,{connected:false});
+assert.equal((await request('/api/integrations/workzy','POST',{code:'',password:''},admin)).status,400);
 r=await request('/api/workspaces','POST',{name:'Worker smoke'},admin);assert.equal(r.status,200,JSON.stringify(r.body));
 const workspace=r.body.workspace;
 assert.match(workspace.id,/^[\da-f]{8}-[\da-f]{4}-4/);
