@@ -51,6 +51,7 @@ jobs:
           NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
           NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL || 'https://api.khun-phaen.workers.dev/api' }}
           NEXT_PUBLIC_SERVER_URL: ${{ vars.NEXT_PUBLIC_SERVER_URL || 'https://api.khun-phaen.workers.dev' }}
+          NEXT_PUBLIC_ACCESS_URL: ${{ vars.NEXT_PUBLIC_ACCESS_URL }}
           NEXT_PUBLIC_WS_URL: ${{ vars.NEXT_PUBLIC_WS_URL || 'wss://api.khun-phaen.workers.dev/ws' }}
 
       - name: Assemble site
