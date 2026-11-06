@@ -1,4 +1,5 @@
 mod ai;
+mod access;
 mod auth;
 mod background;
 mod cache;
@@ -85,6 +86,12 @@ async fn route(req: &mut Request, env: &Env) -> Result<Response> {
             .starts_with("application/json")
     {
         return http::error(415, "application/json required");
+    }
+    if req.method() == Method::Get && path == "/api/auth/access/config" {
+        return access::status(env);
+    }
+    if req.method() == Method::Get && path == "/api/auth/access/login" {
+        return access::login(req, env).await;
     }
     if parts.get(1) == Some(&"auth") {
         let action = parts.get(2).copied().unwrap_or_default();

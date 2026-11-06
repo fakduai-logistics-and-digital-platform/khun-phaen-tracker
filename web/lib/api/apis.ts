@@ -15,6 +15,31 @@ export const api = {
         body: JSON.stringify({ email, password }),
       });
     },
+    /** Whether Cloudflare Access sign-in is configured on the API. */
+    accessEnabled: async (): Promise<boolean> => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/auth/access/config`, { headers: { Accept: "application/json" } });
+        return res.ok && (await res.json()).enabled === true;
+      } catch {
+        return false;
+      }
+    },
+    /** Full-page navigation target: Access authenticates the visitor, then the API sends them back to `returnUrl`. */
+    accessLoginUrl: (returnUrl: string): string => {
+      // NEXT_PUBLIC_ACCESS_URL is the custom-domain origin that Cloudflare Access protects, when the API itself is on workers.dev.
+      const accessOrigin = process.env.NEXT_PUBLIC_ACCESS_URL;
+      const base = accessOrigin
+        ? `${accessOrigin.replace(/\/$/, "")}/api`
+        : API_BASE_URL.startsWith("/")
+          ? `${window.location.origin}${API_BASE_URL}`
+          : API_BASE_URL;
+      return `${base}/auth/access/login?return=${encodeURIComponent(returnUrl)}`;
+    },
+    meWithToken: async (token: string): Promise<Response> => {
+      return fetch(`${API_BASE_URL}/auth/me`, {
+        headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
+      });
+    },
     invite: async (payload: Record<string, any>): Promise<Response> => {
       let token = "";
       if (typeof document !== "undefined") {

@@ -14,7 +14,11 @@
     "STORAGE_URL": "https://rust-fs.wk18k.qzz.io",
     "STORAGE_BUCKET": "khunphaen-assets",
     "STORAGE_REGION": "us-east-1",
-    "COOKIE_SECURE": "true"
+    "COOKIE_SECURE": "true",
+    // Cloudflare Access sign-in stays disabled until both are set (see README, "Cloudflare Access sign-in").
+    "ACCESS_TEAM_DOMAIN": "",
+    "ACCESS_AUD": "",
+    "ACCESS_RETURN_ORIGINS": "https://fakduai-logistics-and-digital-platform.github.io"
   },
   "d1_databases": [{
     "binding": "DB",

@@ -13,6 +13,9 @@ async function request(path,method='GET',data,token,extra={}) {
   return {status:response.status,body};
 }
 assert.equal((await request('/health')).status,200);
+// Cloudflare Access sign-in is disabled unless ACCESS_TEAM_DOMAIN and ACCESS_AUD are set.
+assert.deepEqual((await request('/api/auth/access/config')).body,{enabled:false});
+assert.equal((await request('/api/auth/access/login?return=https%3A%2F%2Fevil.example%2F')).status,404);
 // Uses an isolated local D1 state directory. Never point this test at production.
 let r=await request('/api/auth/invite','POST',{email:`admin-${suffix}@example.test`,password},undefined,{'X-Setup-Token':setup});
 assert.equal(r.status,200,`bootstrap: ${JSON.stringify(r.body)}`);
