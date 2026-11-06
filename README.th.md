@@ -4,31 +4,32 @@
 
 > **ขุนแผน** (Khun Phaen) - ตั้งชื่อตามตัวละครในวรรณคดีไทยที่เป็นยอดนักวางแผน สามารถบริหารจัดการภารกิจได้อย่างมีประสิทธิภาพ
 
-## ✨ ฟีเจอร์
+- แอป: <https://fakduai-logistics-and-digital-platform.github.io/khun-phaen-tracker/>
+- API: `https://api.khun-phaen.workers.dev` (`/api`, เรียลไทม์ที่ `/ws`, health ที่ `/health`)
 
-- ✅ **จัดการงาน** - เพิ่ม แก้ไข ลบ เช็กลิสต์ ความคิดเห็น ไฟล์แนบ
-- 👥 **ทีมและโปรเจกต์** - สมาชิก กลุ่ม โปรเจกต์ สปรินต์ เป้าหมาย
-- 📅 **มุมมองงาน** - รายการ ปฏิทิน คัมบัง ตาราง Gantt และภาระงาน
-- 🧪 **เคสทดสอบ** - Suite, Test run, หน้า public แบบอ่านอย่างเดียว, นำเข้า/ส่งออก CSV
-- 📤 **นำเข้า/ส่งออก** - CSV, PDF, PNG, สไลด์
-- 🔄 **เรียลไทม์** - WebSocket ผ่าน Durable Objects
-- 🌙 **Dark mode และชุดสี** รองรับภาษาไทยและอังกฤษ
+## ฟีเจอร์
 
-## 🏗️ โครงสร้างโปรเจกต์
+- **จัดการงาน** - เพิ่ม แก้ไข ลบ เช็กลิสต์ ความคิดเห็น ไฟล์แนบ
+- **ทีมและโปรเจกต์** - สมาชิก กลุ่ม โปรเจกต์ สปรินต์ เป้าหมาย
+- **มุมมองงาน** - รายการ ปฏิทิน คัมบัง ตาราง Gantt และภาระงาน
+- **เคสทดสอบ** - Suite, Test run, หน้า public แบบอ่านอย่างเดียว, นำเข้า/ส่งออก CSV
+- **นำเข้า/ส่งออก** - CSV, PDF, PNG, สไลด์
+- **เรียลไทม์** - WebSocket ผ่าน Durable Objects
+- **Dark mode และชุดสี** รองรับภาษาไทยและอังกฤษ
+- **นำทางเร็ว** - เปลี่ยนหน้าทันทีและแสดง skeleton ระหว่างโหลดข้อมูล ข้อมูลที่เพิ่งอ่านจะถูกใช้ซ้ำเมื่อกดย้อนกลับ
 
-```
-.
-├── web/             # Frontend: Next.js (vinext) + shadcn/ui, export เป็น static ขึ้น GitHub Pages
-├── backend-worker/  # API: Rust Cloudflare Worker (D1 + Durable Objects), ไฟล์แนบผ่าน RustFS/S3
-├── scripts/         # ตั้งค่า worker, smoke test, นำเข้า MongoDB → D1
-└── tests/           # เทสต์ของ scripts/ (Vitest)
-```
+## สถาปัตยกรรม
 
-- รายละเอียด frontend: [web/README.md](web/README.md)
-- การตั้งค่าและตรวจสอบ backend: [backend-worker/README.md](backend-worker/README.md)
-- API ที่ deploy แล้ว: `https://api.khun-phaen.workers.dev` (`/api`, เรียลไทม์ที่ `/ws`, ตรวจสถานะที่ `/health`)
+| ส่วน | เทคโนโลยี | โฟลเดอร์ |
+| --- | --- | --- |
+| Frontend | Next.js App Router บน vinext, React 19, TypeScript, shadcn/ui, Tailwind CSS 4, export เป็น static ขึ้น GitHub Pages | [web/](web/README.md) |
+| API | Rust Cloudflare Worker ใช้ D1 และ Durable Objects | [backend-worker/](backend-worker/README.md) |
+| ไฟล์แนบ | RustFS (S3-compatible) | ตั้งค่าใน `backend-worker/wrangler.jsonc` |
+| เครื่องมือ | ตั้งค่า worker, smoke test, นำเข้า MongoDB → D1 | `scripts/`, `tests/` |
 
-## 🛠️ รันในเครื่อง
+แอปเป็น static export จึงส่ง id ผ่าน query string (`?ws=<workspace>&id=<task>`) การเข้าสู่ระบบใช้ bearer session token และเปิด Cloudflare Turnstile ที่ฟอร์ม login ได้ตามต้องการ
+
+## รันในเครื่อง
 
 ```sh
 # Frontend (http://localhost:3100)
@@ -36,26 +37,39 @@ cd web
 npm install
 npm run dev
 
-# Backend worker (ที่รากของ repo)
+# Backend worker (จาก root ของ repo)
 npm install
 npm run worker:setup
 npm run worker:dev
 ```
 
-API ที่ deploy แล้วอนุญาต CORS เฉพาะ origin ของ GitHub Pages ดังนั้น `npm run dev` จึงเรียก API ผ่าน proxy ที่ตั้งไว้ใน `web/next.config.ts`
+API ที่ deploy แล้วอนุญาต CORS เฉพาะ origin ของ GitHub Pages ดังนั้น `npm run dev` จึงเรียกผ่าน proxy ใน `web/next.config.ts`
 
-## ✅ การตรวจสอบ
+## การตรวจสอบ
 
 ```sh
-cd web && npm run typecheck && npm run lint   # ต้องไม่มี warning
-npm test                                      # ที่ราก: scripts/
+cd web && npm run typecheck && npm run lint   # ต้องสะอาด
+npm test                                      # root: scripts/
 npm run worker:check && npm run worker:test   # backend-worker
+npm run worker:smoke                          # smoke test API ครบวงจร
 ```
 
-## 🚀 การ Deploy
+## การตั้งค่า
 
-เมื่อ push เข้า `main` workflow `.github/workflows/deploy.yml` จะ build `web/` เป็นไฟล์ static (`npm run build:pages`) แล้วเผยแพร่ขึ้น GitHub Pages ในการตั้งค่า repo ให้เลือก **Pages → Source** เป็น *GitHub Actions* และตั้ง repository variables ได้ตามต้องการ: `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SERVER_URL`, `NEXT_PUBLIC_WS_URL`
+| ชื่อ | อยู่ที่ | ใช้ทำอะไร |
+| --- | --- | --- |
+| `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SERVER_URL`, `NEXT_PUBLIC_WS_URL` | repository variables (ตอน build Pages) | ชี้ frontend ไป API อื่น ค่าเริ่มต้นคือ `api.khun-phaen.workers.dev` |
+| `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | repository variable (ตอน build Pages) | แสดง widget Turnstile ในฟอร์ม login |
+| `TURNSTILE_SECRET_KEY` | Worker secret (`wrangler secret put`) | ตรวจ token Turnstile ตอน login ถ้าไม่ตั้งจะไม่ตรวจ |
+| `CLOUDFLARE_API_TOKEN` | repository secret | ใช้โดย `deploy-backend.yml` |
 
-## 📄 License
+คีย์ทดสอบของ Turnstile และ secret อื่นของ Worker ดูที่ [backend-worker/README.md](backend-worker/README.md)
 
-โปรเจกต์นี้อยู่ภายใต้ [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/) - ใช้ แก้ไข และแจกจ่ายได้เฉพาะวัตถุประสงค์ที่ไม่ใช่เชิงพาณิชย์
+## การ Deploy
+
+- **Frontend:** push เข้า `main` ที่มีการแก้ใน `web/` จะรัน `.github/workflows/deploy.yml` ซึ่ง build เป็น static export (`npm run build:pages`) แล้วเผยแพร่ขึ้น GitHub Pages ในหน้า Settings ของ repo ให้ตั้ง **Pages → Source** เป็น *GitHub Actions*
+- **Backend:** `.github/workflows/deploy-backend.yml` deploy Worker (environment `production`)
+
+## License
+
+โปรเจกต์นี้ใช้สัญญาอนุญาต [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/) - ใช้ แก้ไข และแชร์ได้เฉพาะวัตถุประสงค์ที่ไม่ใช่เชิงพาณิชย์

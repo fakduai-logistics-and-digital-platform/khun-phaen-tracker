@@ -6,31 +6,32 @@ Task management for teams: tasks, sprints, projects, calendar, kanban, Gantt, te
 
 > **Khun Phaen** (ขุนแผน) - Named after a legendary Thai literary figure known for being a master strategist who could manage complex situations effectively.
 
-## ✨ Features
+- App: <https://fakduai-logistics-and-digital-platform.github.io/khun-phaen-tracker/>
+- API: `https://api.khun-phaen.workers.dev` (`/api`, realtime at `/ws`, health at `/health`)
 
-- ✅ **Tasks** - Add, edit, delete, checklists, comments, attachments.
-- 👥 **Team and projects** - Members, groups, projects, sprints, milestones.
-- 📅 **Views** - List, calendar, kanban, table, Gantt and workload.
-- 🧪 **Test cases** - Suites, runs, public read-only view, CSV import/export.
-- 📤 **Export/Import** - CSV, PDF, PNG, slides.
-- 🔄 **Real-time updates** - WebSocket rooms through Durable Objects.
-- 🌙 **Dark mode and palettes**, Thai and English UI.
+## Features
 
-## 🏗️ Project structure
+- **Tasks** - Add, edit, delete, checklists, comments, attachments.
+- **Team and projects** - Members, groups, projects, sprints, milestones.
+- **Views** - List, calendar, kanban, table, Gantt and workload.
+- **Test cases** - Suites, runs, public read-only view, CSV import/export.
+- **Export/Import** - CSV, PDF, PNG, slides.
+- **Real-time updates** - WebSocket rooms through Durable Objects.
+- **Dark mode and palettes**, Thai and English UI.
+- **Fast navigation** - Pages change immediately and show skeletons while data loads; recent reads are reused when you go back.
 
-```
-.
-├── web/             # Frontend: Next.js (vinext) + shadcn/ui, statically exported to GitHub Pages
-├── backend-worker/  # API: Rust Cloudflare Worker (D1 + Durable Objects), RustFS/S3 attachments
-├── scripts/         # Worker setup, smoke tests, MongoDB → D1 import
-└── tests/           # Vitest tests for scripts/
-```
+## Architecture
 
-- Frontend details: [web/README.md](web/README.md)
-- Backend setup, validation and cutover notes: [backend-worker/README.md](backend-worker/README.md)
-- Deployed API: `https://api.khun-phaen.workers.dev` (`/api`, realtime at `/ws`, health at `/health`)
+| Part | Stack | Folder |
+| --- | --- | --- |
+| Frontend | Next.js App Router on vinext, React 19, TypeScript, shadcn/ui, Tailwind CSS 4, statically exported to GitHub Pages | [web/](web/README.md) |
+| API | Rust Cloudflare Worker with D1 and Durable Objects | [backend-worker/](backend-worker/README.md) |
+| Attachments | S3-compatible RustFS | configured in `backend-worker/wrangler.jsonc` |
+| Tooling | Worker setup, smoke tests, MongoDB → D1 import | `scripts/`, `tests/` |
 
-## 🛠️ Local development
+The app is a static export, so ids travel in the query string (`?ws=<workspace>&id=<task>`). Sign-in uses a bearer session token; optional Cloudflare Turnstile protects the login form.
+
+## Local development
 
 ```sh
 # Frontend (http://localhost:3100)
@@ -46,18 +47,31 @@ npm run worker:dev
 
 The deployed API only allows CORS for the GitHub Pages origin, so `npm run dev` reaches it through the same-origin proxy configured in `web/next.config.ts`.
 
-## ✅ Checks
+## Checks
 
 ```sh
 cd web && npm run typecheck && npm run lint   # must be clean
 npm test                                      # repo root: scripts/
 npm run worker:check && npm run worker:test   # backend-worker
+npm run worker:smoke                          # end-to-end API smoke test
 ```
 
-## 🚀 Deployment
+## Configuration
 
-Pushing to `main` runs `.github/workflows/deploy.yml`, which builds `web/` as a static export (`npm run build:pages`) and publishes it to GitHub Pages. In the repository settings set **Pages → Source** to *GitHub Actions*. Optional repository variables: `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SERVER_URL`, `NEXT_PUBLIC_WS_URL`.
+| Name | Where | Purpose |
+| --- | --- | --- |
+| `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SERVER_URL`, `NEXT_PUBLIC_WS_URL` | repository variables (Pages build) | Point the frontend at another API; defaults to `api.khun-phaen.workers.dev` |
+| `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | repository variable (Pages build) | Shows the Turnstile widget on the login form |
+| `TURNSTILE_SECRET_KEY` | Worker secret (`wrangler secret put`) | Verifies the Turnstile token on login; no secret means no check |
+| `CLOUDFLARE_API_TOKEN` | repository secret | Used by `deploy-backend.yml` |
 
-## 📄 License
+See [backend-worker/README.md](backend-worker/README.md) for the Turnstile test keys and the remaining Worker secrets.
+
+## Deployment
+
+- **Frontend:** pushing to `main` changes under `web/` runs `.github/workflows/deploy.yml`, which builds a static export (`npm run build:pages`) and publishes it to GitHub Pages. In the repository settings set **Pages → Source** to *GitHub Actions*.
+- **Backend:** `.github/workflows/deploy-backend.yml` deploys the Worker (environment `production`).
+
+## License
 
 This project is licensed under [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/) - you are free to use, modify, and share this software for non-commercial purposes only.
