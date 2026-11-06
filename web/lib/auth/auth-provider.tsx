@@ -131,13 +131,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  // Sign out locally right away; the server-side revoke runs in the background (the request is already built with the token).
   const signOut = useCallback(async () => {
-    try {
-      await api.auth.logout();
-    } finally {
-      clearSession();
-      setUser(null);
-    }
+    void api.auth.logout().catch(() => undefined);
+    clearSession();
+    setUser(null);
   }, []);
 
   useEffect(() => {

@@ -43,8 +43,8 @@ export function NavUser() {
 
   if (!user) return null;
 
-  async function handleSignOut() {
-    await signOut();
+  function handleSignOut() {
+    void signOut();
     router.replace("/login");
   }
 

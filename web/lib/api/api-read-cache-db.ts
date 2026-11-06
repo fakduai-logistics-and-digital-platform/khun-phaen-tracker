@@ -12,6 +12,23 @@ const database = () =>
       db.createObjectStore("meta");
     },
   });
+/** Recent responses kept in memory so going back to a page reuses them without a request; any write or refresh empties it. */
+const FRESH_MS = 2 * 60 * 1000;
+const fresh = new Map<string, { body: string; contentType: string; savedAt: number }>();
+let epoch = 0;
+export const freshReads = {
+  epoch: () => epoch,
+  get(key: string) {
+    const hit = fresh.get(key);
+    if (hit && Date.now() - hit.savedAt <= FRESH_MS) return hit;
+    fresh.delete(key);
+    return undefined;
+  },
+  put(key: string, body: string, contentType: string, seenEpoch: number) {
+    if (seenEpoch === epoch) fresh.set(key, { body, contentType, savedAt: Date.now() });
+  },
+};
+
 export const readCache = {
   async revision(): Promise<number> {
     return (await (await database()).get("meta", "revision")) ?? 0;
@@ -35,6 +52,8 @@ export const readCache = {
     await tx.done;
   },
   async clear(): Promise<void> {
+    epoch++;
+    fresh.clear();
     const db = await database();
     const tx = db.transaction(["responses", "meta"], "readwrite");
     const meta = tx.objectStore("meta");

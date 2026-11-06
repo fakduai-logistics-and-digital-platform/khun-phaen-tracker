@@ -148,7 +148,7 @@ export default function DashboardPage() {
     saveRecent(next);
     setWorkspaceRoom(ws.id, ws.room_code);
     localStorage.setItem("backend-server-url", process.env.NEXT_PUBLIC_SERVER_URL || "http://127.0.0.1:3002");
-    window.location.href = withBase(workspacePath(ws.id));
+    router.push(workspacePath(ws.id));
   }
 
   async function submitForm(values: WorkspaceFormValues) {

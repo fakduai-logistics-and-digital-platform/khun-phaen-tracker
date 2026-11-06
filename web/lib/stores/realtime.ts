@@ -18,6 +18,7 @@ let socket: WebSocket | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 let currentRoom: string | null = null;
 let generation = 0;
+let dropped = false;
 let onChange: ((payload: any) => void) | undefined;
 const WS_BASE = process.env.NEXT_PUBLIC_WS_URL || API_BASE_URL.replace(/^http/, "ws").replace(/\/api\/?$/, "/ws");
 
@@ -62,7 +63,9 @@ async function open(room: string, run: number): Promise<void> {
       }
       realtimeStatus.set("connected");
       // Events can be missed while disconnected. Always refresh from the backend on reconnect.
-      void refresh({ entity: "workspace", action: "refresh", timestamp: Date.now() }, run);
+      // A first connection reuses recent cached reads; only an unexpected drop may have missed events.
+      void refresh({ entity: "workspace", action: "refresh", timestamp: Date.now() }, run, dropped);
+      dropped = false;
     };
     ws.onmessage = (event) => {
       if (run !== generation) return;
@@ -86,9 +89,9 @@ async function open(room: string, run: number): Promise<void> {
     retry(room, run);
   }
 }
-async function refresh(payload: any, run: number): Promise<void> {
+async function refresh(payload: any, run: number, invalidate = true): Promise<void> {
   try {
-    await readCache.clear();
+    if (invalidate) await readCache.clear();
   } catch {
     /* Cache is optional. */
   }
@@ -98,6 +101,7 @@ async function refresh(payload: any, run: number): Promise<void> {
 }
 function retry(room: string, run: number): void {
   if (run !== generation || currentRoom !== room) return;
+  dropped = true;
   realtimeStatus.set("disconnected");
   realtimePeers.set(0);
   if (reconnectTimer) clearTimeout(reconnectTimer);

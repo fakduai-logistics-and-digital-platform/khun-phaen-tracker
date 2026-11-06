@@ -2,18 +2,13 @@ use crate::{db, documents::Document, http};
 use serde_json::{json, Value};
 use worker::*;
 pub async fn counts(env: &Env, workspace: &str, kind: &str) -> Result<Response> {
-    // Count from the task side once, instead of rescanning every task for each project or assignee.
-    let counts = if kind == "projects" {
-        "SELECT json_extract(t.payload,'$.project') k,COUNT(*) n FROM documents t WHERE t.workspace_id=? AND t.kind='tasks' GROUP BY k"
+    let db = env.d1("DB")?;
+    let rows: Vec<Value> = if kind == "projects" {
+        // Count from the task side once, instead of rescanning every task for each project.
+        db::all(&db,"SELECT m.id,COALESCE(c.n,0) taskCount FROM documents m LEFT JOIN (SELECT json_extract(t.payload,'$.project') k,COUNT(*) n FROM documents t WHERE t.workspace_id=? AND t.kind='tasks' GROUP BY k) c ON c.k=json_extract(m.payload,'$.name') WHERE m.workspace_id=? AND m.kind=? ORDER BY m.id",&[workspace.into(),workspace.into(),kind.into()]).await?
     } else {
-        "SELECT ids.value k,COUNT(DISTINCT t.id) n FROM documents t,json_each(json_extract(t.payload,'$.assignee_ids')) ids WHERE t.workspace_id=? AND t.kind='tasks' GROUP BY k"
+        db::all(&db,"SELECT m.id,COUNT(ta.task_id) taskCount FROM documents m LEFT JOIN task_assignees ta ON ta.assignee_id=m.id AND ta.workspace_id=m.workspace_id WHERE m.workspace_id=? AND m.kind=? GROUP BY m.id ORDER BY m.id",&[workspace.into(),kind.into()]).await?
     };
-    let key = if kind == "projects" {
-        "json_extract(m.payload,'$.name')"
-    } else {
-        "m.id"
-    };
-    let rows:Vec<Value>=db::all(&env.d1("DB")?,&format!("SELECT m.id,COALESCE(c.n,0) taskCount FROM documents m LEFT JOIN ({counts}) c ON c.k={key} WHERE m.workspace_id=? AND m.kind=? ORDER BY m.id"),&[workspace.into(),workspace.into(),kind.into()]).await?;
     http::ok(json!({"success":true,"stats":rows}))
 }
 pub async fn daily(env: &Env, workspace: &str) -> Result<Response> {

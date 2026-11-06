@@ -1,4 +1,4 @@
-import { readCache } from "./api-read-cache-db";
+import { freshReads, readCache } from "./api-read-cache-db";
 
 const MAX_AGE = 15 * 60 * 1000;
 const MAX_BODY_LENGTH = 256 * 1024;
@@ -11,7 +11,7 @@ export async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Pr
   // Authorization, permissions, admin configuration and download responses never fall back to cache.
   const eligible =
     method === "GET" &&
-    /^\/api\/(workspaces\/[^/]+\/(tasks|projects|assignees|assignee-groups|sprints|milestones|checklist-templates)(\/[^/]+)?|my\/tasks)$/.test(
+    /^(\/kp-api)?\/api\/(workspaces\/[^/]+\/(tasks|projects|assignees|assignee-groups|sprints|milestones|checklist-templates)(\/[^/]+)?|my\/tasks)$/.test(
       path,
     );
   const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
@@ -38,6 +38,12 @@ export async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Pr
     } catch {
       /* Cache availability must never prevent an API request. */
     }
+  }
+  const seenEpoch = freshReads.epoch();
+  if (key) {
+    const hit = freshReads.get(key);
+    if (hit)
+      return new Response(hit.body, { headers: { "Content-Type": hit.contentType, "X-Khun-Phaen-Cache": "fresh" } });
   }
   let response: Response;
   try {
@@ -74,6 +80,7 @@ export async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Pr
     try {
       const body = await response.clone().text();
       if (body.length <= MAX_BODY_LENGTH) {
+        freshReads.put(key, body, "application/json", seenEpoch);
         await readCache.put({ key, body, savedAt: Date.now(), contentType: "application/json" }, revision);
       }
     } catch {

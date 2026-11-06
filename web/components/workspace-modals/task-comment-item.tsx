@@ -1,6 +1,7 @@
 "use client";
 
 import { Edit2, Smile, Trash2 } from "lucide-react";
+import { StoredImage } from "@/components/shared/stored-image";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth/auth-provider";
 import { useI18n } from "@/lib/i18n";
@@ -11,7 +12,6 @@ import {
   COMMENT_REACTION_EMOJIS,
   extractCommentUrls,
   formatCommentRelativeTime,
-  getCommentImageUrl,
   getReactionGroups,
   getUrlMetaPreview,
   linkifyCommentContent,
@@ -142,24 +142,19 @@ export function TaskCommentItem({
           <>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {imageState.images.map((image, imageIndex) => (
-                <a
+                <button
                   key={image.id ?? image.file_key}
-                  href={getCommentImageUrl(image.file_key)}
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    onOpenImage(comment, imageIndex);
-                  }}
+                  type="button"
+                  onClick={() => onOpenImage(comment, imageIndex)}
                   className="block overflow-hidden rounded-md border border-border bg-muted/40 p-1"
                 >
-                  <img
-                    src={getCommentImageUrl(image.file_key)}
+                  <StoredImage
+                    fileKey={image.file_key}
+                    thumb
                     alt={image.filename}
-                    loading="lazy"
                     className="mx-auto h-auto max-h-72 w-auto max-w-full object-contain"
                   />
-                </a>
+                </button>
               ))}
             </div>
             {imageState.total > imageState.limit && (

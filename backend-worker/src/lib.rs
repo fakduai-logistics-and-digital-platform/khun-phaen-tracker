@@ -1,5 +1,4 @@
 mod ai;
-mod access;
 mod auth;
 mod background;
 mod cache;
@@ -10,6 +9,7 @@ mod cascades;
 mod comments;
 mod db;
 mod documents;
+mod file_urls;
 mod http;
 mod notifications;
 mod qa;
@@ -86,12 +86,6 @@ async fn route(req: &mut Request, env: &Env) -> Result<Response> {
             .starts_with("application/json")
     {
         return http::error(415, "application/json required");
-    }
-    if req.method() == Method::Get && path == "/api/auth/access/config" {
-        return access::status(env);
-    }
-    if req.method() == Method::Get && path == "/api/auth/access/login" {
-        return access::login(req, env).await;
     }
     if parts.get(1) == Some(&"auth") {
         let action = parts.get(2).copied().unwrap_or_default();
@@ -197,6 +191,13 @@ async fn route(req: &mut Request, env: &Env) -> Result<Response> {
             return cache::json(body);
         }
     }
+    // Signed file links carry their own authorization (see file_urls); the storage object verifies it.
+    if req.method() == Method::Get
+        && path.starts_with("/api/files/")
+        && req.url()?.query_pairs().any(|(k, _)| k == "sig")
+    {
+        return storage::forward(req, env, parts.get(2).copied().unwrap_or_default()).await;
+    }
     let Some(user) = auth::authenticate(req, env).await? else {
         return http::error(401, "Not logged in");
     };
@@ -238,7 +239,10 @@ async fn route(req: &mut Request, env: &Env) -> Result<Response> {
     {
         return ai::forward(req, env, "admin").await;
     }
-    if parts.get(1) == Some(&"files") && req.method() == Method::Get {
+    if parts.get(1) == Some(&"files")
+        && (req.method() == Method::Get
+            || (path == "/api/files/sign" && req.method() == Method::Post))
+    {
         return storage::forward(req, env, parts.get(2).copied().unwrap_or_default()).await;
     }
     if parts.get(1) == Some(&"workspaces") {
@@ -313,7 +317,11 @@ async fn public(req: &mut Request, env: &Env, parts: &[&str]) -> Result<Option<R
             None,
             parts[3],
             if all { "test-cases" } else { parts[4] },
-            if all { Some("all") } else { parts.get(5).copied() },
+            if all {
+                Some("all")
+            } else {
+                parts.get(5).copied()
+            },
         )
         .await
         .map(Some);

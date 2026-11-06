@@ -8,7 +8,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { API_BASE_URL } from "@/lib/api/apis";
+import { StoredImage } from "@/components/shared/stored-image";
+import { signedFileUrl } from "@/lib/api/file-urls";
 import { useAuth } from "@/lib/auth/auth-provider";
 import { useI18n } from "@/lib/i18n";
 import type { Assignee, CommentImage, TaskComment } from "@/lib/types";
@@ -16,10 +17,6 @@ import { cn } from "@/lib/utils";
 import { ImageLightbox, type LightboxImage } from "./image-lightbox";
 
 const URL_REGEX = /(https?:\/\/[^\s<>"']+)/g;
-
-function getCommentImageUrl(fileKey: string): string {
-  return `${API_BASE_URL.replace(/\/api$/, "")}/api/files/${fileKey}`;
-}
 
 function CommentText({ text }: { text: string }) {
   const parts = text.split(URL_REGEX);
@@ -83,9 +80,10 @@ export function CommentList({ comments, loading, assignees, onDelete }: CommentL
     return date.toLocaleDateString();
   }
 
-  function openLightbox(images: CommentImage[], index: number) {
+  async function openLightbox(images: CommentImage[], index: number) {
+    const urls = await Promise.all(images.map((img) => signedFileUrl(img.file_key)));
     setLightbox({
-      images: images.map((img) => ({ src: getCommentImageUrl(img.file_key), alt: img.filename || "Image" })),
+      images: images.map((img, i) => ({ src: urls[i] ?? "", alt: img.filename || "Image" })),
       index,
     });
   }
@@ -159,11 +157,7 @@ export function CommentList({ comments, loading, assignees, onDelete }: CommentL
                         onClick={() => openLightbox(comment.images, imgIdx)}
                         className="aspect-square overflow-hidden rounded-lg border transition-opacity hover:opacity-90"
                       >
-                        <img
-                          src={getCommentImageUrl(img.file_key)}
-                          alt={img.filename}
-                          className="size-full object-cover"
-                        />
+                        <StoredImage fileKey={img.file_key} thumb alt={img.filename} className="size-full object-cover" />
                       </button>
                     ))}
                   </div>

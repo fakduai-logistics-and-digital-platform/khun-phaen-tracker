@@ -125,11 +125,25 @@ impl DurableObject for RustFsService {
 }
 impl RustFsService {
     async fn handle(&self, mut req: Request) -> Result<Response> {
+        let path = req.path();
+        if req.method() == Method::Get {
+            if let Some(key) = path.strip_prefix("/api/files/") {
+                let query = crate::records::query(&req)?;
+                if let (Some(exp), Some(sig)) = (query.get("exp"), query.get("sig")) {
+                    if !crate::file_urls::verify(&self.env, key, exp, sig)? {
+                        return http::error(403, "Invalid or expired file link");
+                    }
+                    return crate::file_urls::serve(&self.env, key, &query).await;
+                }
+            }
+        }
         let Some(user) = crate::auth::authenticate(&req, &self.env).await? else {
             return http::error(401, "Not logged in");
         };
-        let path = req.path();
         let parts = path.trim_matches('/').split('/').collect::<Vec<_>>();
+        if path == "/api/files/sign" && req.method() == Method::Post {
+            return crate::file_urls::sign(&mut req, &self.env, &user).await;
+        }
         if parts.len() >= 6 && parts[0] == "api" && parts[1] == "workspaces" {
             if parts[3] == "tasks" && parts[5] == "comments" {
                 return crate::comments::handle(&mut req, &self.env, &user, &parts).await;

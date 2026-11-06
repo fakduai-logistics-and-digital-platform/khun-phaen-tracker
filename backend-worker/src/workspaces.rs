@@ -64,7 +64,15 @@ pub async fn handle(req: &mut Request, env: &Env, user: &User, parts: &[&str]) -
                 counts.insert(id.into(), row["count"].clone());
             }
         }
-        let mine:Option<Value>=db::first(&db,&format!("SELECT COUNT(*) total FROM documents d WHERE {}",crate::task_query::MY_TASKS),&[user.id.clone().into(),user.id.clone().into()]).await?;
+        let mine: Option<Value> = db::first(
+            &db,
+            &format!(
+                "SELECT COUNT(*) total FROM documents d WHERE {}",
+                crate::task_query::MY_TASKS
+            ),
+            &[user.id.clone().into()],
+        )
+        .await?;
         counts.insert(
             "__my_tasks__".into(),
             mine.map(|m| m["total"].clone()).unwrap_or(json!(0)),

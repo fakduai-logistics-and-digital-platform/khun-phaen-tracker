@@ -55,7 +55,9 @@ pub fn cors(response: Response, origin: Option<&str>, env: &Env) -> Result<Respo
     for (key, value) in response.headers().entries() {
         h.set(&key, &value)?;
     }
-    h.set("Cache-Control", "no-store")?;
+    if !h.has("Cache-Control")? {
+        h.set("Cache-Control", "no-store")?;
+    }
     h.set("Vary", "Origin")?;
     if let Some(origin) = origin.filter(|o| origin_allowed(&setting(env, "ALLOWED_ORIGIN"), o)) {
         h.set("Access-Control-Allow-Origin", origin)?;
@@ -119,7 +121,10 @@ mod tests {
     #[test]
     fn origin_list_and_wildcard() {
         assert!(origin_allowed("*", "http://localhost:3100"));
-        assert!(origin_allowed("https://a.example, http://localhost:3100", "http://localhost:3100"));
+        assert!(origin_allowed(
+            "https://a.example, http://localhost:3100",
+            "http://localhost:3100"
+        ));
         assert!(!origin_allowed("https://a.example", "https://evil.example"));
         assert!(!origin_allowed("", "https://a.example"));
     }

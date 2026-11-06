@@ -61,6 +61,19 @@ npm test -- --project unit src/lib/api-fetch.test.ts src/lib/task-pagination.tes
 
 `worker:smoke` creates a temporary local D1/DO state directory, starts a temporary Worker on port 8798, tests real HTTP/WebSocket behavior, and stops it and deletes its test state. It refuses a production URL. It tests bootstrap, login, UUIDs, unauthorized workspace access, CRUD persistence, immutable identity fields, explicit null updates, backend-only events and session revocation. It then runs `tests/parity.mjs` against fake S3/AI/webhook services (`scripts/worker-test-services.mjs`): profile/admin, metadata and My Tasks filters/paging/archive/numbering/concurrency, personal notifications, QA suites/cases/runs and public pages, multipart attachments and comments with SigV4 verification and failed-upload compensation, AI settings, and scheduled webhook/report jobs with cascades. It does not upload to the remote RustFS service.
 
+## Turnstile on login
+
+Login can require a Cloudflare Turnstile challenge. It is off until both keys exist:
+
+```sh
+# Worker: verifies the token on POST /api/auth/login (no secret = no check)
+npx wrangler secret put TURNSTILE_SECRET_KEY
+# Frontend: public site key, set as a repository variable for the Pages build
+#   NEXT_PUBLIC_TURNSTILE_SITE_KEY=<site key>
+```
+
+For local testing, Cloudflare's dummy keys always pass: site key `1x00000000000000000000AA`, secret `1x0000000000000000000000000000000AA`.
+
 ## Importing MongoDB data
 
 `scripts/mongo-to-d1.mjs` turns a MongoDB export into SQL for an **empty** D1 database with migrations 0001-0004 applied. It reads files only and never connects to MongoDB. Input is one file per collection: `<collection>.json` (EJSON array or NDJSON) or a DBX `<collection>.csv` export.
@@ -86,8 +99,7 @@ cd backend-worker
 - All Durable Object classes use `new_sqlite_classes`, which is supported on Free. Workspace connections use `accept_web_socket`, without intervals that prevent hibernation.
 - Use SQL indexes, bounded responses, and event-triggered refresh rather than frequent polling. D1 stores task metadata; file contents remain on RustFS.
 - Free limits include 100,000 Worker requests/day, 10 ms CPU per ordinary HTTP request; D1 5 million rows read/day, 100,000 rows written/day, **500 MB per database** and 5 GB/account. Durable Objects have separate compute quotas. Exceeding Free quotas causes operations to fail, rather than silently provisioning a paid plan. Deployment/load testing must measure actual CPU and row counts; local success is not proof of cloud quota headroom.
-- KV (`CACHE`) holds only the unauthenticated `/api/public/workspaces/...` responses, for 300 seconds, so public QA pages may be up to 5 minutes stale. KV Free allows 1,000 writes/day; a failed KV read or write falls back to D1. Sessions, access checks and settings are never cached because revocation and config changes must apply immediately. The Cache API is not used because it does nothing on `*.workers.dev`.
-- Task lists page ids before resolving assignees, and `0005_query_indexes.sql` indexes archive state + `updated_at`. `0006_task_assignees.sql` adds a reverse index of `assignee_ids` maintained by SQLite triggers, so every write path (handlers, cascades, import) keeps it in sync; edits that leave `assignee_ids` unchanged write nothing extra. Measured on production data: task page 641 → 120 rows read, My Tasks count 1,704 → 90, assignee stats 9,376 → 476.
+- Images (`IMAGES`) makes 320px WebP thumbnails for attachments and comment images (`/api/files/<key>?…&w=320`). Each image is transformed once and the result is stored on RustFS as `thumbs/320/<key>.webp`, so the 5,000 unique transformations/month Free allowance is spent per new image, not per view; if a transformation fails the original is served. `<img src>` cannot send a bearer token, so the browser first calls `POST /api/files/sign` and gets HMAC-signed links (keyed from `CONFIG_ENCRYPTION_KEY`) that expire on the next-but-one hour: a link keeps working for up to 2 hours after access is revoked.
 - RustFS continues using its existing server, disk and bandwidth. Those costs are separate from Cloudflare.
 
 Official references: [Workers limits](https://developers.cloudflare.com/workers/platform/limits/), [D1 pricing](https://developers.cloudflare.com/d1/platform/pricing/), [D1 limits](https://developers.cloudflare.com/d1/platform/limits/), [Durable Object pricing](https://developers.cloudflare.com/durable-objects/platform/pricing/), [hibernation](https://developers.cloudflare.com/durable-objects/best-practices/websockets/).
@@ -116,25 +128,3 @@ Last run: 6 November 2026.
 - `npm run check`: 0 errors, 0 warnings. `npm run build`: passed.
 - Full unit project: 91 passed, 24 failed. The failures are in `src/lib/db.unit.test.ts` and `tests/today-filter.test.ts` (still written against the removed local database, now failing with `No workspace selected`) and in `TableView.test.ts`/`TaskForm.test.ts` (layout assertions in files this migration did not change). They need rewriting against the API-backed `db.ts`; the complete unit suite is not claimed to pass.
 - Live RustFS requests with credentials, remote deployment, and cloud Free-tier load/CPU measurements remain unverified.
-
-
-## Cloudflare Access sign-in
-
-An optional "Sign in with Cloudflare" button on the login page. Password login keeps working. Access only proves who the visitor is: the Worker verifies the signed JWT, then signs in the **existing active user with the same email** (it never creates users) and issues the normal session token.
-
-Flow: login page → `GET /api/auth/access/login?return=<frontend>/login/` (protected by an Access application) → Access login with your identity provider → the Worker verifies `Cf-Access-Jwt-Assertion` (RS256, issuer, audience, expiry) → redirect back to `<frontend>/login/#access_token=…` → the page exchanges it for the user and signs in.
-
-The feature is off until both `ACCESS_TEAM_DOMAIN` and `ACCESS_AUD` are set; `GET /api/auth/access/config` reports `{"enabled": bool}` and the button only shows when it is true.
-
-Setup in the Cloudflare dashboard:
-
-1. **Custom domain for the Worker.** Access can only protect hostnames in a zone on your account, not `*.workers.dev`. Add a custom domain to the Worker (Workers → api → Settings → Domains & Routes), e.g. `auth.example.com`. Do not enable "Cloudflare Access" on workers.dev: it would protect the whole API.
-2. **Identity provider.** Zero Trust → Settings → Authentication → add one (One-time PIN works with no setup, or Google/GitHub/...).
-3. **Access application.** Zero Trust → Access → Applications → Add → Self-hosted. Domain `auth.example.com`, path `api/auth/access/login` (only that path). Add an Allow policy for the people who may sign in. Copy the **Application Audience (AUD) tag**.
-4. **Worker variables** (`wrangler.jsonc` → `vars`, then deploy):
-   - `ACCESS_TEAM_DOMAIN` = your team domain, e.g. `acme.cloudflareaccess.com`
-   - `ACCESS_AUD` = the AUD tag from step 3
-   - `ACCESS_RETURN_ORIGINS` = comma-separated frontend origins the Worker may redirect to (default: the GitHub Pages site). Any other `return` URL is rejected.
-5. **Frontend variable.** Set the repository variable `NEXT_PUBLIC_ACCESS_URL` to `https://auth.example.com` (the Access-protected origin) so the button navigates there. If the API itself is served from that custom domain, leave it unset.
-
-Tokens travel in the URL fragment, which browsers never send to servers. Emails are matched case-insensitively against active users only; an unknown email returns to the login page with `?access_error=not_registered`.

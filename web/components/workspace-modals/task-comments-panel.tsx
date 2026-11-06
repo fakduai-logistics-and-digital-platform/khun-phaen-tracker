@@ -17,7 +17,7 @@ import type { TaskComment } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { CommentImageLightbox, type LightboxImage } from "./comment-image-lightbox";
 import { TaskCommentItem } from "./task-comment-item";
-import { getCommentImageUrl } from "./task-comment-utils";
+import { signedFileUrl } from "@/lib/api/file-urls";
 import { useTaskComments } from "./use-task-comments";
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
@@ -79,12 +79,13 @@ export function TaskCommentsPanel({ taskId }: { taskId: string | number }) {
     state.appendFiles(Array.from(event.dataTransfer?.files || []));
   }
 
-  function openImageLightbox(comment: TaskComment, imageIndex: number) {
+  async function openImageLightbox(comment: TaskComment, imageIndex: number) {
     const images = state.imageStates[String(comment.id || "")]?.images || [];
     if (images.length === 0) return;
+    const urls = await Promise.all(images.map((img) => signedFileUrl(img.file_key)));
     setLightbox({
-      images: images.map((img) => ({
-        src: getCommentImageUrl(img.file_key),
+      images: images.map((img, i) => ({
+        src: urls[i] ?? "",
         alt: img.filename || t("taskForm__comments_image_fallback_alt"),
       })),
       index: imageIndex,

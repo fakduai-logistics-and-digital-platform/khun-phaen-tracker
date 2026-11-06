@@ -1,14 +1,9 @@
-import { API_BASE_URL } from "@/lib/api/apis";
 import type { CommentImage, CommentReaction, TaskComment } from "@/lib/types";
 
 export const COMMENT_REACTION_EMOJIS = ["👍", "❤️", "🔥", "🎉", "😂", "😮", "😢", "👀", "✅", "🚀"];
 
 export const MAX_COMMENT_FILES = 10;
 export const COMMENT_IMAGES_PAGE_SIZE = 6;
-
-export function getCommentImageUrl(fileKey: string): string {
-  return `${API_BASE_URL.replace(/\/api$/, "")}/api/files/${fileKey}`;
-}
 
 export type CommentImageState = {
   page: number;
