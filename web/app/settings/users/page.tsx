@@ -1,23 +1,25 @@
 "use client";
 
-import { withBase } from "@/lib/base-path";
 import { useEffect, useState } from "react";
-import { Search, UserPlus, Users } from "lucide-react";
+import { Mail, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { DeleteUserDialog } from "@/components/settings/delete-user-dialog";
-import { UserFormDialog } from "@/components/settings/user-form-dialog";
+import { UserFormDialog, type RegistrationMode } from "@/components/settings/user-form-dialog";
 import type { ManagedUser } from "@/components/settings/user-types";
-import { UsersStats } from "@/components/settings/users-stats";
+import { UsersPagination } from "@/components/settings/users-pagination";
 import { UsersTable } from "@/components/settings/users-table";
+import { UsersToolbar } from "@/components/settings/users-toolbar";
 import { useUsers } from "@/components/settings/use-users";
+import { useUsersTable } from "@/components/settings/use-users-table";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { withBase } from "@/lib/base-path";
 import { useI18n } from "@/lib/i18n";
 
 export default function UsersSettingsPage() {
   const { t } = useI18n();
   const state = useUsers();
-  const [formOpen, setFormOpen] = useState(false);
+  const table = useUsersTable(state.filteredUsers);
+  const [formMode, setFormMode] = useState<RegistrationMode | null>(null);
   const [editingUser, setEditingUser] = useState<ManagedUser | null>(null);
 
   useEffect(() => {
@@ -25,7 +27,7 @@ export default function UsersSettingsPage() {
   }, [t]);
 
   function closeForm() {
-    setFormOpen(false);
+    setFormMode(null);
     setEditingUser(null);
   }
 
@@ -35,48 +37,44 @@ export default function UsersSettingsPage() {
   }
 
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-2 space-y-6 duration-300">
-      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold">
-            <Users className="text-primary" />
-            {t("users__title")}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">{t("users__subtitle")}</p>
+          <h1 className="text-2xl font-bold tracking-tight">{t("users__list_title")}</h1>
+          <p className="text-muted-foreground">{t("users__list_subtitle")}</p>
         </div>
-        <Button onClick={() => setFormOpen(true)} className="gap-2">
-          <UserPlus size={18} />
-          {t("users__btn_add")}
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setFormMode("invite")}>
+            {t("users__btn_invite")}
+            <Mail />
+          </Button>
+          <Button onClick={() => setFormMode("password")}>
+            {t("users__btn_add")}
+            <UserPlus />
+          </Button>
+        </div>
       </div>
 
-      <UsersStats users={state.users} />
-
-      <div className="relative">
-        <Search
-          size={18}
-          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-        />
-        <Input
-          type="text"
-          value={state.searchQuery}
-          onChange={(e) => state.setSearchQuery(e.target.value)}
-          placeholder={t("users__search_placeholder")}
-          aria-label={t("users__search_placeholder")}
-          className="h-10 rounded-xl pl-10"
-        />
-      </div>
+      <UsersToolbar table={table} search={state.searchQuery} onSearch={state.setSearchQuery} />
 
       <UsersTable
-        users={state.filteredUsers}
+        table={table}
         loading={state.loading}
         error={state.error}
         onCopyInvite={copyInvite}
         onEdit={(user) => {
           setEditingUser(user);
-          setFormOpen(true);
+          setFormMode("invite");
         }}
         onDelete={state.setUserToDelete}
+      />
+
+      <UsersPagination
+        page={table.page}
+        pageCount={table.pageCount}
+        pageSize={table.pageSize}
+        onPage={table.setPage}
+        onPageSize={table.setPageSize}
       />
 
       <DeleteUserDialog
@@ -87,8 +85,9 @@ export default function UsersSettingsPage() {
       />
 
       <UserFormDialog
-        open={formOpen}
+        open={formMode !== null}
         editingUser={editingUser}
+        initialMode={formMode ?? "invite"}
         onClose={closeForm}
         onSaved={() => void state.fetchUsers()}
       />

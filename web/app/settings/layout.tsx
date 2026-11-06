@@ -10,7 +10,6 @@ import { ThemeSwitch } from "@/components/theme-switch";
 import { AuthenticatedLayout } from "@/components/layout/authenticated-layout";
 import { Header } from "@/components/layout/header";
 import { Main } from "@/components/layout/main";
-import { SettingsNav } from "@/components/settings/settings-nav";
 import { api } from "@/lib/api/apis";
 import { useAuth } from "@/lib/auth/auth-provider";
 
@@ -60,18 +59,13 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
         </div>
       </Header>
       <Main id="content">
-        <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
-          <SettingsNav />
-          <section className="min-w-0">
-            {verifiedAdmin ? (
-              children
-            ) : (
-              <div className="flex justify-center py-20 text-muted-foreground">
-                <Loader2 className="size-8 animate-spin" />
-              </div>
-            )}
-          </section>
-        </div>
+        {verifiedAdmin ? (
+          children
+        ) : (
+          <div className="flex justify-center py-20 text-muted-foreground">
+            <Loader2 className="size-8 animate-spin" />
+          </div>
+        )}
       </Main>
     </AuthenticatedLayout>
   );

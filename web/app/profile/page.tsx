@@ -9,6 +9,7 @@ import { ThemeSwitch } from "@/components/theme-switch";
 import { AuthenticatedLayout } from "@/components/layout/authenticated-layout";
 import { Header } from "@/components/layout/header";
 import { Main } from "@/components/layout/main";
+import { ProfileIntegrations } from "@/components/profile/profile-integrations";
 import { ProfileForm, type ProfileFormValues } from "@/components/profile/profile-form";
 import { ProfileSummary } from "@/components/profile/profile-summary";
 import { api } from "@/lib/api/apis";
@@ -158,6 +159,8 @@ export default function ProfilePage() {
               onChange={setValue}
               onSubmit={() => void handleSubmit()}
             />
+
+            <ProfileIntegrations />
           </section>
         </div>
       </Main>

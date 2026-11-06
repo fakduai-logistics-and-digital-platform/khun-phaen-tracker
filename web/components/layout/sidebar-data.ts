@@ -1,4 +1,15 @@
-import { ClipboardCheck, LayoutDashboard, ListTodo, Settings, Target } from "lucide-react";
+import {
+  ClipboardCheck,
+  HardDrive,
+  LayoutDashboard,
+  ListTodo,
+  Settings,
+  SlidersHorizontal,
+  Sparkles,
+  Target,
+  UserCog,
+  Users,
+} from "lucide-react";
 import { MY_TASKS_WORKSPACE_ID } from "@/lib/workspace";
 import { workspacePath } from "@/lib/routes";
 import type { NavGroup } from "./types";
@@ -31,11 +42,25 @@ export function buildNavGroups({ workspaceId, isAdmin }: NavContext): NavGroup[]
     });
   }
 
-  if (isAdmin) {
-    groups.push({
-      titleKey: "sidebar__configure",
-      items: [{ titleKey: "sidebar__settings", url: "/settings", icon: Settings }],
-    });
-  }
+  groups.push({
+    titleKey: "sidebar__configure",
+    items: [
+      {
+        titleKey: "sidebar__settings",
+        icon: Settings,
+        items: [
+          { titleKey: "layout__profile_settings", url: "/profile", icon: UserCog },
+          ...(isAdmin
+            ? [
+                { titleKey: "settings__tab_general", url: "/settings", icon: SlidersHorizontal },
+                { titleKey: "settings__tab_users", url: "/settings/users", icon: Users },
+                { titleKey: "settings__tab_storage", url: "/settings/storage", icon: HardDrive },
+                { titleKey: "settings__tab_ai", url: "/settings/ai", icon: Sparkles },
+              ]
+            : []),
+        ],
+      },
+    ],
+  });
   return groups;
 }

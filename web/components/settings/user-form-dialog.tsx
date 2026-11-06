@@ -37,11 +37,12 @@ type FormData = {
   discord_id: string;
 };
 
-type RegistrationMode = "invite" | "password";
+export type RegistrationMode = "invite" | "password";
 
 type UserFormDialogProps = {
   open: boolean;
   editingUser: ManagedUser | null;
+  initialMode?: RegistrationMode;
   onClose: () => void;
   onSaved: () => void;
 };
@@ -74,7 +75,7 @@ function formFromUser(user: ManagedUser): FormData {
   };
 }
 
-export function UserFormDialog({ open, editingUser, onClose, onSaved }: UserFormDialogProps) {
+export function UserFormDialog({ open, editingUser, initialMode = "invite", onClose, onSaved }: UserFormDialogProps) {
   const { t } = useI18n();
   const [form, setForm] = useState<FormData>(EMPTY_FORM);
   const [mode, setMode] = useState<RegistrationMode>("invite");
@@ -85,10 +86,10 @@ export function UserFormDialog({ open, editingUser, onClose, onSaved }: UserForm
   useEffect(() => {
     if (!open) return;
     setForm(editingUser ? formFromUser(editingUser) : EMPTY_FORM);
-    setMode("invite");
+    setMode(initialMode);
     setError("");
     setSetupLink("");
-  }, [open, editingUser]);
+  }, [open, editingUser, initialMode]);
 
   function setField<K extends keyof FormData>(key: K, value: FormData[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));

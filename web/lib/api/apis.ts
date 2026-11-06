@@ -1215,4 +1215,23 @@ export const api = {
         credentials: "include",
       }),
   },
+  workzy: {
+    status: (): Promise<Response> =>
+      fetch(`${API_BASE_URL}/integrations/workzy`, { headers: api.data._headers(), credentials: "include" }),
+    connect: (code: string, password: string): Promise<Response> =>
+      fetch(`${API_BASE_URL}/integrations/workzy`, {
+        method: "POST",
+        headers: api.data._headers(true),
+        credentials: "include",
+        body: JSON.stringify({ code, password }),
+      }),
+    disconnect: (): Promise<Response> =>
+      fetch(`${API_BASE_URL}/integrations/workzy`, {
+        method: "DELETE",
+        headers: api.data._headers(),
+        credentials: "include",
+      }),
+    today: (): Promise<Response> =>
+      fetch(`${API_BASE_URL}/integrations/workzy/today`, { headers: api.data._headers(), credentials: "include" }),
+  },
 };
