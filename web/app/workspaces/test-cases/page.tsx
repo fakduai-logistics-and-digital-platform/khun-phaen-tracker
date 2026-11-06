@@ -1,0 +1,298 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { LanguagePicker } from "@/components/language-picker";
+import { AuthenticatedLayout } from "@/components/layout/authenticated-layout";
+import { Header } from "@/components/layout/header";
+import { Main } from "@/components/layout/main";
+import { PaletteSwitch } from "@/components/palette-switch";
+import { Search as HeaderSearch } from "@/components/search";
+import { ThemeSwitch } from "@/components/theme-switch";
+import { TcDetailPanel } from "@/components/test-cases/tc-detail-panel";
+import { TcDialogs } from "@/components/test-cases/tc-dialogs";
+import { TcLightboxView } from "@/components/test-cases/tc-lightbox-view";
+import { TcNewRunDialog } from "@/components/test-cases/tc-new-run-dialog";
+import { TcRunView } from "@/components/test-cases/tc-run-view";
+import { TcSidebar } from "@/components/test-cases/tc-sidebar";
+import { TcSuiteSection, type TcCaseHandlers, type TcView } from "@/components/test-cases/tc-suite-section";
+import { TcToolbar } from "@/components/test-cases/tc-toolbar";
+import { buildAssigneeOptions } from "@/components/test-cases/tc-assignees";
+import { filterOptionsFor } from "@/components/test-cases/tc-options";
+import { useTcCaseActions } from "@/components/test-cases/use-tc-case-actions";
+import { useTcData } from "@/components/test-cases/use-tc-data";
+import { useTcDetail } from "@/components/test-cases/use-tc-detail";
+import { useTcImportExport } from "@/components/test-cases/use-tc-import-export";
+import { useTcLightbox } from "@/components/test-cases/use-tc-lightbox";
+import { useTcResize } from "@/components/test-cases/use-tc-resize";
+import { useTcRuns } from "@/components/test-cases/use-tc-runs";
+import { useTcSuites } from "@/components/test-cases/use-tc-suites";
+import { downloadTemplate } from "@/components/test-cases/tc-csv";
+import { useAuth } from "@/lib/auth/auth-provider";
+import { useI18n } from "@/lib/i18n";
+import { useStore } from "@/lib/store";
+import { taskPath } from "@/lib/routes";
+import { useRouteIds } from "@/lib/use-route-ids";
+import { useWorkspaceRoom } from "@/lib/use-workspace-room";
+import { currentWorkspaceName } from "@/lib/stores/workspace";
+
+export default function TestCasesPage() {
+  const { t } = useI18n();
+  const { user } = useAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { workspaceId: routeWorkspaceId } = useRouteIds();
+  const workspaceId = routeWorkspaceId ?? "";
+  const workspaceName = useStore(currentWorkspaceName);
+
+  const roomCode = useWorkspaceRoom(workspaceId) ?? null;
+
+  const isAuthorized = user?.role === "admin" || user?.profile?.position === "QA Tester";
+
+  const data = useTcData({ workspaceId, roomCode });
+  const suites = useTcSuites({ workspaceId, setSuites: data.setSuites });
+  const resize = useTcResize();
+  const lightbox = useTcLightbox();
+  const [showDetail, setShowDetail] = useState(false);
+  const [view, setView] = useState<TcView>("table");
+  useEffect(() => {
+    const saved = localStorage.getItem("test-cases-view");
+    if (saved === "table" || saved === "list") setView(saved);
+  }, []);
+  function changeView(next: TcView) {
+    setView(next);
+    localStorage.setItem("test-cases-view", next);
+  }
+  const [isSuitesOpen, setIsSuitesOpen] = useState(true);
+  const [isRunsOpen, setIsRunsOpen] = useState(true);
+
+  const openTaskDetail = useCallback(
+    (taskId: string) => router.push(taskPath(workspaceId, taskId)),
+    [router, workspaceId],
+  );
+
+  const actions = useTcCaseActions({
+    workspaceId,
+    assignees: data.assignees,
+    setSuites: data.setSuites,
+    patchTestCase: data.patchTestCase,
+    selectedCaseId: data.selectedCaseId,
+    setSelectedCaseId: data.setSelectedCaseId,
+    setSelectedSuiteId: data.setSelectedSuiteId,
+    setShowDetail,
+    openTaskDetail,
+  });
+
+  const runs = useTcRuns({
+    workspaceId,
+    user,
+    assignees: data.assignees,
+    suites: data.suites,
+    setSuites: data.setSuites,
+    collapseSuites: () => setIsSuitesOpen(false),
+  });
+
+  const detail = useTcDetail({ selectedCase: data.selectedCase, isAuthorized, setSuites: data.setSuites });
+  const imports = useTcImportExport({
+    workspaceId,
+    suites: data.suites,
+    setSuites: data.setSuites,
+    selectedSuiteId: data.selectedSuiteId,
+    reload: () => data.loadData(undefined, undefined, true),
+  });
+
+  useEffect(() => {
+    void data.loadData();
+    void runs.loadTestRuns();
+    // Initial load only; refreshes come from realtime events and the interval in useTcData.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspaceId]);
+
+  useEffect(() => {
+    document.title = `${t("tc__test_case")} — Khun Phaen`;
+  }, [t]);
+
+  const { assigneeOptions, availableAssigneeOptions, testRunAssigneeOptions } = useMemo(
+    () => buildAssigneeOptions(data.assignees, user?.id, isAuthorized),
+    [data.assignees, user?.id, isAuthorized],
+  );
+
+  const editorUrl = (suiteId: string, caseId = "") => {
+    const qs = new URLSearchParams(searchParams.toString());
+    qs.set("suite", suiteId);
+    if (caseId) qs.set("case", caseId);
+    else qs.delete("case");
+    return `/workspaces/test-cases/editor/?${qs.toString()}`;
+  };
+
+  const filterLabel = (property: string, value: string) =>
+    filterOptionsFor(property, assigneeOptions).find((o) => o.value === value)?.label ?? value;
+
+  const handlers: TcCaseHandlers = {
+    onOpenDetail: (suite, testCase) => {
+      data.setSelectedSuiteId(suite.id);
+      data.setSelectedCaseId(testCase.id);
+      setShowDetail(true);
+    },
+    onOpenEditor: (suiteId, caseId) => router.push(editorUrl(suiteId, caseId)),
+    onDeleteCase: actions.requestDeleteCase,
+    onUpdateStatus: actions.updateStatus,
+    onUpdateFixed: actions.updateFixed,
+    onUpdatePriority: actions.updatePriority,
+    onUpdateAssignDev: actions.updateAssignDev,
+    onQuickCreate: actions.quickCreate,
+  };
+
+  const selectedCase = data.selectedCase;
+  const selectedSuite = data.selectedSuite;
+  const inRunView = runs.viewMode === "test-run";
+
+  return (
+    <AuthenticatedLayout>
+      <Header>
+        <HeaderSearch />
+        <div className="ms-auto flex items-center gap-2">
+          <LanguagePicker />
+          <PaletteSwitch />
+          <ThemeSwitch />
+        </div>
+      </Header>
+
+      <Main id="content" fixed fluid className="p-0">
+        <div className="flex min-h-0 flex-1">
+          <TcSidebar
+            width={resize.leftSidebarWidth}
+            onStartResize={resize.startSidebarResize}
+            isAuthorized={isAuthorized}
+            suites={data.suites}
+            selectedSuiteId={data.selectedSuiteId}
+            isSuitesOpen={isSuitesOpen}
+            onToggleSuites={() => setIsSuitesOpen((v) => !v)}
+            onSelectSuite={(suite) => {
+              data.setSelectedSuiteId(suite.id);
+              runs.closeTestRun();
+            }}
+            onAddSuite={() => suites.setShowCreateSuite(true)}
+            onDeleteSuite={(suite) => suites.requestDeleteSuite(suite)}
+            runs={runs.testRuns}
+            runsTotal={runs.testRunsTotal}
+            selectedRunId={runs.selectedRunDetail?.id}
+            isRunsOpen={isRunsOpen}
+            isLoadingMoreRuns={runs.isLoadingMoreRuns}
+            onToggleRuns={() => setIsRunsOpen((v) => !v)}
+            onOpenRun={(run) => void runs.openTestRun(run)}
+            onNewRun={runs.openNewTestRunModal}
+            onDeleteRun={(run) => runs.requestDeleteRun(run)}
+            onLoadMoreRuns={() => void runs.loadMoreTestRuns()}
+          />
+
+          <section className="flex min-w-0 flex-1 flex-col overflow-hidden">
+            {inRunView ? (
+              <TcRunView
+                detail={runs.selectedRunDetail}
+                loading={runs.isLoadingRunDetail}
+                isAuthorized={isAuthorized}
+                updatingCaseId={runs.updatingCaseId}
+                onBack={runs.closeTestRun}
+                onUpdateRunStatus={(status) => void runs.updateRunStatus(status)}
+                onDeleteRun={() =>
+                  runs.selectedRunDetail && runs.requestDeleteRun({ _id: runs.selectedRunDetail.id } as never)
+                }
+                onUpdateCaseStatus={(caseId, status) => void runs.updateRunCaseStatus(caseId, status)}
+                onViewCase={(entry) => {
+                  const caseId = entry.test_case?.id;
+                  if (!caseId) return;
+                  data.setSelectedSuiteId(entry.test_case?.suite_id || data.selectedSuiteId);
+                  data.setSelectedCaseId(caseId);
+                  setShowDetail(true);
+                }}
+              />
+            ) : (
+              <>
+                <TcToolbar
+                  view={view}
+                  onViewChange={changeView}
+                  workspaceId={workspaceId}
+                  workspaceLabel={workspaceName || "Current workspace"}
+                  caseCount={data.caseCount}
+                  suiteCount={data.suiteCount}
+                  query={data.query}
+                  onQueryChange={data.setQuery}
+                  field={data.field}
+                  onFieldChange={data.setField}
+                  activeFilters={data.activeFilters}
+                  onToggleFilter={data.toggleFilterValue}
+                  onClearFilter={data.clearFilter}
+                  onClearAllFilters={data.clearAllFilters}
+                  filterLabel={filterLabel}
+                  assigneeOptions={assigneeOptions}
+                  isAuthorized={isAuthorized}
+                  onDownloadTemplate={downloadTemplate}
+                  onImportFile={(file) => void imports.importFile(file)}
+                  onExport={() => void imports.exportToCSV()}
+                />
+                <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+                  {data.filteredSuites.map((suite) => (
+                    <TcSuiteSection
+                      key={suite.id}
+                      suite={suite}
+                      view={view}
+                      selected={suite.id === data.selectedSuiteId}
+                      selectedCaseId={showDetail ? data.selectedCaseId : ""}
+                      isAuthorized={isAuthorized}
+                      updatingPriorityIds={actions.updatingPriorityIds}
+                      assigneeOptions={availableAssigneeOptions}
+                      handlers={handlers}
+                      onEditSuite={(s) => suites.setEditingSuite({ ...s })}
+                      onDeleteSuite={(s) => suites.requestDeleteSuite(s)}
+                      onLoadPage={(suiteId, page) => void data.loadSuitePage(suiteId, page)}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+          </section>
+
+          {showDetail && selectedCase && (
+            <TcDetailPanel
+              testCase={selectedCase}
+              suite={selectedSuite}
+              detail={detail}
+              isAuthorized={isAuthorized}
+              width={resize.detailPanelWidth}
+              assigneeOptions={assigneeOptions}
+              availableAssigneeOptions={availableAssigneeOptions}
+              onStartResize={resize.startPanelResize}
+              onClose={() => setShowDetail(false)}
+              onConvertToTask={() => void actions.convertToTask(selectedCase.id)}
+              onEdit={() => router.push(editorUrl(selectedSuite?.id || data.selectedSuiteId, selectedCase.id))}
+              onDelete={() => actions.requestDeleteCase(selectedCase.id)}
+              onUpdatePriority={(v) => actions.updatePriority(selectedCase, v)}
+              onUpdateStatus={(v) => actions.updateStatus(selectedCase, v)}
+              onUpdateFixed={(v) => actions.updateFixed(selectedCase, v)}
+              onUpdateAssignDev={(v) => actions.updateAssignDev(selectedCase, v)}
+              onUpdateAssignTester={(v) => actions.updateAssignTester(selectedCase, v)}
+              onOpenAttachment={lightbox.openLightbox}
+            />
+          )}
+        </div>
+      </Main>
+
+      <TcNewRunDialog
+        runs={runs}
+        suites={data.suites}
+        assigneeOptions={testRunAssigneeOptions}
+        onSubmit={() => void runs.createTestRun()}
+      />
+      <TcDialogs
+        suites={suites}
+        actions={actions}
+        runs={runs}
+        importProgress={imports.showImportModal ? imports.importProgress : null}
+        importSummary={imports.importSummary}
+        onCloseImportSummary={imports.closeImportSummary}
+      />
+      <TcLightboxView lightbox={lightbox} />
+    </AuthenticatedLayout>
+  );
+}

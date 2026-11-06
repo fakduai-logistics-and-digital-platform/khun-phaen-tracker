@@ -1,0 +1,28 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": [
+    "typescript",
+    "react",
+    "nextjs",
+    "jsx-a11y"
+  ],
+  "categories": {
+    "correctness": "error"
+  },
+  "rules": {
+    "react/react-in-jsx-scope": "off",
+    "react/set-state-in-effect": "off",
+    "react/refs": "off",
+    "react/purity": "off",
+    "react/static-components": "off",
+    "jsx-a11y/prefer-tag-over-role": "off",
+    "nextjs/no-img-element": "off"
+  },
+  "ignorePatterns": [
+    ".cloudflare/**",
+    "dist/**",
+    "node_modules/**",
+    "components/ui/**",
+    "next-env.d.ts"
+  ]
+}
