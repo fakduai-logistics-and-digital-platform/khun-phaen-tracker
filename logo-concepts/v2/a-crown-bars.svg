@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <title>Khun Phaen - Crown Bars</title>
+  <g transform="translate(0 8)">
+    <path d="M40 146V70L84 114L128 56L172 114L216 70V146Z" fill="#0B1F4B"/>
+    <path d="M40 162H93V186H40ZM101 162H155V186H101ZM163 162H216V186H163Z" fill="#2563EB"/>
+  </g>
+</svg>

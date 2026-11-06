@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <title>Khun Phaen - Chat Tiers</title>
+<g transform="translate(0 14)">
+  <path d="M59.0 152H197.0A19.0 19.0 0 0 1 197.0 190H59.0A19.0 19.0 0 0 1 59.0 152ZM51.0 171.0a8.0 8.0 0 1 0 16.0 0a8.0 8.0 0 1 0 -16.0 0Z" fill="#3b82f6" fill-rule="evenodd"/>
+  <path d="M87.0 106H169.0A19.0 19.0 0 0 1 169.0 144H87.0A19.0 19.0 0 0 1 87.0 106ZM79.0 125.0a8.0 8.0 0 1 0 16.0 0a8.0 8.0 0 1 0 -16.0 0Z" fill="#FFC233" fill-rule="evenodd"/>
+  <path d="M115.0 60H141.0A19.0 19.0 0 0 1 141.0 98H115.0A19.0 19.0 0 0 1 115.0 60ZM107.0 79.0a8.0 8.0 0 1 0 16.0 0a8.0 8.0 0 1 0 -16.0 0Z" fill="#FF6B6B" fill-rule="evenodd"/>
+  <circle cx="128" cy="36" r="14" fill="#FFC233"/>
+</g>
+</svg>

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <title>Khun Phaen - Lomphok</title>
+  <path d="M72 172L114 56Q128 22 142 56L184 172Z" fill="#0B1F4B"/>
+  <path d="M52 184H204V212H52Z" fill="#2563EB"/>
+  <path d="M104 124L120 140L152 104" fill="none" stroke="#2563EB" stroke-width="12" stroke-linejoin="miter" stroke-miterlimit="10"/>
+</svg>
