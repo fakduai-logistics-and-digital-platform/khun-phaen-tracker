@@ -64,13 +64,10 @@ async fn route(req: &mut Request, env: &Env) -> Result<Response> {
     if path == "/ws" {
         return realtime::upgrade(req, env).await;
     }
-    if path == "/api/rooms"
-        || path.starts_with("/api/rooms/")
-        || path == "/api/notifications/stream"
-    {
+    if path == "/api/rooms" || path.starts_with("/api/rooms/") {
         return http::error(
             410,
-            "Peer sync and SSE have been retired; use backend APIs and realtime tickets",
+            "Peer sync has been retired; use backend APIs and realtime tickets",
         );
     }
     if parts.first() != Some(&"api") {

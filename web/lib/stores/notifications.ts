@@ -5,7 +5,7 @@ import { derived, get, writable } from "@/lib/store";
 import type { Assignee } from "@/lib/types";
 import { user, type User } from "@/lib/stores/auth";
 import { dataChanged } from "@/lib/stores/realtime";
-import { api, API_BASE_URL } from "@/lib/api/apis";
+import { api } from "@/lib/api/apis";
 
 export type NotificationSourceType = "task" | "test_case";
 
@@ -42,7 +42,6 @@ let unsubscribeRealtime: (() => void) | null = null;
 let unsubscribeUser: (() => void) | null = null;
 let activeUserKey = "";
 let currentUserAssigneeIds = new Set<string>();
-let sseSource: EventSource | null = null;
 
 export function setCurrentUserAssigneeIds(ids: string[]) {
   currentUserAssigneeIds = new Set(ids.map(String));
@@ -158,10 +157,6 @@ export function initNotifications() {
       if (nextKey) {
         // Hydrate from DB in background
         void syncFromDb();
-        // Open SSE stream for real-time delivery from any page
-        connectNotifStream();
-      } else {
-        disconnectNotifStream();
       }
     });
   }
@@ -172,33 +167,6 @@ export function initNotifications() {
       if (meta) ingestAssignmentNotification(meta);
     });
   }
-}
-
-function connectNotifStream() {
-  disconnectNotifStream();
-  try {
-    sseSource = new EventSource(`${API_BASE_URL}/notifications/stream`, {
-      withCredentials: true,
-    });
-    sseSource.addEventListener("notification", (event: MessageEvent) => {
-      try {
-        const meta = JSON.parse(event.data) as AssignmentNotificationMeta;
-        ingestAssignmentNotification(meta);
-      } catch {
-        // Ignore malformed events
-      }
-    });
-    sseSource.onerror = () => {
-      // EventSource auto-reconnects — no manual handling needed
-    };
-  } catch (e) {
-    console.warn("⚠️ NotifStream: failed to connect", e);
-  }
-}
-
-function disconnectNotifStream() {
-  sseSource?.close();
-  sseSource = null;
 }
 
 async function syncFromDb(): Promise<void> {
@@ -270,7 +238,6 @@ export function destroyNotifications() {
   unsubscribeUser?.();
   unsubscribeRealtime = null;
   unsubscribeUser = null;
-  disconnectNotifStream();
 }
 
 export function markNotificationRead(id: string) {
