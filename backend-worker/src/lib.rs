@@ -10,6 +10,7 @@ mod comments;
 mod db;
 mod documents;
 mod file_urls;
+mod workzy;
 mod http;
 mod notifications;
 mod qa;
@@ -198,6 +199,9 @@ async fn route(req: &mut Request, env: &Env) -> Result<Response> {
     let Some(user) = auth::authenticate(req, env).await? else {
         return http::error(401, "Not logged in");
     };
+    if parts.get(1) == Some(&"integrations") && parts.get(2) == Some(&"workzy") {
+        return workzy::handle(req, env, &user, &parts).await;
+    }
     if path == "/api/auth/me" && req.method() == Method::Get {
         return http::ok(user.public());
     }

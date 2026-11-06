@@ -14,7 +14,9 @@
     "STORAGE_URL": "https://rust-fs.wk18k.qzz.io",
     "STORAGE_BUCKET": "khunphaen-assets",
     "STORAGE_REGION": "us-east-1",
-    "COOKIE_SECURE": "true"
+    "COOKIE_SECURE": "true",
+    // Workzy API base (e.g. https://workzy-api.example.workers.dev/api); empty disables the Workzy work-time card
+    "WORKZY_API_URL": ""
   },
   "d1_databases": [{
     "binding": "DB",
