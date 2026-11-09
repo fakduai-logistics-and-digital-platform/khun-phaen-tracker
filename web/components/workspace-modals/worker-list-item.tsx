@@ -2,6 +2,7 @@
 
 import { Briefcase, Edit2, Link as LinkIcon, Mail, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useI18n } from "@/lib/i18n";
 import type { Assignee } from "@/lib/types";
 import { DEFAULT_WORKER_COLOR } from "./worker-colors";
@@ -34,9 +35,9 @@ export function WorkerListItem({
 
   return (
     <>
-      <div className="group flex items-center gap-3 rounded-lg border bg-card p-3 shadow-sm transition-colors hover:border-primary/30 hover:bg-accent/40">
+      <div className="group flex items-center gap-3 rounded-lg border bg-card p-3">
         <div
-          className="flex size-12 shrink-0 items-center justify-center rounded-lg text-lg font-semibold text-white shadow-sm"
+          className="flex size-10 shrink-0 items-center justify-center rounded-lg text-base font-medium text-white"
           style={{ backgroundColor: worker.color || DEFAULT_WORKER_COLOR }}
         >
           {worker.name.charAt(0)}
@@ -46,25 +47,25 @@ export function WorkerListItem({
           <div className="flex items-center gap-2">
             <h4 className="truncate font-medium">{worker.name}</h4>
             {isLinked && (
-              <div
-                className="flex items-center gap-0.5 rounded bg-success/10 px-1.5 py-0.5 text-xs font-semibold text-success"
+              <Badge
+                variant="secondary"
                 title={`${t("workerManager__linked_status")}${displayEmail ? `: ${displayEmail}` : ""}`}
               >
-                <LinkIcon size={8} />
+                <LinkIcon />
                 {t("workerManager__linked_status")}
-              </div>
+              </Badge>
             )}
           </div>
           <div className="mt-0.5 flex items-center gap-3">
             {displayEmail && (
-              <div className="flex items-center gap-1 truncate text-xs font-medium text-muted-foreground">
+              <div className="flex items-center gap-1 truncate text-xs text-muted-foreground">
                 <Mail size={10} />
                 <span className="truncate" title={displayEmail}>
                   {displayEmail}
                 </span>
               </div>
             )}
-            <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
               <Briefcase size={10} />
               <span>
                 {taskCount} {t("workerManager__task_count_suffix")}

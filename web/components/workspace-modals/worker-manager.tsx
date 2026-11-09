@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Plus, RefreshCw, User, Users } from "lucide-react";
+import { Plus, RefreshCw, User } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { api } from "@/lib/api/apis";
 import { useI18n } from "@/lib/i18n";
@@ -136,16 +137,11 @@ export function WorkerManager({
         className="max-h-[90vh] max-w-lg gap-0 p-0 sm:max-w-lg"
       >
         <div ref={shakeRef} className="flex max-h-[90vh] min-h-0 flex-col">
-          <DialogHeader className="flex-row items-center gap-3 border-b p-6 pr-14 text-left">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-              <Users size={20} className="text-primary" />
-            </div>
-            <div>
-              <DialogTitle className="text-xl font-medium">{t("workerManager__title")}</DialogTitle>
-              <DialogDescription>
-                {assignees.length} {t("workerManager__count_suffix")}
-              </DialogDescription>
-            </div>
+          <DialogHeader className="border-b p-6 pr-14 text-left">
+            <DialogTitle>{t("workerManager__title")}</DialogTitle>
+            <DialogDescription>
+              {assignees.length} {t("workerManager__count_suffix")}
+            </DialogDescription>
           </DialogHeader>
 
           <div ref={contentRef} className="flex-1 overflow-y-auto p-6">
@@ -160,21 +156,15 @@ export function WorkerManager({
                 onCancel={cancelEdit}
               />
             ) : isOwner ? (
-              <button
-                type="button"
-                onClick={startAdd}
-                className="group mb-6 flex w-full flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed py-4 text-muted-foreground transition-colors hover:border-primary hover:bg-primary/5 hover:text-primary active:scale-[0.98]"
-              >
-                <div className="rounded-md bg-muted p-1 transition-colors group-hover:bg-primary/10">
-                  <Plus size={20} />
-                </div>
-                <span className="text-sm font-medium">{t("workerManager__add_new")}</span>
-              </button>
+              <Button type="button" variant="outline" onClick={startAdd} className="mb-6 w-full">
+                <Plus />
+                {t("workerManager__add_new")}
+              </Button>
             ) : null}
 
             <div className="space-y-3">
               <div className="mb-2 flex items-center justify-between">
-                <h3 className="text-xs font-semibold text-muted-foreground">{t("workerManager__list_title")}</h3>
+                <h3 className="text-sm font-medium text-muted-foreground">{t("workerManager__list_title")}</h3>
                 <button
                   type="button"
                   onClick={() => void fetchSystemUsers()}
@@ -194,10 +184,8 @@ export function WorkerManager({
               )}
 
               {!isLoading && assignees.length === 0 ? (
-                <div className="rounded-lg border bg-muted/40 py-12 text-center">
-                  <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                    <User size={32} />
-                  </div>
+                <div className="rounded-lg border py-12 text-center">
+                  <User size={40} className="mx-auto mb-3 text-muted-foreground opacity-50" />
                   <p className="font-medium text-muted-foreground">{t("workerManager__no_workers")}</p>
                   <p className="text-xs text-muted-foreground">{t("workerManager__add_hint")}</p>
                 </div>
@@ -222,8 +210,8 @@ export function WorkerManager({
             <WorkerGroupsSection assignees={assignees} isOwner={isOwner} onGroupsChanged={onGroupsChanged} />
           </div>
 
-          <div className="border-t bg-muted/50 p-4">
-            <p className="text-center text-xs font-medium text-muted-foreground">{t("workerManager__footer_hint")}</p>
+          <div className="border-t p-4">
+            <p className="text-center text-xs text-muted-foreground">{t("workerManager__footer_hint")}</p>
           </div>
         </div>
       </DialogContent>

@@ -1,6 +1,7 @@
 "use client";
 
 import { CheckCircle2, Circle, CircleDashed, CircleDot, Folder } from "lucide-react";
+import { Label } from "@/components/ui/label";
 import { AssigneeSelector } from "@/components/shared/assignee-selector";
 import { CustomDatePicker } from "@/components/shared/custom-date-picker";
 import { PrioritySelector } from "@/components/shared/priority-selector";
@@ -9,7 +10,6 @@ import { useI18n } from "@/lib/i18n";
 import type { Assignee, AssigneeGroup, Project, Task } from "@/lib/types";
 import { TASK_TYPES, type TaskType } from "@/lib/utils/branch-name";
 import type { TaskFormValues } from "./use-task-form-values";
-import "./task-form.css";
 
 const TYPE_ICON_CLASS: Record<TaskType, string> = {
   feature: "text-indigo-400",
@@ -62,65 +62,67 @@ export function TaskFormProperties({
   ];
 
   return (
-    <div className="flex flex-wrap items-center gap-2 pt-4 pb-2">
-      <div className="tf-prop-select min-w-[100px]">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <Field id="status" label={t("taskForm__status_label")}>
         <SearchableSelect
           id="status"
           value={values.status}
           onValueChange={(value) => patch({ status: value as Task["status"] })}
           options={statusOptions}
           showSearch={false}
-          minimal
         />
-      </div>
+      </Field>
 
-      <div className="tf-prop-select min-w-[120px]">
-        <PrioritySelector value={values.priority} onValueChange={(priority) => patch({ priority })} />
-      </div>
+      <Field id="priority" label={t("taskForm__priority_label")}>
+        <PrioritySelector minimal={false} value={values.priority} onValueChange={(priority) => patch({ priority })} />
+      </Field>
 
-      <div className="tf-prop-select min-w-[120px]">
+      <Field id="task_type" label={t("taskForm__task_type_label")}>
         <SearchableSelect
           id="task_type"
           value={values.task_type ?? null}
           onValueChange={(value) => patch({ task_type: (value as TaskType | null) ?? undefined })}
           options={typeOptions}
           showSearch={false}
-          minimal
         />
-      </div>
+      </Field>
 
-      <div className="tf-prop-select">
-        <AssigneeSelector
-          assignees={assignees}
-          assigneeGroups={assigneeGroups}
-          assignee_ids={values.assignee_ids}
-          onAssignee_idsChange={(assignee_ids) => patch({ assignee_ids })}
-          readonly={!isOwner}
-          minimal
-          onAddAssignee={onAddAssignee}
-        />
-      </div>
+      <AssigneeSelector
+        assignees={assignees}
+        assigneeGroups={assigneeGroups}
+        assignee_ids={values.assignee_ids}
+        onAssignee_idsChange={(assignee_ids) => patch({ assignee_ids })}
+        readonly={!isOwner}
+        onAddAssignee={onAddAssignee}
+      />
 
-      <div className="tf-prop-select min-w-[120px]">
+      <Field id="end_date" label={t("taskForm__due_date_label")}>
         <CustomDatePicker
           value={values.end_date}
           onValueChange={(end_date) => patch({ end_date })}
           placeholder={t("taskForm__due_date_placeholder")}
-          minimal
           dropdownPosition="top"
         />
-      </div>
+      </Field>
 
-      <div className="tf-prop-select min-w-[120px]">
+      <Field id="project" label={t("taskForm__project_label")}>
         <SearchableSelect
           id="project"
           value={values.project}
           onValueChange={(value) => patch({ project: String(value ?? "") })}
           options={projectOptions}
           placeholder={t("taskForm__project_placeholder")}
-          minimal
         />
-      </div>
+      </Field>
+    </div>
+  );
+}
+
+function Field({ id, label, children }: { id: string; label: string; children: React.ReactNode }) {
+  return (
+    <div className="grid gap-2">
+      <Label htmlFor={id}>{label}</Label>
+      {children}
     </div>
   );
 }

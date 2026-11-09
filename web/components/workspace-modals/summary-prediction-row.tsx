@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -68,31 +69,25 @@ export function SummaryPredictionRow({
 
   return (
     <div className="grid gap-6 md:grid-cols-3">
-      <div className="relative flex items-center gap-6 overflow-visible rounded-lg border border-indigo-200 bg-indigo-50/50 p-6 shadow-sm md:col-span-2 dark:border-indigo-500/30 dark:bg-indigo-500/5">
-        <div className="flex size-16 shrink-0 items-center justify-center rounded-lg bg-indigo-500 text-white shadow-indigo-500/20">
-          <Sparkles className="size-8" />
-        </div>
+      <div className="flex items-center gap-4 rounded-lg border bg-card p-4 md:col-span-2">
+        <Sparkles className="size-5 shrink-0 text-muted-foreground" />
         <div className="flex-1">
-          <h4 className="flex items-center gap-2 font-medium text-indigo-900 dark:text-indigo-200">
+          <h4 className="flex items-center gap-2 text-sm font-medium">
             {labels.prediction}
-            <span className="rounded-full bg-indigo-500 px-2 py-0.5 text-xs font-semibold text-white">
-              {labels.predictionExperimental}
-            </span>
+            <Badge variant="secondary">{labels.predictionExperimental}</Badge>
           </h4>
-          <p className="mt-1 text-sm font-medium text-indigo-700/70 dark:text-indigo-300/60">
-            &quot;{labels.predictionDesc}&quot;
-          </p>
+          <p className="mt-1 text-sm text-muted-foreground">{labels.predictionDesc}</p>
         </div>
       </div>
 
-      <div className="relative flex flex-col justify-center overflow-visible rounded-lg border border-border bg-card/90 p-6 shadow-sm">
+      <div className="relative flex flex-col justify-center rounded-lg border bg-card p-4">
         <div className="mb-1 flex items-center justify-between">
-          <p className="text-xs font-medium text-muted-foreground">{labels.predictionNextMonth}</p>
+          <p className="text-xs text-muted-foreground">{labels.predictionNextMonth}</p>
           <button
             type="button"
             aria-label={labels.predictionHelpTitle}
             aria-expanded={showHelp}
-            className="flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground outline-none transition-colors hover:bg-primary hover:text-primary-foreground"
+            className="flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-xs text-muted-foreground outline-none transition-colors hover:bg-primary hover:text-primary-foreground"
             onMouseEnter={() => setShowHelp(true)}
             onMouseLeave={() => setShowHelp(false)}
             onClick={() => setShowHelp((v) => !v)}
@@ -102,8 +97,8 @@ export function SummaryPredictionRow({
         </div>
 
         <div className="flex items-baseline gap-2">
-          <span className="text-3xl font-semibold text-primary">{prediction.nextMonthTotal}</span>
-          <span className="text-xs font-medium text-muted-foreground">{labels.predictionTasks}</span>
+          <span className="text-3xl font-semibold tabular-nums">{prediction.nextMonthTotal}</span>
+          <span className="text-xs text-muted-foreground">{labels.predictionTasks}</span>
         </div>
 
         <div className="mt-3 flex items-center gap-2">
@@ -114,16 +109,16 @@ export function SummaryPredictionRow({
                 prediction.confidence > 70
                   ? "bg-success"
                   : prediction.confidence > 40
-                    ? "bg-amber-500"
+                    ? "bg-warning"
                     : "bg-destructive",
               )}
               style={{ width: `${prediction.confidence}%` }}
             />
           </div>
-          <span className="text-xs font-semibold text-muted-foreground">{prediction.confidence}%</span>
+          <span className="text-xs text-muted-foreground tabular-nums">{prediction.confidence}%</span>
         </div>
 
-        <p className="mt-1 text-xs font-medium text-muted-foreground">{labels.predictionConfidence}</p>
+        <p className="mt-1 text-xs text-muted-foreground">{labels.predictionConfidence}</p>
 
         {showHelp && (
           <div className="pointer-events-none absolute top-0 right-0 z-50 mt-12 mr-2 w-64 animate-in rounded-lg border border-border bg-popover p-4 fade-in">

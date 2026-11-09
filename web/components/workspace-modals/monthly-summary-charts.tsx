@@ -3,8 +3,8 @@
 import { useMemo, useState } from "react";
 import { Info } from "lucide-react";
 import { useTheme } from "next-themes";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useI18n } from "@/lib/i18n";
-import { cn } from "@/lib/utils";
 import { RechartsSummary, type RechartsSummaryProps } from "./recharts-summary";
 
 type NamedCount = { name: string; count: number };
@@ -68,25 +68,16 @@ export function MonthlySummaryCharts({
   return (
     <div className="space-y-3 pt-6">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold text-muted-foreground">{t("monthlyCharts__visualization")}</p>
-        <div className="inline-flex rounded-lg border border-border bg-muted p-1 shadow-sm">
-          {TREND_MODES.map(({ mode, labelKey }) => (
-            <button
-              key={mode}
-              type="button"
-              aria-pressed={trendMode === mode}
-              onClick={() => setTrendMode(mode)}
-              className={cn(
-                "rounded-lg px-4 py-1.5 text-xs font-medium transition-colors",
-                trendMode === mode
-                  ? "bg-primary text-primary-foreground "
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {t(labelKey)}
-            </button>
-          ))}
-        </div>
+        <p className="text-sm font-medium">{t("monthlyCharts__visualization")}</p>
+        <Tabs value={trendMode} onValueChange={(value) => setTrendMode(value as TrendMode)}>
+          <TabsList>
+            {TREND_MODES.map(({ mode, labelKey }) => (
+              <TabsTrigger key={mode} value={mode}>
+                {t(labelKey)}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
       </div>
 
       <RechartsSummary
@@ -104,15 +95,11 @@ export function MonthlySummaryCharts({
         labels={labels}
       />
 
-      <div className="flex items-start gap-4 rounded-lg border border-blue-200/60 bg-blue-50/70 px-6 py-4 shadow-sm dark:border-blue-800/70 dark:bg-blue-900/20">
-        <div className="rounded-lg bg-blue-500/10 p-2">
-          <Info className="size-5 text-blue-600 dark:text-blue-400" />
-        </div>
+      <div className="flex items-start gap-3 rounded-lg border p-4">
+        <Info className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
         <div>
-          <p className="text-sm font-medium text-blue-900 dark:text-blue-200">{t("monthlyCharts__insight_title")}</p>
-          <p className="text-sm font-medium text-blue-700/80 dark:text-blue-300/80">
-            {t("monthlyCharts__insight_body")}
-          </p>
+          <p className="text-sm font-medium">{t("monthlyCharts__insight_title")}</p>
+          <p className="text-sm text-muted-foreground">{t("monthlyCharts__insight_body")}</p>
         </div>
       </div>
     </div>

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Briefcase, Check, Edit2, ExternalLink, Folder, Link as LinkIcon, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -86,22 +87,17 @@ export function ProjectManager({
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onClose?.()}>
       <DialogContent className="flex max-h-[90vh] max-w-lg flex-col gap-0 overflow-hidden p-0">
-        <DialogHeader className="flex-row items-center gap-3 border-b p-6 pr-14 text-left">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-            <Folder size={20} className="text-primary" />
-          </div>
-          <div>
-            <DialogTitle className="text-xl font-medium">{t("projectManager__title")}</DialogTitle>
-            <DialogDescription>
-              {projects.length} {t("projectManager__count_suffix")}
-            </DialogDescription>
-          </div>
+        <DialogHeader className="border-b p-6 pr-14 text-left">
+          <DialogTitle>{t("projectManager__title")}</DialogTitle>
+          <DialogDescription>
+            {projects.length} {t("projectManager__count_suffix")}
+          </DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto p-6">
           {showAddForm && isOwner ? (
             <form
-              className="mb-6 space-y-4 rounded-lg bg-muted p-4"
+              className="mb-6 space-y-4 rounded-lg border p-4"
               onSubmit={(e) => {
                 e.preventDefault();
                 handleSave();
@@ -160,14 +156,10 @@ export function ProjectManager({
               </div>
             </form>
           ) : isOwner ? (
-            <button
-              type="button"
-              onClick={startAdd}
-              className="mb-6 flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed px-4 py-3 text-muted-foreground transition-colors hover:border-primary hover:bg-primary/5 hover:text-primary"
-            >
-              <Plus size={18} />
+            <Button type="button" variant="outline" onClick={startAdd} className="mb-6 w-full">
+              <Plus />
               {t("projectManager__add_new")}
-            </button>
+            </Button>
           ) : null}
 
           <div className="space-y-3">
@@ -182,19 +174,13 @@ export function ProjectManager({
             ) : (
               projects.map((project) => (
                 <div key={project.id}>
-                  <div className="group flex items-center gap-3 rounded-lg bg-muted p-3 transition-colors hover:bg-accent">
-                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                      <Folder size={20} className="text-primary" />
-                    </div>
+                  <div className="group flex items-center gap-3 rounded-lg border bg-card p-3">
+                    <Folder size={18} className="shrink-0 text-muted-foreground" />
 
                     <div className="min-w-0 flex-1">
                       <h4 className="flex items-center gap-2 truncate font-medium">
                         <span>{project.name}</span>
-                        {project.short_name && (
-                          <span className="rounded border border-primary/20 bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary">
-                            {project.short_name}
-                          </span>
-                        )}
+                        {project.short_name && <Badge variant="outline">{project.short_name}</Badge>}
                       </h4>
                       <div className="flex items-center gap-3 text-sm text-muted-foreground">
                         <div className="flex items-center gap-1">
@@ -272,7 +258,7 @@ export function ProjectManager({
           </div>
         </div>
 
-        <div className="border-t bg-muted/50 p-4">
+        <div className="border-t p-4">
           <p className="text-center text-xs text-muted-foreground">{t("projectManager__footer_hint")}</p>
         </div>
       </DialogContent>

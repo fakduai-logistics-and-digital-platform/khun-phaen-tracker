@@ -6,6 +6,7 @@ import { ConfirmModal } from "@/components/shared/confirm-modal";
 import { CustomDatePicker } from "@/components/shared/custom-date-picker";
 import { SearchableSelect } from "@/components/shared/searchable-select";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -182,10 +183,7 @@ export function MilestoneManager({
           className="flex max-h-[90vh] max-w-2xl flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl"
         >
           <DialogHeader className="border-b px-6 py-4 pr-14 text-left">
-            <DialogTitle className="flex items-center gap-2 text-lg font-semibold">
-              <Rocket size={20} className="text-primary" />
-              {t("milestone.manager_title")}
-            </DialogTitle>
+            <DialogTitle>{t("milestone.manager_title")}</DialogTitle>
             <DialogDescription className="sr-only">{t("milestone.manager_title")}</DialogDescription>
           </DialogHeader>
 
@@ -299,16 +297,10 @@ export function MilestoneManager({
                 </div>
               </form>
             ) : isOwner ? (
-              <button
-                type="button"
-                onClick={() => setShowForm(true)}
-                className="group flex w-full flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed py-6 text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
-              >
-                <div className="rounded-lg bg-muted p-3 transition-colors group-hover:bg-primary/10">
-                  <Plus size={24} />
-                </div>
-                <span className="text-sm font-medium">{t("milestone.add_btn")}</span>
-              </button>
+              <Button type="button" variant="outline" className="w-full" onClick={() => setShowForm(true)}>
+                <Plus />
+                {t("milestone.add_btn")}
+              </Button>
             ) : null}
 
             <div className="space-y-3">
@@ -322,7 +314,7 @@ export function MilestoneManager({
                   <Loader2 className="animate-spin text-primary/50" size={48} />
                 </div>
               ) : milestones.length === 0 ? (
-                <div className="rounded-lg border border-dashed px-8 py-16 text-center">
+                <div className="rounded-lg border px-8 py-16 text-center">
                   <Rocket className="mx-auto mb-3 size-10 text-muted-foreground opacity-50" />
                   <p className="font-medium text-muted-foreground">{t("milestone.no_milestones")}</p>
                 </div>
@@ -332,29 +324,23 @@ export function MilestoneManager({
                     <div
                       key={milestoneId(m)}
                       className={cn(
-                        "group flex items-center gap-4 rounded-lg border p-4 transition-colors hover:border-primary/30 hover:bg-accent/40",
-                        m.is_hidden && "opacity-30 grayscale",
+                        "group flex items-center gap-4 rounded-lg border bg-card p-4",
+                        m.is_hidden && "opacity-50",
                       )}
                     >
-                      <div className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground transition-colors group-hover:bg-primary/10 group-hover:text-primary">
-                        <Rocket size={20} />
-                      </div>
+                      <Rocket size={18} className="shrink-0 text-muted-foreground" />
 
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <h4 className="truncate text-base font-semibold">{m.title}</h4>
-                          {m.is_hidden && (
-                            <span className="rounded bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-500">
-                              {t("milestone.hidden_badge")}
-                            </span>
-                          )}
+                          <h4 className="truncate font-medium">{m.title}</h4>
+                          {m.is_hidden && <Badge variant="outline">{t("milestone.hidden_badge")}</Badge>}
                         </div>
                         <div className="mt-1 flex items-center gap-2">
-                          <div className="flex items-center gap-1 rounded bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
                             <Calendar size={11} />
                             {formatThaiDateShort(m.target_date)}
                           </div>
-                          <div className="flex items-center gap-1 rounded bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
                             <Clock size={11} />
                             {new Date(m.target_date).toLocaleTimeString("th-TH", {
                               hour: "2-digit",
@@ -362,9 +348,7 @@ export function MilestoneManager({
                             })}
                           </div>
                           {new Date(m.target_date) < now && (
-                            <span className="rounded bg-success/10 px-2 py-0.5 text-xs font-medium text-success">
-                              {t("milestone.reached_badge")}
-                            </span>
+                            <Badge variant="secondary">{t("milestone.reached_badge")}</Badge>
                           )}
                         </div>
                       </div>

@@ -6,7 +6,7 @@ import { computeProgress, type WorkzyToday } from "@/lib/workzy/work-time";
 
 export const WORKZY_CHANGED = "workzy:changed";
 const REFRESH_MS = 5 * 60 * 1000;
-const TICK_MS = 30 * 1000;
+const TICK_MS = 1000;
 
 /** Today's Workzy work time, refreshed every few minutes and ticking locally in between. */
 export function useWorkzyTime() {

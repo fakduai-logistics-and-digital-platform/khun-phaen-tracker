@@ -206,19 +206,14 @@ export function WorkerGroupsSection({
             </div>
           </div>
         ) : (
-          <button
-            type="button"
-            onClick={() => setShowAddForm(true)}
-            className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed py-3 text-sm text-muted-foreground transition-colors hover:border-primary hover:bg-primary/5 hover:text-primary active:scale-[0.98]"
-          >
-            <Users size={14} />
-            <Plus size={12} />
-            <span className="text-xs font-medium">{t("workerManager__groups_add_btn_short")}</span>
-          </button>
+          <Button type="button" variant="outline" className="w-full" onClick={() => setShowAddForm(true)}>
+            <Plus />
+            {t("workerManager__groups_add_btn_short")}
+          </Button>
         ))}
 
       {groups.length === 0 && !showAddForm ? (
-        <div className="rounded-lg border bg-muted/40 py-6 text-center">
+        <div className="rounded-lg border py-6 text-center">
           <p className="text-sm text-muted-foreground">{t("workerManager__groups_no_groups")}</p>
         </div>
       ) : (
@@ -262,15 +257,10 @@ export function WorkerGroupsSection({
           }
 
           return (
-            <div
-              key={group.id}
-              className="group/grp rounded-lg border bg-card p-3 shadow-sm transition-colors hover:border-primary/30"
-            >
+            <div key={group.id} className="group/grp rounded-lg border bg-card p-3">
               <div className="flex items-center justify-between">
                 <div className="flex min-w-0 items-center gap-2">
-                  <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                    <Users size={14} className="text-primary" />
-                  </div>
+                  <Users size={16} className="shrink-0 text-muted-foreground" />
                   <div className="min-w-0">
                     <h4 className="truncate text-sm font-medium">{group.name}</h4>
                     <p className="text-xs text-muted-foreground">

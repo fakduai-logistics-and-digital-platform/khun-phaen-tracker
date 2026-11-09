@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { RefreshCcw, Save, Settings } from "lucide-react";
+import { RefreshCcw, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -30,8 +30,6 @@ const DEFAULT_NOTIFICATIONS: NotificationSettings = {
   autoDays: [1, 2, 3, 4, 5],
   autoTime: "09:00",
 };
-
-const SECTION_LABEL = "flex items-center gap-2 text-xs font-semibold text-muted-foreground";
 
 export function WorkspaceSettings({
   workspaceId,
@@ -132,63 +130,47 @@ export function WorkspaceSettings({
   return (
     <Dialog open onOpenChange={(next) => !next && onClose?.()}>
       <DialogContent className="flex max-h-[90vh] max-w-3xl flex-col gap-0 overflow-hidden rounded-lg p-0 sm:max-w-3xl">
-        <DialogHeader className="flex-row items-center gap-4 border-b bg-gradient-to-br from-muted via-muted to-primary/15 px-6 py-5 pr-14 text-left sm:px-8 sm:py-6">
-          <div className="rounded-lg bg-background/70 p-3 text-primary ring-1 ring-border backdrop-blur">
-            <Settings size={24} />
-          </div>
-          <div>
-            <DialogTitle className="text-2xl font-semibold">{t("workspaceSettings__title")}</DialogTitle>
-            <DialogDescription className="mt-1 text-sm font-medium">
-              {t("workspaceSettings__subtitle")}
-            </DialogDescription>
-          </div>
+        <DialogHeader className="border-b p-6 pr-14 text-left">
+          <DialogTitle>{t("workspaceSettings__title")}</DialogTitle>
+          <DialogDescription>{t("workspaceSettings__subtitle")}</DialogDescription>
         </DialogHeader>
 
         {isLoading ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-4 py-20">
-            <RefreshCcw size={40} className="animate-spin text-primary opacity-50" />
-            <p className="font-medium text-muted-foreground">{t("page__checking_access")}</p>
+            <RefreshCcw size={32} className="animate-spin text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">{t("page__checking_access")}</p>
           </div>
         ) : (
           <>
-            <div className="flex-1 overflow-y-auto bg-muted/30 p-5 sm:p-8">
-              <section className="rounded-lg border bg-card p-6 shadow-sm">
-                <div className={SECTION_LABEL}>
-                  <span className="h-px w-8 bg-border" />
-                  {t("workspaceSettings__appearance_title")}
-                </div>
+            <div className="flex-1 overflow-y-auto p-6">
+              <section>
+                <h3 className="text-sm font-medium">{t("workspaceSettings__appearance_title")}</h3>
 
-                <div className="mt-6 grid grid-cols-1 gap-8 md:grid-cols-2">
-                  <div className="space-y-4">
-                    <Label htmlFor="ws-name" className="text-sm font-medium">
-                      {t("workspaceSettings__name_label")}
-                    </Label>
+                <div className="mt-4 grid grid-cols-1 gap-6 md:grid-cols-2">
+                  <div className="grid gap-2">
+                    <Label htmlFor="ws-name">{t("workspaceSettings__name_label")}</Label>
                     <Input
                       id="ws-name"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder={t("workspaceSettings__name_placeholder")}
-                      className="h-11 rounded-lg bg-muted/60 font-medium"
                     />
                   </div>
 
-                  <div className="space-y-4">
-                    <Label htmlFor="ws-short-name" className="text-sm font-medium">
-                      ชื่อย่อ (สูงสุด 4 ตัว)
-                    </Label>
+                  <div className="grid gap-2">
+                    <Label htmlFor="ws-short-name">ชื่อย่อ (สูงสุด 4 ตัว)</Label>
                     <Input
                       id="ws-short-name"
                       value={shortName}
                       maxLength={4}
                       onChange={(e) => setShortName(normalizeShortName(e.target.value))}
                       placeholder={normalizeShortName(name.trim()) || "WORK"}
-                      className="h-11 rounded-lg bg-muted/60 font-semibold"
                     />
                   </div>
 
-                  <fieldset className="space-y-4">
+                  <fieldset className="grid gap-2">
                     <legend className="text-sm font-medium">{t("workspaceSettings__color_label")}</legend>
-                    <div className="mt-4 flex flex-wrap gap-2.5">
+                    <div className="mt-2 flex flex-wrap gap-2">
                       {SETTINGS_COLORS.map((c) => (
                         <button
                           key={c.value}
@@ -198,10 +180,8 @@ export function WorkspaceSettings({
                           aria-label={c.name}
                           aria-pressed={color === c.value}
                           className={cn(
-                            "size-9 rounded-full border-2 transition-colors ",
-                            color === c.value
-                              ? "scale-110 border-primary ring-4 ring-primary/15"
-                              : "border-background shadow-sm dark:border-transparent",
+                            "size-8 rounded-full border transition-shadow",
+                            color === c.value ? "ring-2 ring-ring ring-offset-2 ring-offset-background" : "",
                           )}
                           style={{ backgroundColor: c.value }}
                         />
@@ -210,29 +190,25 @@ export function WorkspaceSettings({
                   </fieldset>
                 </div>
 
-                <fieldset className="space-y-3 py-4 md:col-span-2">
+                <fieldset className="mt-6 grid gap-2">
                   <legend className="text-sm font-medium">{t("workspaceSettings__icon_label")}</legend>
 
-                  <div className="mt-3 flex flex-wrap gap-1.5">
+                  <div className="mt-2 flex flex-wrap gap-2">
                     {ICON_CATEGORIES.map((cat) => (
-                      <button
+                      <Button
                         key={cat.key}
                         type="button"
+                        size="sm"
+                        variant={selectedCategory === cat.key ? "default" : "outline"}
                         aria-pressed={selectedCategory === cat.key}
                         onClick={() => setSelectedCategory(cat.key)}
-                        className={cn(
-                          "rounded-lg px-3 py-1 text-xs font-medium transition-colors",
-                          selectedCategory === cat.key
-                            ? "bg-primary text-primary-foreground shadow-sm "
-                            : "border bg-card text-muted-foreground hover:border-foreground/20",
-                        )}
                       >
                         {cat.label}
-                      </button>
+                      </Button>
                     ))}
                   </div>
 
-                  <div className="max-h-[200px] overflow-y-auto rounded-lg border bg-muted/30 p-2">
+                  <div className="max-h-[200px] overflow-y-auto rounded-md border p-2">
                     <div className="grid grid-cols-8 gap-1.5 sm:grid-cols-9 md:grid-cols-10">
                       {filteredIcons.map(({ key, component: Icon }) => (
                         <button
@@ -243,10 +219,10 @@ export function WorkspaceSettings({
                           aria-pressed={icon === key}
                           onClick={() => setIcon(key)}
                           className={cn(
-                            "flex items-center justify-center rounded-lg p-2.5 transition-colors",
+                            "flex items-center justify-center rounded-md p-2.5 transition-colors",
                             icon === key
-                              ? "bg-primary/10 text-primary ring-2 ring-primary/40"
-                              : "text-muted-foreground hover:bg-background hover:text-foreground hover:shadow-sm",
+                              ? "bg-accent text-accent-foreground ring-2 ring-ring"
+                              : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
                           )}
                         >
                           <Icon size={20} />
@@ -263,24 +239,19 @@ export function WorkspaceSettings({
               />
             </div>
 
-            <div className="flex items-center justify-end gap-3 border-t bg-background/90 px-6 py-5 backdrop-blur sm:px-8 sm:py-6">
-              <Button type="button" variant="ghost" className="px-6 font-medium" onClick={onClose}>
+            <div className="flex items-center justify-end gap-2 border-t p-4">
+              <Button type="button" variant="outline" onClick={onClose}>
                 {t("dashboard__modal_btn_cancel")}
               </Button>
-              <Button
-                type="button"
-                className="rounded-lg px-8 font-medium"
-                onClick={() => void handleSave()}
-                disabled={isSaving || !name.trim()}
-              >
+              <Button type="button" onClick={() => void handleSave()} disabled={isSaving || !name.trim()}>
                 {isSaving ? (
                   <>
-                    <RefreshCcw size={18} className="animate-spin" />
+                    <RefreshCcw className="animate-spin" />
                     {t("taskForm__comments_saving")}
                   </>
                 ) : (
                   <>
-                    <Save size={18} />
+                    <Save />
                     {t("workspaceSettings__btn_save")}
                   </>
                 )}

@@ -90,11 +90,8 @@ export function RechartsSummary({
       <SummaryPredictionRow dailyTrend={dailyTrend} labels={labels} />
 
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div className="rounded-lg border border-border p-6 bg-card/90 shadow-sm h-80 flex flex-col transition-colors">
-          <h4 className="font-medium text-foreground mb-4 flex items-center gap-2">
-            <span className="w-1.5 h-6 bg-success rounded-full"></span>
-            {labels.status}
-          </h4>
+        <div className="rounded-lg border bg-card p-4 h-80 flex flex-col">
+          <h4 className="mb-4 text-sm font-medium">{labels.status}</h4>
           <div className="flex-1">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -134,11 +131,8 @@ export function RechartsSummary({
           </div>
         </div>
 
-        <div className="rounded-lg border border-border p-6 bg-card/90 shadow-sm h-80 flex flex-col transition-colors lg:col-span-1">
-          <h4 className="font-medium text-foreground mb-4 flex items-center gap-2">
-            <span className="w-1.5 h-6 bg-pink-500 rounded-full"></span>
-            {labels.category}
-          </h4>
+        <div className="rounded-lg border bg-card p-4 h-80 flex flex-col lg:col-span-1">
+          <h4 className="mb-4 text-sm font-medium">{labels.category}</h4>
           <div className="flex-1">
             <ResponsiveContainer width="100%" height="100%">
               <RadarChart cx="50%" cy="50%" outerRadius="75%" data={categoryBreakdown.slice(0, 6)}>
@@ -151,11 +145,8 @@ export function RechartsSummary({
           </div>
         </div>
 
-        <div className="rounded-lg border border-border p-6 bg-card/90 shadow-sm h-80 flex flex-col transition-colors md:col-span-2 lg:col-span-1">
-          <h4 className="font-medium text-foreground mb-4 flex items-center gap-2">
-            <span className="w-1.5 h-6 bg-blue-500 rounded-full"></span>
-            {labels.trend}
-          </h4>
+        <div className="rounded-lg border bg-card p-4 h-80 flex flex-col md:col-span-2 lg:col-span-1">
+          <h4 className="mb-4 text-sm font-medium">{labels.trend}</h4>
           <div className="flex-1">
             <ResponsiveContainer width="100%" height="100%">
               {trendMode === "line" ? (
@@ -210,11 +201,8 @@ export function RechartsSummary({
           </div>
         </div>
 
-        <div className="rounded-lg border border-border p-6 bg-card/90 shadow-sm h-80 flex flex-col transition-colors">
-          <h4 className="font-medium text-foreground mb-4 flex items-center gap-2">
-            <span className="w-1.5 h-6 bg-violet-500 rounded-full"></span>
-            {labels.project}
-          </h4>
+        <div className="rounded-lg border bg-card p-4 h-80 flex flex-col">
+          <h4 className="mb-4 text-sm font-medium">{labels.project}</h4>
           <div className="flex-1">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
@@ -252,11 +240,8 @@ export function RechartsSummary({
           </div>
         </div>
 
-        <div className="rounded-lg border border-border p-6 bg-card/90 shadow-sm h-80 flex flex-col transition-colors">
-          <h4 className="font-medium text-foreground mb-4 flex items-center gap-2">
-            <span className="w-1.5 h-6 bg-cyan-500 rounded-full"></span>
-            {labels.assignee}
-          </h4>
+        <div className="rounded-lg border bg-card p-4 h-80 flex flex-col">
+          <h4 className="mb-4 text-sm font-medium">{labels.assignee}</h4>
           <div className="flex-1">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart

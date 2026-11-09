@@ -1,10 +1,13 @@
 "use client";
 
 import { RotateCcw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import { useI18n } from "@/lib/i18n";
 import { columnSettings } from "@/lib/stores/columnSettings";
 import { useStore } from "@/lib/store";
-import { cn } from "@/lib/utils";
 import { tOr } from "./t-or";
 
 export function ColumnSettingsDropdown() {
@@ -12,51 +15,32 @@ export function ColumnSettingsDropdown() {
   const settings = useStore(columnSettings);
 
   return (
-    <div className="w-64 origin-top-left overflow-hidden rounded-lg border bg-popover py-2 text-popover-foreground animate-in fade-in zoom-in-95 duration-150">
-      <div className="mb-2 flex items-center justify-between border-b px-4 pt-1 pb-2">
-        <h3 className="text-xs font-medium text-muted-foreground">
-          {tOr(t, "columnSettings__title", "Card properties")}
-        </h3>
+    <div className="w-64 overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md">
+      <div className="px-3 py-2 text-xs font-medium text-muted-foreground">
+        {tOr(t, "columnSettings__title", "Card properties")}
+      </div>
+      <Separator />
+
+      <div className="max-h-80 overflow-y-auto p-1">
+        {settings.map((setting) => {
+          const id = `column-${setting.id}`;
+          return (
+            <div key={setting.id} className="flex items-center justify-between rounded-sm px-2 py-1.5 hover:bg-accent">
+              <Label htmlFor={id} className="flex-1 cursor-pointer font-normal">
+                {tOr(t, `columnSettings__label_${setting.id}`, setting.label)}
+              </Label>
+              <Switch id={id} checked={setting.enabled} onCheckedChange={() => columnSettings.toggle(setting.id)} />
+            </div>
+          );
+        })}
       </div>
 
-      <div className="max-h-80 overflow-y-auto px-1">
-        {settings.map((setting) => (
-          <button
-            key={setting.id}
-            type="button"
-            role="switch"
-            aria-checked={setting.enabled}
-            onClick={() => columnSettings.toggle(setting.id)}
-            className="group flex w-full items-center justify-between px-3 py-1.5 text-left text-sm transition-colors hover:bg-accent"
-          >
-            <span className="font-medium">{tOr(t, `columnSettings__label_${setting.id}`, setting.label)}</span>
-            <span
-              aria-hidden="true"
-              className={cn(
-                "relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200",
-                setting.enabled ? "bg-primary" : "bg-input",
-              )}
-            >
-              <span
-                className={cn(
-                  "pointer-events-none inline-block size-4 rounded-full bg-white shadow ring-0 transition duration-200",
-                  setting.enabled ? "translate-x-4" : "translate-x-0",
-                )}
-              />
-            </span>
-          </button>
-        ))}
-      </div>
-
-      <div className="mt-2 border-t px-2 pt-2">
-        <button
-          type="button"
-          onClick={() => columnSettings.reset()}
-          className="flex w-full items-center justify-center gap-2 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-        >
-          <RotateCcw size={14} />
+      <Separator />
+      <div className="p-1">
+        <Button variant="ghost" size="sm" className="w-full" onClick={() => columnSettings.reset()}>
+          <RotateCcw />
           {tOr(t, "columnSettings__reset", "Reset to defaults")}
-        </button>
+        </Button>
       </div>
     </div>
   );

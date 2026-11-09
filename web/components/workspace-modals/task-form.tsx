@@ -5,6 +5,7 @@ import { ChevronRight, GitBranch, Maximize2, Minimize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useI18n } from "@/lib/i18n";
 import { currentWorkspaceName, currentWorkspaceShortName } from "@/lib/stores/workspace";
@@ -178,23 +179,29 @@ export function TaskForm({
           <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
             <div className="min-h-0 flex-1 overflow-y-auto px-5 py-2">
               <div className={editing ? "grid h-full grid-cols-1 gap-4 xl:grid-cols-5" : "space-y-4"}>
-                <div className={cn("space-y-6", editing && "xl:col-span-3")}>
-                  <Input
-                    id="title"
-                    ref={titleRef}
-                    required
-                    value={values.title}
-                    onChange={(e) => patch({ title: e.target.value })}
-                    placeholder={t("taskForm__task_title_placeholder")}
-                    className="h-auto border-none bg-transparent px-0 py-2 text-xl font-medium shadow-none focus-visible:ring-0"
-                  />
+                <div className={cn("space-y-4", editing && "xl:col-span-3")}>
+                  <div className="grid gap-2">
+                    <Label htmlFor="title">{t("taskForm__task_title_label")}</Label>
+                    <Input
+                      id="title"
+                      ref={titleRef}
+                      required
+                      value={values.title}
+                      onChange={(e) => patch({ title: e.target.value })}
+                      placeholder={t("taskForm__task_title_placeholder")}
+                    />
+                  </div>
 
-                  <Textarea
-                    value={values.notes}
-                    onChange={(e) => patch({ notes: e.target.value })}
-                    placeholder={t("taskForm__notes_placeholder")}
-                    className="min-h-[100px] resize-none border-none bg-transparent px-0 shadow-none focus-visible:ring-0"
-                  />
+                  <div className="grid gap-2">
+                    <Label htmlFor="notes">{t("taskForm__notes_label")}</Label>
+                    <Textarea
+                      id="notes"
+                      value={values.notes}
+                      onChange={(e) => patch({ notes: e.target.value })}
+                      placeholder={t("taskForm__notes_placeholder")}
+                      className="min-h-24"
+                    />
+                  </div>
 
                   <TaskFormProperties
                     values={values}

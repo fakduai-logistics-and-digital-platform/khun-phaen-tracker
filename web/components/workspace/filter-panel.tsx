@@ -386,9 +386,9 @@ export function FilterPanel({
   return (
     <div
       onMouseLeave={() => setActiveGroup(null)}
-      className="inline-flex overflow-hidden rounded-lg border bg-popover text-popover-foreground"
+      className="inline-flex overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md"
     >
-      <div className="w-36 border-r py-2">
+      <div className="w-40 border-r p-1">
         {groups.map((group) => {
           const GroupIcon = group.icon;
           return (
@@ -399,7 +399,7 @@ export function FilterPanel({
               onFocus={() => setActiveGroup(group.id)}
               onClick={() => setActiveGroup(group.id)}
               className={cn(
-                "flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors hover:bg-accent",
+                "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent",
                 activeGroup === group.id && "bg-accent",
               )}
             >
@@ -411,11 +411,11 @@ export function FilterPanel({
           );
         })}
 
-        <div className="mx-2 my-2 h-px bg-border" />
+        <div className="-mx-1 my-1 h-px bg-border" />
         <button
           type="button"
           onClick={onClearFilters}
-          className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
         >
           <Trash2 size={14} className="shrink-0" />
           <span className="flex-1 truncate">{t("page__btn_clear")}</span>
@@ -423,7 +423,7 @@ export function FilterPanel({
       </div>
 
       {active && (
-        <div className="max-h-80 w-48 overflow-y-auto py-2">
+        <div className="max-h-80 w-52 overflow-y-auto p-1">
           {active.options.map((option) => {
             const OptionIcon = option.icon;
             const selected = sameValue(active.value, option.value);
@@ -432,7 +432,7 @@ export function FilterPanel({
                 key={String(option.value)}
                 type="button"
                 onClick={() => selectOption(option.value)}
-                className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm transition-colors hover:bg-accent"
+                className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent"
               >
                 <span className="flex size-4 shrink-0 items-center justify-center">
                   {option.dotColor ? (

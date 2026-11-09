@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Calendar, CheckCircle2, Flag, Play, Plus } from "lucide-react";
+import { Calendar, CheckCircle2, Flag, Plus } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useI18n } from "@/lib/i18n";
@@ -207,51 +208,47 @@ export function SprintManager({
           onInteractOutside={keepOpenWhileNestedDialogOpen}
           className="flex max-h-[90vh] max-w-2xl flex-col gap-0 p-0 sm:max-w-2xl"
         >
-          <DialogHeader className="flex-row items-center gap-3 border-b p-6 pr-14 text-left">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-              <Flag size={20} className="text-primary" />
-            </div>
-            <div>
-              <DialogTitle className="text-xl font-medium">{t("sprintManager__manage_title")}</DialogTitle>
-              <DialogDescription>
-                {sprintList.length} {t("sprintManager__count_suffix")}
-              </DialogDescription>
-            </div>
+          <DialogHeader className="border-b p-6 pr-14 text-left">
+            <DialogTitle>{t("sprintManager__manage_title")}</DialogTitle>
+            <DialogDescription>
+              {sprintList.length} {t("sprintManager__count_suffix")}
+            </DialogDescription>
           </DialogHeader>
 
           <div className="flex-1 overflow-y-auto p-6">
             {activeSprint && (
-              <div className="mb-6 rounded-lg border border-success bg-success p-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex size-10 items-center justify-center rounded-lg bg-success">
-                    <Play size={20} className="text-white" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-success">{activeSprint.name}</h3>
-                    <p className="text-sm text-success">
-                      {t("sprintManager__active_status")} · {formatSprintDate(activeSprint.start_date)} -{" "}
-                      {formatSprintDate(activeSprint.end_date)}
-                      <span className="ml-2 inline-flex items-center gap-1 rounded bg-success px-2 py-0.5 text-xs font-medium">
-                        <Calendar size={10} />
+              <div className="mb-6 rounded-lg border bg-card p-4">
+                <div className="flex items-start gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="mb-1 flex items-center gap-2">
+                      <h3 className="truncate font-medium">{activeSprint.name}</h3>
+                      <Badge>{t("sprintManager__active_status")}</Badge>
+                    </div>
+                    <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+                      <span>
+                        {formatSprintDate(activeSprint.start_date)} - {formatSprintDate(activeSprint.end_date)}
+                      </span>
+                      <span className="inline-flex items-center gap-1">
+                        <Calendar size={12} />
                         {formatDuration(t, activeSprint.start_date, activeSprint.end_date)}
                       </span>
                     </p>
                   </div>
                   <div className="flex flex-col items-end gap-2 text-right">
                     <div>
-                      <div className="text-2xl font-medium text-success">
+                      <div className="text-2xl font-semibold tabular-nums">
                         {activeStats.done}/{activeStats.total}
                       </div>
-                      <div className="text-xs text-success">{t("sprintManager__tasks_done")}</div>
+                      <div className="text-xs text-muted-foreground">{t("sprintManager__tasks_done")}</div>
                     </div>
                     {isOwner && (
                       <Button
                         type="button"
                         size="sm"
+                        variant="outline"
                         onClick={() => setCompleteConfirmId(activeSprint.id!)}
-                        className="h-auto bg-success px-3 py-1.5 text-xs font-semibold text-white hover:bg-success"
                       >
-                        <CheckCircle2 size={13} />
+                        <CheckCircle2 />
                         {t("sprintManager__complete_hint")}
                       </Button>
                     )}
@@ -270,30 +267,22 @@ export function SprintManager({
               />
             ) : isOwner ? (
               !canCreateSprint && blockingSprint ? (
-                <div className="group relative mb-6">
-                  <button
-                    type="button"
-                    disabled
-                    className="flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-lg border-2 border-dashed px-4 py-3 text-muted-foreground/60"
-                  >
-                    <Plus size={18} />
+                <div className="mb-6 space-y-2">
+                  <Button type="button" variant="outline" disabled className="w-full">
+                    <Plus />
                     {t("sprintManager__btn_create_new")}
-                  </button>
-                  <div className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 -translate-x-1/2 translate-y-1 rounded-lg bg-foreground px-3 py-2 text-xs whitespace-nowrap text-background opacity-0 transition-colors duration-300 group-hover:translate-y-0 group-hover:opacity-100">
+                  </Button>
+                  <p className="text-xs text-muted-foreground">
                     {blockingSprint.status === "active"
                       ? t("sprintManager__blocking_active", { name: blockingSprint.name })
                       : t("sprintManager__blocking_planned", { name: blockingSprint.name })}
-                  </div>
+                  </p>
                 </div>
               ) : (
-                <button
-                  type="button"
-                  onClick={startAdd}
-                  className="mb-6 flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed px-4 py-3 text-muted-foreground transition-colors hover:border-primary hover:bg-primary/5 hover:text-primary"
-                >
-                  <Plus size={18} />
-                  สร้าง Sprint ใหม่
-                </button>
+                <Button type="button" variant="outline" onClick={startAdd} className="mb-6 w-full">
+                  <Plus />
+                  {t("sprintManager__btn_create_new")}
+                </Button>
               )
             ) : null}
 
