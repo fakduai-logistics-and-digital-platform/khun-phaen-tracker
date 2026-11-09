@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { LanguagePicker } from "@/components/language-picker";
 import { AuthenticatedLayout } from "@/components/layout/authenticated-layout";
@@ -154,6 +154,25 @@ export default function TestCasesPage() {
     onQuickCreate: actions.quickCreate,
   };
 
+  // Project switch: the current list pushes out to the left, then the new one pushes in from the right.
+  const [slide, setSlide] = useState<"idle" | "out" | "waiting" | "in">("idle");
+  const slideTimer = useRef<number>(0);
+  const switchProject = (next: string) => {
+    if (next === data.projectId) return;
+    window.clearTimeout(slideTimer.current);
+    setSlide("out");
+    slideTimer.current = window.setTimeout(() => {
+      data.changeProject(next);
+      setSlide("waiting");
+    }, 160);
+  };
+  useEffect(() => {
+    if (slide !== "waiting" || data.fetching) return;
+    setSlide("in");
+    slideTimer.current = window.setTimeout(() => setSlide("idle"), 320);
+  }, [slide, data.fetching]);
+  useEffect(() => () => window.clearTimeout(slideTimer.current), []);
+
   const projectName =
     data.projectId === "none"
       ? t("tcProject__none")
@@ -181,7 +200,7 @@ export default function TestCasesPage() {
             isAuthorized={isAuthorized}
             projects={data.projects}
             projectId={data.projectId}
-            onProjectChange={data.changeProject}
+            onProjectChange={switchProject}
             suites={data.suites}
             selectedSuiteId={data.selectedSuiteId}
             isSuitesOpen={isSuitesOpen}
@@ -271,7 +290,10 @@ export default function TestCasesPage() {
                 <div
                   className={cn(
                     "min-h-0 flex-1 space-y-4 overflow-y-auto p-4 transition-opacity duration-200",
-                    data.fetching && data.loaded && "opacity-70",
+                    data.fetching && data.loaded && slide === "idle" && "opacity-70",
+                    (slide === "out" || slide === "waiting") &&
+                      "pointer-events-none -translate-x-8 opacity-0 transition-[opacity,translate] duration-150 ease-in",
+                    slide === "in" && "duration-300 animate-in fade-in slide-in-from-right-8",
                   )}
                 >
                   {!data.loaded && data.filteredSuites.length === 0 && (
