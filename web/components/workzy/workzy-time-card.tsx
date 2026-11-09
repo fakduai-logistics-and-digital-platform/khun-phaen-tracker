@@ -1,11 +1,15 @@
 "use client";
 
+import { ExternalLink } from "lucide-react";
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { useI18n } from "@/lib/i18n";
 import { useWorkzyTime } from "./use-workzy-time";
 import { WorkzyLogo } from "./workzy-logo";
+
+const WORKZY_CHECK_OUT_URL = "https://workzy-app.pages.dev/employee";
 
 function clock(iso: string, locale: string) {
   return new Date(iso).toLocaleTimeString(locale, {
@@ -124,6 +128,14 @@ export function WorkzyTimeCard() {
               </div>
             ))}
           </dl>
+          {done && !progress.checkOut && (
+            <Button asChild>
+              <a href={WORKZY_CHECK_OUT_URL} target="_blank" rel="noopener noreferrer">
+                <ExternalLink />
+                {t("workzy__check_out_action")}
+              </a>
+            </Button>
+          )}
         </DialogContent>
       </Dialog>
     </>

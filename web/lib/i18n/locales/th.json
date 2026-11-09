@@ -1425,6 +1425,7 @@
   "workzy__label_check_out": "เช็คเอาต์",
   "workzy__label_leave": "เลิกงาน",
   "workzy__label_worked": "ทำงานไปแล้ว",
+  "workzy__check_out_action": "ไปเช็คเอาท์ที่ Workzy",
   "workzy__label_remaining": "เหลือ",
   "users__list_title": "รายชื่อผู้ใช้",
   "users__list_subtitle": "จัดการผู้ใช้และบทบาทของพวกเขาที่นี่",

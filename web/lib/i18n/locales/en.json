@@ -1386,6 +1386,7 @@
   "workzy__label_check_out": "Check-out",
   "workzy__label_leave": "Leave at",
   "workzy__label_worked": "Worked",
+  "workzy__check_out_action": "Go to Workzy to check out",
   "workzy__label_remaining": "Remaining",
   "users__list_title": "User List",
   "users__list_subtitle": "Manage your users and their roles here.",
