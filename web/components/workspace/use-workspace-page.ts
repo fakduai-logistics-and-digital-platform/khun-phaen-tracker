@@ -32,6 +32,7 @@ import {
   currentWorkspaceOwnerId,
   setWorkspaceId,
 } from "@/lib/stores/workspace";
+import { BASE_PATH } from "@/lib/base-path";
 import type { AssigneeGroup, Task } from "@/lib/types";
 import type { Milestone } from "@/lib/types/milestone";
 import { buildMonthlySummary } from "@/lib/utils/monthly-summary";
@@ -160,7 +161,10 @@ export function useWorkspacePage() {
       const url = new URL(window.location.href);
       if (id) url.searchParams.set("task", String(id));
       else url.searchParams.delete("task");
-      router.replace(url.pathname + url.search, { scroll: false });
+      // The router adds the base path itself; window.location.pathname already contains it.
+      const path =
+        BASE_PATH && url.pathname.startsWith(BASE_PATH) ? url.pathname.slice(BASE_PATH.length) : url.pathname;
+      router.replace(path + url.search, { scroll: false });
     },
     [router],
   );
