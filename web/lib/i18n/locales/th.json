@@ -2048,5 +2048,13 @@
   "bookmarks__error_url_required": "กรุณาระบุ URL",
   "bookmarks__error_url_invalid": "URL ไม่ถูกต้อง",
   "bookmarks__delete_title": "ลบลิงก์",
-  "bookmarks__delete_confirm": "ต้องการลบลิงก์นี้?"
+  "bookmarks__delete_confirm": "ต้องการลบลิงก์นี้?",
+  "sidebar__help": "ช่วยเหลือ",
+  "meta__help_title": "ช่วยเหลือ — Khun Phaen",
+  "help__title": "ช่วยเหลือ",
+  "help__subtitle": "คลิปสอนการใช้งาน ดูซ้ำได้ทุกเมื่อ",
+  "help__video_start_title": "เริ่มต้นใช้งาน Khun Phaen",
+  "help__video_start_desc": "พาทัวร์ตั้งแต่สร้างเวิร์กสเปซ จัดการงาน ไปจนถึงติดตามความคืบหน้า",
+  "help__video_qa_title": "คู่มือทีมทดสอบ QA",
+  "help__video_qa_desc": "สร้าง Suite และเคสทดสอบ รัน Test Run บันทึกผล และส่งต่อบั๊กให้ทีมพัฒนา"
 }

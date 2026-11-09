@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { FirstVisitTutorial } from "@/components/help/first-visit-tutorial";
+import { QA_VIDEO } from "@/components/help/help-videos";
 import { LanguagePicker } from "@/components/language-picker";
 import { AuthenticatedLayout } from "@/components/layout/authenticated-layout";
 import { Header } from "@/components/layout/header";
@@ -192,6 +194,7 @@ export default function TestCasesPage() {
         </div>
       </Header>
 
+      <FirstVisitTutorial video={QA_VIDEO} />
       <Main id="content" fixed fluid className="p-0">
         <div className="flex min-h-0 flex-1">
           <TcSidebar

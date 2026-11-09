@@ -2010,5 +2010,13 @@
   "bookmarks__error_url_required": "Please enter a URL",
   "bookmarks__error_url_invalid": "Invalid URL",
   "bookmarks__delete_title": "Delete link",
-  "bookmarks__delete_confirm": "Delete this link?"
+  "bookmarks__delete_confirm": "Delete this link?",
+  "sidebar__help": "Help",
+  "meta__help_title": "Help — Khun Phaen",
+  "help__title": "Help",
+  "help__subtitle": "Tutorial videos you can rewatch any time",
+  "help__video_start_title": "Getting started with Khun Phaen",
+  "help__video_start_desc": "A tour from creating a workspace and managing tasks to tracking progress",
+  "help__video_qa_title": "QA tester guide",
+  "help__video_qa_desc": "Create suites and test cases, run test runs, record results and hand bugs to developers"
 }

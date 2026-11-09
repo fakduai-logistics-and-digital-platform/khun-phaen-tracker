@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { FirstVisitTutorial } from "@/components/help/first-visit-tutorial";
+import { GETTING_STARTED_VIDEO } from "@/components/help/help-videos";
 import { DevToolsHost } from "@/components/devtools/devtools-host";
 import { SkipToMain } from "@/components/skip-to-main";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
@@ -59,6 +61,7 @@ export function AuthenticatedLayout({ children }: { children: React.ReactNode })
             {children}
           </SidebarInset>
           <DevToolsHost />
+          {user && <FirstVisitTutorial video={GETTING_STARTED_VIDEO} />}
         </SidebarProvider>
       </LayoutProvider>
     </SearchProvider>

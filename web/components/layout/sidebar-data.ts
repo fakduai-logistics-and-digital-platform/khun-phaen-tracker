@@ -1,4 +1,5 @@
 import {
+  CircleHelp,
   ClipboardCheck,
   HardDrive,
   LayoutDashboard,
@@ -45,6 +46,7 @@ export function buildNavGroups({ workspaceId, isAdmin }: NavContext): NavGroup[]
   groups.push({
     titleKey: "sidebar__configure",
     items: [
+      { titleKey: "sidebar__help", url: "/help", icon: CircleHelp },
       {
         titleKey: "sidebar__settings",
         icon: Settings,
