@@ -43,7 +43,7 @@ export interface TaskListProps {
   onDelete?: (id: number | string) => void;
   onStatusChange?: (detail: { id: number | string; status: Task["status"] }) => void;
   onPageChange?: (page: number) => void;
-  onPageSizeSettings?: () => void;
+  onPageSizeChange?: (size: number) => void;
 }
 
 function getStatusVariant(status: Task["status"], isArchived = false) {
@@ -63,7 +63,7 @@ export function TaskList({
   onDelete,
   onStatusChange,
   onPageChange,
-  onPageSizeSettings,
+  onPageSizeChange,
 }: TaskListProps) {
   const { t } = useI18n();
   const settings = useStore(columnSettings);
@@ -234,7 +234,7 @@ export function TaskList({
           totalTasks={totalTasks}
           pageSize={pageSize}
           onPageChange={onPageChange}
-          onPageSizeSettings={onPageSizeSettings}
+          onPageSizeChange={onPageSizeChange}
         />
       )}
     </Card>

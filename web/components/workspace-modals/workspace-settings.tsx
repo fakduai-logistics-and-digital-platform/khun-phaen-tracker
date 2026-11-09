@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { RefreshCcw, Save } from "lucide-react";
+import { Bell, Palette, RefreshCcw, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { api } from "@/lib/api/apis";
 import { useI18n } from "@/lib/i18n";
@@ -129,7 +130,7 @@ export function WorkspaceSettings({
 
   return (
     <Dialog open onOpenChange={(next) => !next && onClose?.()}>
-      <DialogContent className="flex max-h-[90vh] max-w-3xl flex-col gap-0 overflow-hidden rounded-lg p-0 sm:max-w-3xl">
+      <DialogContent className="flex h-[min(90vh,720px)] flex-col gap-0 overflow-hidden rounded-lg p-0 sm:max-w-4xl">
         <DialogHeader className="border-b p-6 pr-14 text-left">
           <DialogTitle>{t("workspaceSettings__title")}</DialogTitle>
           <DialogDescription>{t("workspaceSettings__subtitle")}</DialogDescription>
@@ -142,102 +143,123 @@ export function WorkspaceSettings({
           </div>
         ) : (
           <>
-            <div className="flex-1 overflow-y-auto p-6">
-              <section>
-                <h3 className="text-sm font-medium">{t("workspaceSettings__appearance_title")}</h3>
+            <Tabs defaultValue="appearance" orientation="vertical" className="min-h-0 flex-1 flex-row gap-0">
+              <TabsList className="h-auto w-14 shrink-0 flex-col justify-start gap-1 rounded-none border-r bg-transparent p-2">
+                <TabsTrigger
+                  value="appearance"
+                  className="size-10 flex-none"
+                  title={t("workspaceSettings__appearance_title")}
+                  aria-label={t("workspaceSettings__appearance_title")}
+                >
+                  <Palette />
+                </TabsTrigger>
+                <TabsTrigger
+                  value="notifications"
+                  className="size-10 flex-none"
+                  title={t("workspaceSettings__channels_title")}
+                  aria-label={t("workspaceSettings__channels_title")}
+                >
+                  <Bell />
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="appearance" className="min-h-0 min-w-0 overflow-y-auto p-6">
+                <section>
+                  <h3 className="text-sm font-medium">{t("workspaceSettings__appearance_title")}</h3>
 
-                <div className="mt-4 grid grid-cols-1 gap-6 md:grid-cols-2">
-                  <div className="grid gap-2">
-                    <Label htmlFor="ws-name">{t("workspaceSettings__name_label")}</Label>
-                    <Input
-                      id="ws-name"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder={t("workspaceSettings__name_placeholder")}
-                    />
+                  <div className="mt-4 grid grid-cols-1 gap-6 md:grid-cols-2">
+                    <div className="grid gap-2">
+                      <Label htmlFor="ws-name">{t("workspaceSettings__name_label")}</Label>
+                      <Input
+                        id="ws-name"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder={t("workspaceSettings__name_placeholder")}
+                      />
+                    </div>
+
+                    <div className="grid gap-2">
+                      <Label htmlFor="ws-short-name">ชื่อย่อ (สูงสุด 4 ตัว)</Label>
+                      <Input
+                        id="ws-short-name"
+                        value={shortName}
+                        maxLength={4}
+                        onChange={(e) => setShortName(normalizeShortName(e.target.value))}
+                        placeholder={normalizeShortName(name.trim()) || "WORK"}
+                      />
+                    </div>
+
+                    <fieldset className="grid gap-2">
+                      <legend className="text-sm font-medium">{t("workspaceSettings__color_label")}</legend>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {SETTINGS_COLORS.map((c) => (
+                          <button
+                            key={c.value}
+                            type="button"
+                            onClick={() => setColor(c.value)}
+                            title={c.name}
+                            aria-label={c.name}
+                            aria-pressed={color === c.value}
+                            className={cn(
+                              "size-8 rounded-full border transition-shadow",
+                              color === c.value ? "ring-2 ring-ring ring-offset-2 ring-offset-background" : "",
+                            )}
+                            style={{ backgroundColor: c.value }}
+                          />
+                        ))}
+                      </div>
+                    </fieldset>
                   </div>
 
-                  <div className="grid gap-2">
-                    <Label htmlFor="ws-short-name">ชื่อย่อ (สูงสุด 4 ตัว)</Label>
-                    <Input
-                      id="ws-short-name"
-                      value={shortName}
-                      maxLength={4}
-                      onChange={(e) => setShortName(normalizeShortName(e.target.value))}
-                      placeholder={normalizeShortName(name.trim()) || "WORK"}
-                    />
-                  </div>
+                  <fieldset className="mt-6 grid gap-2">
+                    <legend className="text-sm font-medium">{t("workspaceSettings__icon_label")}</legend>
 
-                  <fieldset className="grid gap-2">
-                    <legend className="text-sm font-medium">{t("workspaceSettings__color_label")}</legend>
                     <div className="mt-2 flex flex-wrap gap-2">
-                      {SETTINGS_COLORS.map((c) => (
-                        <button
-                          key={c.value}
+                      {ICON_CATEGORIES.map((cat) => (
+                        <Button
+                          key={cat.key}
                           type="button"
-                          onClick={() => setColor(c.value)}
-                          title={c.name}
-                          aria-label={c.name}
-                          aria-pressed={color === c.value}
-                          className={cn(
-                            "size-8 rounded-full border transition-shadow",
-                            color === c.value ? "ring-2 ring-ring ring-offset-2 ring-offset-background" : "",
-                          )}
-                          style={{ backgroundColor: c.value }}
-                        />
+                          size="sm"
+                          variant={selectedCategory === cat.key ? "default" : "outline"}
+                          aria-pressed={selectedCategory === cat.key}
+                          onClick={() => setSelectedCategory(cat.key)}
+                        >
+                          {cat.label}
+                        </Button>
                       ))}
+                    </div>
+
+                    <div className="max-h-[200px] overflow-y-auto rounded-md border p-2">
+                      <div className="grid grid-cols-8 gap-1.5 sm:grid-cols-9 md:grid-cols-10">
+                        {filteredIcons.map(({ key, component: Icon }) => (
+                          <button
+                            key={key}
+                            type="button"
+                            title={key}
+                            aria-label={key}
+                            aria-pressed={icon === key}
+                            onClick={() => setIcon(key)}
+                            className={cn(
+                              "flex items-center justify-center rounded-md p-2.5 transition-colors",
+                              icon === key
+                                ? "bg-accent text-accent-foreground ring-2 ring-ring"
+                                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                            )}
+                          >
+                            <Icon size={20} />
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </fieldset>
-                </div>
-
-                <fieldset className="mt-6 grid gap-2">
-                  <legend className="text-sm font-medium">{t("workspaceSettings__icon_label")}</legend>
-
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {ICON_CATEGORIES.map((cat) => (
-                      <Button
-                        key={cat.key}
-                        type="button"
-                        size="sm"
-                        variant={selectedCategory === cat.key ? "default" : "outline"}
-                        aria-pressed={selectedCategory === cat.key}
-                        onClick={() => setSelectedCategory(cat.key)}
-                      >
-                        {cat.label}
-                      </Button>
-                    ))}
-                  </div>
-
-                  <div className="max-h-[200px] overflow-y-auto rounded-md border p-2">
-                    <div className="grid grid-cols-8 gap-1.5 sm:grid-cols-9 md:grid-cols-10">
-                      {filteredIcons.map(({ key, component: Icon }) => (
-                        <button
-                          key={key}
-                          type="button"
-                          title={key}
-                          aria-label={key}
-                          aria-pressed={icon === key}
-                          onClick={() => setIcon(key)}
-                          className={cn(
-                            "flex items-center justify-center rounded-md p-2.5 transition-colors",
-                            icon === key
-                              ? "bg-accent text-accent-foreground ring-2 ring-ring"
-                              : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-                          )}
-                        >
-                          <Icon size={20} />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </fieldset>
-              </section>
-
-              <WorkspaceSettingsNotifications
-                value={notifications}
-                onChange={(patch) => setNotifications((prev) => ({ ...prev, ...patch }))}
-              />
-            </div>
+                </section>
+              </TabsContent>
+              <TabsContent value="notifications" className="min-h-0 min-w-0 overflow-y-auto p-6">
+                <WorkspaceSettingsNotifications
+                  value={notifications}
+                  onChange={(patch) => setNotifications((prev) => ({ ...prev, ...patch }))}
+                />
+              </TabsContent>
+            </Tabs>
 
             <div className="flex items-center justify-end gap-2 border-t p-4">
               <Button type="button" variant="outline" onClick={onClose}>

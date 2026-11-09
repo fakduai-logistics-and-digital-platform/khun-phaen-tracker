@@ -1,8 +1,15 @@
 "use client";
 
-import { Check, ChevronDown, ChevronRight, Edit2, Eye, Flag, Minus, Trash2 } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Edit2, Eye, Flag, Minus, MoreHorizontal, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Checkbox } from "@/components/ui/checkbox";
 import { PriorityBadge } from "@/components/shared/priority-badge";
 import { Tooltip } from "@/components/shared/tooltip";
@@ -11,6 +18,7 @@ import type { Task } from "@/lib/types";
 import type { TaskType } from "@/lib/utils/branch-name";
 import { cn } from "@/lib/utils";
 import { tOr } from "./t-or";
+import type { RowPhase } from "./use-row-transitions";
 import {
   TASK_TYPE_BADGE,
   dueDateOf,
@@ -22,6 +30,53 @@ import {
   isOverdue,
 } from "./table-view-config";
 
+function RowActions({
+  task,
+  onPreview,
+  onEdit,
+  onDelete,
+}: {
+  task: Task;
+  onPreview: (task: Task) => void;
+  onEdit: (task: Task) => void;
+  onDelete: () => void;
+}) {
+  const { t } = useI18n();
+  return (
+    <div className="flex justify-center">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-8"
+            onClick={(e) => e.stopPropagation()}
+            aria-label={t("tableView__column_actions")}
+          >
+            <MoreHorizontal />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+          <DropdownMenuItem onSelect={() => onPreview(task)}>
+            <Eye />
+            {tOr(t, "tableView__quick_preview", "Quick preview")}
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => onEdit(task)}>
+            <Edit2 />
+            {t("taskList__edit")}
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem variant="destructive" onSelect={onDelete}>
+            <Trash2 />
+            {t("taskList__delete")}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+}
+
 export interface TableViewRowProps {
   task: Task;
   enabled: Map<string, boolean>;
@@ -32,6 +87,7 @@ export interface TableViewRowProps {
   checklistIndent: number;
   onToggleSelect: (id: string | number) => void;
   onToggleChecklist: (id: string | number) => void;
+  phase?: RowPhase;
   onEdit: (task: Task) => void;
   onDelete: (id: string | number) => void;
   onPreview: (task: Task) => void;
@@ -50,6 +106,7 @@ export function TableViewRow({
   checklistIndent,
   onToggleSelect,
   onToggleChecklist,
+  phase,
   onEdit,
   onDelete,
   onPreview,
@@ -69,8 +126,22 @@ export function TableViewRow({
 
   return (
     <>
-      <tr className="cursor-pointer transition-colors hover:bg-accent/50" onClick={() => onEdit(task)}>
-        <td className="px-3 py-2">
+      <tr
+        className={cn(
+          "cursor-pointer transition-colors hover:bg-accent/50",
+          phase === "enter" && "duration-300 animate-in fade-in slide-in-from-top-2",
+          phase === "leave" &&
+            "pointer-events-none duration-200 animate-out fill-mode-forwards fade-out slide-out-to-right-8",
+        )}
+        onClick={() => onPreview(task)}
+      >
+        <td
+          className="px-3 py-2"
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleSelect(id);
+          }}
+        >
           <Checkbox
             checked={selected}
             onCheckedChange={() => onToggleSelect(id)}
@@ -80,22 +151,25 @@ export function TableViewRow({
         </td>
         {enabled.get("priority") && (
           <td className="px-2 py-2">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onOpenPriority(id, e.currentTarget);
-              }}
-              className="priority-dropdown-trigger rounded p-0.5 transition-colors hover:bg-accent"
-              title={tOr(t, "tableView__priority_click_hint", "Click to change priority")}
-            >
-              <PriorityBadge priority={task.priority} />
-              {(!task.priority || task.priority === "none") && (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs font-medium text-muted-foreground">
-                  <Minus size={10} />-
-                </span>
-              )}
-            </button>
+            <div className="@container w-full">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenPriority(id, e.currentTarget);
+                }}
+                className="priority-dropdown-trigger max-w-full rounded p-0.5 transition-colors hover:bg-accent"
+                title={tOr(t, "tableView__priority_click_hint", "Click to change priority")}
+                aria-label={tOr(t, "tableView__priority_click_hint", "Click to change priority")}
+              >
+                <PriorityBadge priority={task.priority} collapsible />
+                {(!task.priority || task.priority === "none") && (
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs font-medium text-muted-foreground">
+                    <Minus size={10} />-
+                  </span>
+                )}
+              </button>
+            </div>
           </td>
         )}
         <td className="overflow-hidden px-3 py-2">
@@ -259,50 +333,7 @@ export function TableViewRow({
           </td>
         )}
         <td className="px-3 py-2">
-          <div className="flex items-center justify-center gap-1">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="size-7"
-              onClick={(e) => {
-                e.stopPropagation();
-                onPreview(task);
-              }}
-              title={tOr(t, "tableView__quick_preview", "Quick preview")}
-              aria-label={tOr(t, "tableView__quick_preview", "Quick preview")}
-            >
-              <Eye />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="size-7"
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit(task);
-              }}
-              title={t("taskList__edit")}
-              aria-label={t("taskList__edit")}
-            >
-              <Edit2 />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="size-7 text-destructive hover:text-destructive"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(id);
-              }}
-              title={t("taskList__delete")}
-              aria-label={t("taskList__delete")}
-            >
-              <Trash2 />
-            </Button>
-          </div>
+          <RowActions task={task} onPreview={onPreview} onEdit={onEdit} onDelete={() => onDelete(id)} />
         </td>
       </tr>
 

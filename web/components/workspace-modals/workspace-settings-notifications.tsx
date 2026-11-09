@@ -47,7 +47,7 @@ export function WorkspaceSettingsNotifications({
   }
 
   return (
-    <section className="mt-8 space-y-6">
+    <section className="space-y-6">
       <div>
         <h3 className="text-sm font-medium">{t("workspaceSettings__channels_title")}</h3>
         <div className="mt-4 grid gap-4">

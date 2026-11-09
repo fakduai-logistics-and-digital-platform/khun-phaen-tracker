@@ -6,6 +6,8 @@ import { useI18n } from "@/lib/i18n";
 
 type PriorityBadgeProps = {
   priority: "urgent" | "high" | "medium" | "low" | "none" | undefined | null;
+  /** Show only the icon when the nearest `@container` ancestor is too narrow for the label. */
+  collapsible?: boolean;
 };
 
 const PRIORITY_CONFIG = {
@@ -15,7 +17,7 @@ const PRIORITY_CONFIG = {
   low: { key: "priority__low", fallback: "Low", icon: SignalLow, variant: "outline" },
 } as const;
 
-export function PriorityBadge({ priority }: PriorityBadgeProps) {
+export function PriorityBadge({ priority, collapsible = false }: PriorityBadgeProps) {
   const { t } = useI18n();
   if (!priority || priority === "none") return null;
 
@@ -29,7 +31,7 @@ export function PriorityBadge({ priority }: PriorityBadgeProps) {
   return (
     <Badge variant={config.variant} title={label}>
       <Icon />
-      {label}
+      <span className={collapsible ? "sr-only @[5.5rem]:not-sr-only" : undefined}>{label}</span>
     </Badge>
   );
 }

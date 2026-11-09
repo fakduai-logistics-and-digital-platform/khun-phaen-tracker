@@ -10,20 +10,14 @@ import {
   Key,
   PenTool,
   Regex,
+  SquareTerminal,
   Table,
   ChevronRight,
   type LucideIcon,
 } from "lucide-react";
 import { useState } from "react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import {
-  SidebarGroup,
-  SidebarGroupLabel,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  useSidebar,
-} from "@/components/ui/sidebar";
+import { SidebarGroup, SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar";
 import { useI18n } from "@/lib/i18n";
 import { createUIActions, type ModalName } from "@/lib/stores/uiActions";
 
@@ -58,12 +52,17 @@ export function SidebarUtilityTools() {
   return (
     <Collapsible open={iconOnly || open} onOpenChange={setOpen} className="group/collapsible" asChild>
       <SidebarGroup>
-        <SidebarGroupLabel asChild>
-          <CollapsibleTrigger className="w-full justify-between">
-            {t("commandPalette__cat_commands")}
-            <ChevronRight className="transition-transform group-data-[state=open]/collapsible:rotate-90" />
-          </CollapsibleTrigger>
-        </SidebarGroupLabel>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <CollapsibleTrigger asChild>
+              <SidebarMenuButton tooltip={t("commandPalette__cat_commands")}>
+                <SquareTerminal />
+                <span>{t("commandPalette__cat_commands")}</span>
+                <ChevronRight className="ms-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+              </SidebarMenuButton>
+            </CollapsibleTrigger>
+          </SidebarMenuItem>
+        </SidebarMenu>
         <CollapsibleContent>
           <SidebarMenu>
             {items.map(({ modal, icon: Icon, label }) => (

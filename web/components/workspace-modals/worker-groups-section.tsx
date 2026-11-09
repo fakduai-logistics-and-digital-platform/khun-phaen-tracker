@@ -169,7 +169,7 @@ export function WorkerGroupsSection({
     group.assignee_ids.map((id) => assignees.find((a) => isSameId(a.id, id))).filter((a): a is Assignee => Boolean(a));
 
   return (
-    <div className="mt-8 space-y-3">
+    <div className="space-y-3">
       <h3 className="mb-2 flex items-center gap-1 text-xs font-semibold text-muted-foreground">
         <Users size={10} /> {t("workerManager__groups_title")}
       </h3>

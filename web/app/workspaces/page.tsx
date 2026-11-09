@@ -167,6 +167,8 @@ export default function WorkspacePage() {
               totalPages={page.totalPages}
               totalTasks={page.totalTasks}
               pageSize={page.pageSize}
+              filters={page.filters}
+              onFiltersChange={(next) => ws.filters.set(next)}
               sprintManagerTasks={page.filteredTasks}
               assignees={assignees}
               onStatusChange={(detail) => void taskActions.handleStatusChange(ev(detail))}
@@ -174,7 +176,7 @@ export default function WorkspacePage() {
               onEdit={page.openTaskPage}
               onDelete={(id) => void taskActions.handleDeleteTask(ev(id))}
               onPageChange={(next) => viewActions.handlePageChange(next, page.totalPages)}
-              onPageSizeSettings={page.openPageSize}
+              onPageSizeChange={viewActions.setPageSize}
               onDeleteSelected={(ids) => void taskActions.handleDeleteSelectedTasks(ev(ids as number[]))}
               onChecklistToggle={(detail) =>
                 void taskActions.handleChecklistToggle(ev(detail as { taskId: number; checklistItemId: string }))

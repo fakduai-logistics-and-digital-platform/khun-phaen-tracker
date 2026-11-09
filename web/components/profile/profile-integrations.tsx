@@ -1,14 +1,24 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Link2, Loader2, Unlink } from "lucide-react";
+import { Link2, Timer, Unlink } from "lucide-react";
 import { WORKZY_CHANGED } from "@/components/workzy/use-workzy-time";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardAction, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/lib/api/apis";
 import { useI18n } from "@/lib/i18n";
+import { cn } from "@/lib/utils";
 
 type WorkzyStatus = { enabled: boolean; connected: boolean; employee_code?: string | null };
 
@@ -19,6 +29,7 @@ export function ProfileIntegrations() {
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  const [open, setOpen] = useState(false);
   const [error, setError] = useState("");
 
   const load = useCallback(async () => {
@@ -47,6 +58,7 @@ export function ProfileIntegrations() {
       }
       setStatus(data);
       setPassword("");
+      setOpen(false);
       window.dispatchEvent(new Event(WORKZY_CHANGED));
     } catch {
       setError(t("workzy__connect_error"));
@@ -61,6 +73,7 @@ export function ProfileIntegrations() {
       const res = await api.workzy.disconnect();
       if (res.ok) {
         setStatus(await res.json());
+        setOpen(false);
         window.dispatchEvent(new Event(WORKZY_CHANGED));
       }
     } finally {
@@ -70,70 +83,91 @@ export function ProfileIntegrations() {
 
   if (!status?.enabled) return null;
 
+  const description = status.connected
+    ? t("workzy__connected", { code: status.employee_code ?? "" })
+    : t("workzy__description");
+
   return (
     <section className="rounded-xl border bg-card p-6 shadow-sm sm:p-8">
       <h2 className="text-lg font-semibold">{t("profile__integrations_title")}</h2>
       <p className="mt-1 text-sm text-muted-foreground">{t("profile__integrations_subtitle")}</p>
 
-      <div className="mt-6 rounded-lg border p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-medium">Workzy</span>
-              {status.connected && <Badge variant="secondary">{t("workzy__connected_badge")}</Badge>}
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <Card className="gap-4 shadow-none">
+          <CardHeader>
+            <div className="flex size-10 items-center justify-center rounded-lg bg-muted">
+              <Timer />
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {status.connected
-                ? t("workzy__connected", { code: status.employee_code ?? "" })
-                : t("workzy__description")}
-            </p>
-          </div>
-          {status.connected && (
-            <Button variant="outline" size="sm" disabled={busy} onClick={() => void disconnect()}>
-              {busy ? <Loader2 className="animate-spin" /> : <Unlink />}
-              {t("workzy__disconnect")}
-            </Button>
-          )}
-        </div>
-
-        {!status.connected && (
-          <form onSubmit={connect} className="mt-4 grid gap-4 sm:grid-cols-2">
-            <div className="grid gap-2">
-              <Label htmlFor="workzy-code">{t("workzy__employee_code")}</Label>
-              <Input
-                id="workzy-code"
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                autoComplete="off"
-                required
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="workzy-password">{t("workzy__password")}</Label>
-              <Input
-                id="workzy-password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete="off"
-                required
-              />
-            </div>
-            <p className="text-xs text-muted-foreground sm:col-span-2">{t("workzy__password_note")}</p>
-            {error && (
-              <p role="alert" className="text-sm text-destructive sm:col-span-2">
-                {error}
-              </p>
-            )}
-            <div className="sm:col-span-2">
-              <Button type="submit" disabled={busy || !code.trim() || !password}>
-                {busy ? <Loader2 className="animate-spin" /> : <Link2 />}
-                {t("workzy__connect")}
+            <CardAction>
+              <Button
+                variant="outline"
+                size="sm"
+                className={cn(status.connected && "border-primary bg-primary/10 text-primary hover:bg-primary/20")}
+                onClick={() => setOpen(true)}
+              >
+                {status.connected ? t("workzy__connected_badge") : t("workzy__connect")}
               </Button>
-            </div>
-          </form>
-        )}
+            </CardAction>
+          </CardHeader>
+          <CardHeader>
+            <CardTitle>Workzy</CardTitle>
+            <CardDescription>{description}</CardDescription>
+          </CardHeader>
+        </Card>
       </div>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Workzy</DialogTitle>
+            <DialogDescription>{description}</DialogDescription>
+          </DialogHeader>
+
+          {status.connected ? (
+            <DialogFooter>
+              <Button variant="outline" disabled={busy} onClick={() => void disconnect()}>
+                {busy ? <Spinner data-icon="inline-start" /> : <Unlink data-icon="inline-start" />}
+                {t("workzy__disconnect")}
+              </Button>
+            </DialogFooter>
+          ) : (
+            <form onSubmit={connect}>
+              <FieldGroup>
+                <Field>
+                  <FieldLabel htmlFor="workzy-code">{t("workzy__employee_code")}</FieldLabel>
+                  <Input
+                    id="workzy-code"
+                    value={code}
+                    onChange={(e) => setCode(e.target.value)}
+                    autoComplete="off"
+                    required
+                  />
+                </Field>
+                <Field data-invalid={error ? true : undefined}>
+                  <FieldLabel htmlFor="workzy-password">{t("workzy__password")}</FieldLabel>
+                  <Input
+                    id="workzy-password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    aria-invalid={error ? true : undefined}
+                    autoComplete="off"
+                    required
+                  />
+                  <FieldDescription>{t("workzy__password_note")}</FieldDescription>
+                  {error && <FieldError>{error}</FieldError>}
+                </Field>
+                <DialogFooter>
+                  <Button type="submit" disabled={busy || !code.trim() || !password}>
+                    {busy ? <Spinner data-icon="inline-start" /> : <Link2 data-icon="inline-start" />}
+                    {t("workzy__connect")}
+                  </Button>
+                </DialogFooter>
+              </FieldGroup>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }

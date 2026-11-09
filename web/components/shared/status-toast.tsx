@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { AlertCircle, Check, Info } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { CircleAlert, CircleCheck, Info } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 type StatusToastProps = {
   message?: string;
@@ -11,13 +12,10 @@ type StatusToastProps = {
   duration?: number;
 };
 
-const TYPE_STYLES = {
-  success: { className: "bg-success", icon: Check },
-  error: { className: "bg-destructive", icon: AlertCircle },
-  info: { className: "bg-primary text-primary-foreground", icon: Info },
-} as const;
+const TYPE_ICONS = { success: CircleCheck, error: CircleAlert, info: Info } as const;
 
 export function StatusToast({ message = "", onMessageChange, type = "success", duration = 3000 }: StatusToastProps) {
+  const { t } = useI18n();
   const [dismissed, setDismissed] = useState(false);
   const onMessageChangeRef = useRef(onMessageChange);
   onMessageChangeRef.current = onMessageChange;
@@ -34,17 +32,15 @@ export function StatusToast({ message = "", onMessageChange, type = "success", d
 
   if (!message || dismissed) return null;
 
-  const { className, icon: Icon } = TYPE_STYLES[type];
+  const Icon = TYPE_ICONS[type];
 
   return (
-    <div
-      role={type === "error" ? "alert" : "status"}
-      className="fixed top-20 right-4 z-10000 animate-in fade-in slide-in-from-top-2 duration-300"
-    >
-      <div className={cn("flex items-center gap-2 rounded-lg px-4 py-3 text-white shadow-lg", className)}>
-        <Icon size={20} />
-        {message}
-      </div>
+    <div className="fixed top-20 right-4 z-10000 w-[min(24rem,calc(100vw-2rem))] animate-in fade-in slide-in-from-top-2 duration-300">
+      <Alert variant={type === "error" ? "destructive" : "default"} className="shadow-lg">
+        <Icon />
+        <AlertTitle>{t(`toast__title_${type}`)}</AlertTitle>
+        <AlertDescription>{message}</AlertDescription>
+      </Alert>
     </div>
   );
 }

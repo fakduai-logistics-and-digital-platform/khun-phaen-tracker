@@ -1,8 +1,12 @@
 "use client";
 
-import { CheckCircle2, Flag, Folder, QrCode, Trash2 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { createPortal } from "react-dom";
+import { CheckCircle2, Flag, Folder, QrCode, Trash2, X } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useI18n } from "@/lib/i18n";
-import { cn } from "@/lib/utils";
 
 export interface TableViewBulkBarProps {
   count: number;
@@ -14,8 +18,37 @@ export interface TableViewBulkBarProps {
   onDelete: () => void;
 }
 
-const BUTTON = "flex items-center gap-1 rounded-lg border px-2 py-1 text-xs font-medium transition-colors";
+function BulkAction({
+  icon: Icon,
+  label,
+  onClick,
+  destructive,
+}: {
+  icon: LucideIcon;
+  label: string;
+  onClick: () => void;
+  destructive?: boolean;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          size="icon"
+          variant={destructive ? "destructive" : "outline"}
+          className="size-8"
+          onClick={onClick}
+          aria-label={label}
+        >
+          <Icon />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="top">{label}</TooltipContent>
+    </Tooltip>
+  );
+}
 
+/** Floating bar fixed at the bottom centre of the screen while rows are selected (shadcn-admin DataTableBulkActions). */
 export function TableViewBulkBar({
   count,
   onClear,
@@ -26,70 +59,32 @@ export function TableViewBulkBar({
   onDelete,
 }: TableViewBulkBarProps) {
   const { t } = useI18n();
+  const clear = t("tableView__btn_clear_selection");
 
-  return (
-    <div className="flex flex-col gap-1.5 border-b bg-primary/10 px-3 py-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-4">
-      <span className="text-xs font-medium text-primary sm:text-sm">{t("tableView__selected_count", { count })}</span>
-      <div className="flex flex-wrap items-center gap-1.5">
-        <button type="button" onClick={onClear} className={cn(BUTTON, "text-muted-foreground hover:bg-accent")}>
-          {t("tableView__btn_clear_selection")}
-        </button>
-        <button
-          type="button"
-          onClick={onChangeStatus}
-          className={cn(
-            BUTTON,
-            "border-blue-300 text-blue-600 hover:bg-blue-50 dark:border-blue-500 dark:text-blue-400 dark:hover:bg-blue-900/20",
-          )}
-        >
-          <CheckCircle2 size={13} />
-          {t("tableView__btn_change_status")}
-        </button>
-        <button
-          type="button"
-          onClick={onChangeProject}
-          className={cn(
-            BUTTON,
-            "border-purple-300 text-purple-600 hover:bg-purple-50 dark:border-purple-500 dark:text-purple-400 dark:hover:bg-purple-900/20",
-          )}
-        >
-          <Folder size={13} />
-          {t("tableView__btn_change_project")}
-        </button>
-        <button
-          type="button"
-          onClick={onChangeSprint}
-          className={cn(
-            BUTTON,
-            "border-amber-300 text-amber-600 hover:bg-amber-50 dark:border-amber-500 dark:text-amber-400 dark:hover:bg-amber-900/20",
-          )}
-        >
-          <Flag size={13} />
-          {t("tableView__btn_change_sprint")}
-        </button>
-        <button
-          type="button"
-          onClick={onExportQR}
-          className={cn(
-            BUTTON,
-            "border-teal-300 text-teal-600 hover:bg-teal-50 dark:border-teal-500 dark:text-teal-400 dark:hover:bg-teal-900/20",
-          )}
-        >
-          <QrCode size={13} />
-          {t("tableView__btn_qr_export")}
-        </button>
-        <button
-          type="button"
-          onClick={onDelete}
-          className={cn(
-            BUTTON,
-            "border-destructive text-destructive hover:bg-destructive dark:hover:bg-destructive/20",
-          )}
-        >
-          <Trash2 size={13} />
-          {t("tableView__btn_delete_selected")}
-        </button>
-      </div>
-    </div>
+  return createPortal(
+    <div
+      role="toolbar"
+      aria-label={t("tableView__selected_count", { count })}
+      className="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-xl border bg-background/95 p-2 shadow-xl backdrop-blur duration-200 animate-in fade-in slide-in-from-bottom-4"
+    >
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button type="button" variant="outline" size="icon" className="size-8" onClick={onClear} aria-label={clear}>
+            <X />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="top">{clear}</TooltipContent>
+      </Tooltip>
+      <Badge variant="secondary" className="min-w-8 rounded-full tabular-nums">
+        {count}
+      </Badge>
+      <span className="pe-1 text-sm font-medium">{t("tableView__selected_label")}</span>
+      <BulkAction icon={CheckCircle2} label={t("tableView__btn_change_status")} onClick={onChangeStatus} />
+      <BulkAction icon={Folder} label={t("tableView__btn_change_project")} onClick={onChangeProject} />
+      <BulkAction icon={Flag} label={t("tableView__btn_change_sprint")} onClick={onChangeSprint} />
+      <BulkAction icon={QrCode} label={t("tableView__btn_qr_export")} onClick={onExportQR} />
+      <BulkAction icon={Trash2} label={t("tableView__btn_delete_selected")} onClick={onDelete} destructive />
+    </div>,
+    document.body,
   );
 }

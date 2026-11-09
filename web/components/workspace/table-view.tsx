@@ -6,15 +6,17 @@ import { useI18n } from "@/lib/i18n";
 import { useStore } from "@/lib/store";
 import { columnSettings } from "@/lib/stores/columnSettings";
 import { currentWorkspaceShortName } from "@/lib/stores/workspace";
-import type { Sprint, Task } from "@/lib/types";
+import type { FilterOptions, Sprint, Task } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { PriorityDropdown, StatusDropdown, type DropdownAnchor } from "./table-view-dropdowns";
+import { TableViewToolbar } from "./table-view-toolbar";
 import { TableViewBulkBar } from "./table-view-bulk-bar";
 import { TableViewHeader } from "./table-view-header";
 import { TableViewMobileCard } from "./table-view-mobile-card";
 import { TableViewQuickPreview } from "./table-view-quick-preview";
 import { TableViewRow } from "./table-view-row";
 import { sortTasks, type PriorityValue, type SortColumn, type SortDirection } from "./table-view-config";
+import { useRowTransitions } from "./use-row-transitions";
 import { useTableColumnWidths } from "./use-table-column-widths";
 
 type Id = string | number;
@@ -26,6 +28,8 @@ export interface TableViewProps {
   totalPages?: number;
   totalTasks?: number;
   pageSize?: number;
+  filters?: FilterOptions;
+  onFiltersChange?: (filters: FilterOptions) => void;
   onEdit?: (task: Task) => void;
   onDelete?: (id: Id) => void;
   onDeleteSelected?: (ids: Id[]) => void;
@@ -37,7 +41,23 @@ export interface TableViewProps {
   onChangeProject?: (ids: Id[]) => void;
   onExportQR?: (ids: Id[]) => void;
   onPageChange?: (page: number) => void;
-  onPageSizeSettings?: () => void;
+  onPageSizeChange?: (size: number) => void;
+}
+
+type SortState = { column: SortColumn; direction: SortDirection };
+
+const SORT_STORAGE_KEY = "table-view-sort-v1";
+const DEFAULT_SORT: SortState = { column: "created_at", direction: "desc" };
+
+function loadSort(): SortState {
+  try {
+    const saved = JSON.parse(localStorage.getItem(SORT_STORAGE_KEY) ?? "null");
+    if (saved && typeof saved.column === "string" && (saved.direction === "asc" || saved.direction === "desc"))
+      return saved;
+  } catch {
+    /* A corrupt saved sort falls back to the default. */
+  }
+  return DEFAULT_SORT;
 }
 
 function toggleInSet(set: Set<Id>, id: Id) {
@@ -54,6 +74,8 @@ export function TableView({
   totalPages = 1,
   totalTasks = 0,
   pageSize = 20,
+  filters,
+  onFiltersChange,
   onEdit,
   onDelete,
   onDeleteSelected,
@@ -65,15 +87,14 @@ export function TableView({
   onChangeProject,
   onExportQR,
   onPageChange,
-  onPageSizeSettings,
+  onPageSizeChange,
 }: TableViewProps) {
   const { t } = useI18n();
   const settings = useStore(columnSettings);
   const shortName = useStore(currentWorkspaceShortName);
   const enabled = useMemo(() => new Map(settings.map((s) => [s.id, s.enabled])), [settings]);
 
-  const [sortColumn, setSortColumn] = useState<SortColumn>("created_at");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+  const [{ column: sortColumn, direction: sortDirection }, setSort] = useState(loadSort);
   const [selected, setSelected] = useState<Set<Id>>(new Set());
   const [expandedMobile, setExpandedMobile] = useState<Set<Id>>(new Set());
   const [expandedChecklists, setExpandedChecklists] = useState<Set<Id>>(new Set());
@@ -83,6 +104,7 @@ export function TableView({
   const { displayWidth, viewportRef, resizingCol, startResize } = useTableColumnWidths();
 
   const sortedTasks = useMemo(() => sortTasks(tasks, sortColumn, sortDirection), [tasks, sortColumn, sortDirection]);
+  const rows = useRowTransitions(sortedTasks);
   const sortedTaskIds = useMemo(
     () => sortedTasks.map((task) => task.id).filter((id): id is Id => id !== undefined),
     [sortedTasks],
@@ -130,12 +152,14 @@ export function TableView({
   const selectedIds = [...selected];
 
   function toggleSort(column: SortColumn) {
-    if (sortColumn === column) {
-      setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
-    } else {
-      setSortColumn(column);
-      setSortDirection("asc");
-    }
+    setSort((prev) => {
+      const next: SortState =
+        prev.column === column
+          ? { column, direction: prev.direction === "asc" ? "desc" : "asc" }
+          : { column, direction: "asc" };
+      localStorage.setItem(SORT_STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
   }
 
   function toggleSelectAll() {
@@ -202,6 +226,11 @@ export function TableView({
   return (
     <>
       <div className="overflow-hidden rounded-lg border bg-card shadow-sm">
+        {filters && onFiltersChange && (
+          <div className="hidden md:block">
+            <TableViewToolbar filters={filters} onFiltersChange={onFiltersChange} />
+          </div>
+        )}
         {selected.size > 0 && (
           <TableViewBulkBar
             count={selected.size}
@@ -243,10 +272,11 @@ export function TableView({
                   </td>
                 </tr>
               ) : (
-                sortedTasks.map((task) => (
+                rows.map(({ item: task, phase }) => (
                   <TableViewRow
                     key={String(task.id)}
                     task={task}
+                    phase={phase}
                     enabled={enabled}
                     shortName={shortName}
                     sprintName={sprintNameOf(task.sprint_id)}
@@ -301,7 +331,7 @@ export function TableView({
             totalTasks={totalTasks}
             pageSize={pageSize}
             onPageChange={onPageChange}
-            onPageSizeSettings={onPageSizeSettings}
+            onPageSizeChange={onPageSizeChange}
           />
         )}
       </div>

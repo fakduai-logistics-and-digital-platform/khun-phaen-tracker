@@ -15,7 +15,7 @@ type Props = {
   title: string;
   options: FacetOption[];
   selected: Set<string>;
-  counts: Record<string, number>;
+  counts?: Record<string, number>;
   onToggle: (value: string) => void;
   onClear: () => void;
   clearLabel: string;
@@ -68,9 +68,11 @@ export function UsersFacetedFilter({
                     </span>
                     {option.icon && <option.icon className="size-4 text-muted-foreground" />}
                     <span>{option.label}</span>
-                    <span className="ms-auto font-mono text-xs text-muted-foreground tabular-nums">
-                      {counts[option.value] ?? 0}
-                    </span>
+                    {counts && (
+                      <span className="ms-auto font-mono text-xs text-muted-foreground tabular-nums">
+                        {counts[option.value] ?? 0}
+                      </span>
+                    )}
                   </CommandItem>
                 );
               })}

@@ -86,7 +86,7 @@ export interface KanbanBoardProps {
   onDelete?: (id: string | number) => void;
   onDragState?: (detail: { dragging: boolean }) => void;
   onPageChange?: (page: number) => void;
-  onPageSizeSettings?: () => void;
+  onPageSizeChange?: (size: number) => void;
 }
 
 export function KanbanBoard({
@@ -100,7 +100,7 @@ export function KanbanBoard({
   onDelete,
   onDragState,
   onPageChange,
-  onPageSizeSettings,
+  onPageSizeChange,
 }: KanbanBoardProps) {
   const settings = useStore(columnSettings);
   const shortName = useStore(currentWorkspaceShortName);
@@ -229,7 +229,7 @@ export function KanbanBoard({
           totalTasks={totalTasks}
           pageSize={pageSize}
           onPageChange={onPageChange}
-          onPageSizeSettings={onPageSizeSettings}
+          onPageSizeChange={onPageSizeChange}
         />
       )}
     </div>

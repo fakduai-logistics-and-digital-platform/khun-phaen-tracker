@@ -233,7 +233,10 @@ export function TaskForm({
               </div>
             </div>
 
-            <div className="flex shrink-0 items-center justify-end border-t px-5 py-3">
+            <div className="flex shrink-0 items-center justify-end gap-2 border-t px-5 py-3">
+              <Button type="button" variant="outline" onClick={() => onClose?.()}>
+                {t("common.cancel")}
+              </Button>
               <Button type="submit">{editingTask ? t("taskForm__btn_save") : t("taskForm__btn_create_issue")}</Button>
             </div>
           </form>

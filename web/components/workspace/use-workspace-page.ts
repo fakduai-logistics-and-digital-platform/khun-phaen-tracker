@@ -185,6 +185,8 @@ export function useWorkspacePage() {
       setEditingMilestone(null);
       setAssigneeGroups([]);
       ws.editingTask.set(null);
+      ws.tasks.set([]);
+      ws.filteredTasks.set([]);
       disconnectRealtime();
 
       if (id === MY_TASKS_WORKSPACE_ID) {

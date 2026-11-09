@@ -1,6 +1,6 @@
 "use client";
 
-import type { Assignee, Sprint, Task } from "@/lib/types";
+import type { Assignee, FilterOptions, Sprint, Task } from "@/lib/types";
 import { CalendarView } from "./calendar-view";
 import { GanttView } from "./gantt-view";
 import { KanbanBoard } from "./kanban-board";
@@ -22,6 +22,8 @@ export interface WorkspaceViewsProps {
   totalPages: number;
   totalTasks: number;
   pageSize: number;
+  filters?: FilterOptions;
+  onFiltersChange?: (filters: FilterOptions) => void;
   sprintManagerTasks: Task[];
   assignees: Assignee[];
   onStatusChange?: (detail: { id: Id; status: Task["status"] }) => void;
@@ -30,7 +32,7 @@ export interface WorkspaceViewsProps {
   onDelete?: (id: Id) => void;
   onDragState?: (detail: { dragging: boolean }) => void;
   onPageChange?: (page: number) => void;
-  onPageSizeSettings?: () => void;
+  onPageSizeChange?: (size: number) => void;
   onDeleteSelected?: (ids: Id[]) => void;
   onChecklistToggle?: (detail: { taskId: Id; checklistItemId: string }) => void;
   onExportQR?: (ids: Id[]) => void;
@@ -47,6 +49,8 @@ export function WorkspaceViews({
   totalPages,
   totalTasks,
   pageSize,
+  filters,
+  onFiltersChange,
   sprintManagerTasks,
   assignees,
   onStatusChange,
@@ -55,17 +59,17 @@ export function WorkspaceViews({
   onDelete,
   onDragState,
   onPageChange,
-  onPageSizeSettings,
+  onPageSizeChange,
   onDeleteSelected,
   onChecklistToggle,
   onExportQR,
   onSelectAssignee,
 }: WorkspaceViewsProps) {
-  const paging = { currentPage, totalPages, totalTasks, pageSize, onPageChange, onPageSizeSettings };
+  const paging = { currentPage, totalPages, totalTasks, pageSize, onPageChange, onPageSizeChange };
 
   return (
     <div className="mt-8">
-      {loadingData ? (
+      {loadingData && filteredTasks.length === 0 ? (
         <TaskViewPlaceholder loading />
       ) : filteredTasks.length === 0 ? (
         <TaskViewPlaceholder loading={false} />
@@ -100,6 +104,8 @@ export function WorkspaceViews({
           <TableView
             tasks={tasks}
             sprints={sprints}
+            filters={filters}
+            onFiltersChange={onFiltersChange}
             {...paging}
             onEdit={onEdit}
             onDelete={onDelete}

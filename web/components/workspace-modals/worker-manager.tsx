@@ -134,9 +134,9 @@ export function WorkerManager({
           shake();
         }}
         onInteractOutside={keepOpenWhileNestedDialogOpen}
-        className="max-h-[90vh] max-w-lg gap-0 p-0 sm:max-w-lg"
+        className="max-h-[90vh] gap-0 p-0 sm:max-w-4xl"
       >
-        <div ref={shakeRef} className="flex max-h-[90vh] min-h-0 flex-col">
+        <div ref={shakeRef} className="flex h-[min(90vh,720px)] min-h-0 flex-col">
           <DialogHeader className="border-b p-6 pr-14 text-left">
             <DialogTitle>{t("workerManager__title")}</DialogTitle>
             <DialogDescription>
@@ -144,70 +144,74 @@ export function WorkerManager({
             </DialogDescription>
           </DialogHeader>
 
-          <div ref={contentRef} className="flex-1 overflow-y-auto p-6">
-            {showAddForm && isOwner ? (
-              <WorkerForm
-                values={form}
-                editing={editingWorker !== null}
-                availableUsers={availableSystemUsers}
-                systemUsers={systemUsers}
-                onChange={setForm}
-                onSave={handleSave}
-                onCancel={cancelEdit}
-              />
-            ) : isOwner ? (
-              <Button type="button" variant="outline" onClick={startAdd} className="mb-6 w-full">
-                <Plus />
-                {t("workerManager__add_new")}
-              </Button>
-            ) : null}
+          <div className="grid min-h-0 flex-1 grid-rows-[1fr_1fr] md:grid-cols-2 md:grid-rows-1">
+            <div ref={contentRef} className="min-h-0 overflow-y-auto p-6">
+              {showAddForm && isOwner ? (
+                <WorkerForm
+                  values={form}
+                  editing={editingWorker !== null}
+                  availableUsers={availableSystemUsers}
+                  systemUsers={systemUsers}
+                  onChange={setForm}
+                  onSave={handleSave}
+                  onCancel={cancelEdit}
+                />
+              ) : isOwner ? (
+                <Button type="button" variant="outline" onClick={startAdd} className="mb-6 w-full">
+                  <Plus />
+                  {t("workerManager__add_new")}
+                </Button>
+              ) : null}
 
-            <div className="space-y-3">
-              <div className="mb-2 flex items-center justify-between">
-                <h3 className="text-sm font-medium text-muted-foreground">{t("workerManager__list_title")}</h3>
-                <button
-                  type="button"
-                  onClick={() => void fetchSystemUsers()}
-                  className="text-muted-foreground transition-colors hover:text-primary"
-                  title="Reload System Users"
-                  aria-label="Reload System Users"
-                >
-                  <RefreshCw size={12} className={cn(loadingUsers && "animate-spin")} />
-                </button>
+              <div className="space-y-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <h3 className="text-sm font-medium text-muted-foreground">{t("workerManager__list_title")}</h3>
+                  <button
+                    type="button"
+                    onClick={() => void fetchSystemUsers()}
+                    className="text-muted-foreground transition-colors hover:text-primary"
+                    title="Reload System Users"
+                    aria-label="Reload System Users"
+                  >
+                    <RefreshCw size={12} className={cn(loadingUsers && "animate-spin")} />
+                  </button>
+                </div>
+
+                {isLoading && (
+                  <div className="mb-3 flex items-center gap-2 text-xs text-muted-foreground">
+                    <RefreshCw size={12} className="animate-spin" />
+                    <span>Loading assignees...</span>
+                  </div>
+                )}
+
+                {!isLoading && assignees.length === 0 ? (
+                  <div className="rounded-lg border py-12 text-center">
+                    <User size={40} className="mx-auto mb-3 text-muted-foreground opacity-50" />
+                    <p className="font-medium text-muted-foreground">{t("workerManager__no_workers")}</p>
+                    <p className="text-xs text-muted-foreground">{t("workerManager__add_hint")}</p>
+                  </div>
+                ) : (
+                  assignees.map((worker) => (
+                    <WorkerListItem
+                      key={worker.id}
+                      worker={worker}
+                      linkedUser={getLinkedUser(worker.user_id)}
+                      taskCount={getTaskCount(worker.id!)}
+                      isOwner={isOwner}
+                      confirmingDelete={deleteConfirmId === worker.id}
+                      onEdit={() => startEdit(worker)}
+                      onRequestDelete={() => setDeleteConfirmId(worker.id!)}
+                      onConfirmDelete={() => handleDelete(worker.id!)}
+                      onCancelDelete={() => setDeleteConfirmId(null)}
+                    />
+                  ))
+                )}
               </div>
-
-              {isLoading && (
-                <div className="mb-3 flex items-center gap-2 text-xs text-muted-foreground">
-                  <RefreshCw size={12} className="animate-spin" />
-                  <span>Loading assignees...</span>
-                </div>
-              )}
-
-              {!isLoading && assignees.length === 0 ? (
-                <div className="rounded-lg border py-12 text-center">
-                  <User size={40} className="mx-auto mb-3 text-muted-foreground opacity-50" />
-                  <p className="font-medium text-muted-foreground">{t("workerManager__no_workers")}</p>
-                  <p className="text-xs text-muted-foreground">{t("workerManager__add_hint")}</p>
-                </div>
-              ) : (
-                assignees.map((worker) => (
-                  <WorkerListItem
-                    key={worker.id}
-                    worker={worker}
-                    linkedUser={getLinkedUser(worker.user_id)}
-                    taskCount={getTaskCount(worker.id!)}
-                    isOwner={isOwner}
-                    confirmingDelete={deleteConfirmId === worker.id}
-                    onEdit={() => startEdit(worker)}
-                    onRequestDelete={() => setDeleteConfirmId(worker.id!)}
-                    onConfirmDelete={() => handleDelete(worker.id!)}
-                    onCancelDelete={() => setDeleteConfirmId(null)}
-                  />
-                ))
-              )}
             </div>
 
-            <WorkerGroupsSection assignees={assignees} isOwner={isOwner} onGroupsChanged={onGroupsChanged} />
+            <div className="min-h-0 overflow-y-auto border-t p-6 md:border-t-0 md:border-l">
+              <WorkerGroupsSection assignees={assignees} isOwner={isOwner} onGroupsChanged={onGroupsChanged} />
+            </div>
           </div>
 
           <div className="border-t p-4">

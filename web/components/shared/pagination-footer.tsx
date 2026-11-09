@@ -1,17 +1,12 @@
 "use client";
 
-import { Settings2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationEllipsis,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useI18n } from "@/lib/i18n";
+import { cn } from "@/lib/utils";
+
+const PAGE_SIZES = [10, 20, 30, 40, 50];
 
 type PaginationFooterProps = {
   currentPage?: number;
@@ -19,14 +14,13 @@ type PaginationFooterProps = {
   totalTasks?: number;
   pageSize?: number;
   onPageChange?: (page: number) => void;
-  onPageSizeSettings?: () => void;
+  onPageSizeChange?: (size: number) => void;
 };
 
 function pageNumbers(current: number, total: number): (number | "gap")[] {
   if (total <= 5) return Array.from({ length: total }, (_, i) => i + 1);
   if (current <= 3) return [1, 2, 3, 4, "gap", total];
-  if (current >= total - 2)
-    return [1, "gap", total - 3, total - 2, total - 1, total];
+  if (current >= total - 2) return [1, "gap", total - 3, total - 2, total - 1, total];
   return [1, "gap", current - 1, current, current + 1, "gap", total];
 }
 
@@ -36,79 +30,106 @@ export function PaginationFooter({
   totalTasks = 0,
   pageSize = 20,
   onPageChange,
-  onPageSizeSettings,
+  onPageSizeChange,
 }: PaginationFooterProps) {
   const { t } = useI18n();
+  const first = currentPage <= 1;
+  const last = currentPage >= totalPages;
+  const sizes = PAGE_SIZES.includes(pageSize) ? PAGE_SIZES : [...PAGE_SIZES, pageSize].sort((a, b) => a - b);
 
-  function handlePageChange(newPage: number) {
-    if (newPage < 1 || newPage > totalPages || newPage === currentPage) return;
-    onPageChange?.(newPage);
+  function go(page: number) {
+    if (page < 1 || page > totalPages || page === currentPage) return;
+    onPageChange?.(page);
   }
 
   return (
-    <div className="flex flex-col items-center justify-between gap-2 border-t px-4 py-3 md:flex-row">
-      <div className="flex items-center gap-3 text-sm text-muted-foreground">
-        <span className="tabular-nums">
+    <div className="flex flex-wrap items-center justify-between gap-4 border-t px-4 py-3">
+      <div className="flex items-center gap-2">
+        <Select value={String(pageSize)} onValueChange={(value) => onPageSizeChange?.(Number(value))}>
+          <SelectTrigger className="h-8 w-[70px]" aria-label={t("users__rows_per_page")}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent side="top">
+            {sizes.map((size) => (
+              <SelectItem key={size} value={String(size)}>
+                {size}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <span className="text-sm font-medium">{t("users__rows_per_page")}</span>
+        <span className="ms-2 text-sm text-muted-foreground tabular-nums">
           {t("pagination__showing", {
-            from: (currentPage - 1) * pageSize + 1,
+            from: totalTasks === 0 ? 0 : (currentPage - 1) * pageSize + 1,
             to: Math.min(currentPage * pageSize, totalTasks),
             total: totalTasks,
           })}
         </span>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => onPageSizeSettings?.()}
-        >
-          <Settings2 />
-          {t("pagination__per_page", { size: pageSize })}
-        </Button>
       </div>
 
-      {totalPages > 1 && (
-        <Pagination className="mx-0 w-auto">
-          <PaginationContent>
-            <PaginationItem>
-              <PaginationPrevious
-                disabled={currentPage === 1}
-                onClick={() => handlePageChange(currentPage - 1)}
+      <div className="flex items-center gap-4 sm:gap-6">
+        <span className="text-sm font-medium tabular-nums">
+          {t("users__page_of", { page: currentPage, total: Math.max(totalPages, 1) })}
+        </span>
+        <nav className="flex items-center gap-1" aria-label={t("users__pagination")}>
+          <Button
+            variant="outline"
+            size="icon-sm"
+            className="hidden sm:inline-flex"
+            disabled={first}
+            onClick={() => go(1)}
+            aria-label={t("users__go_first")}
+          >
+            <ChevronsLeft />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon-sm"
+            disabled={first}
+            onClick={() => go(currentPage - 1)}
+            aria-label={t("users__go_prev")}
+          >
+            <ChevronLeft />
+          </Button>
+          {pageNumbers(currentPage, totalPages).map((entry, i) =>
+            entry === "gap" ? (
+              <span key={`gap-${i}`} className="px-1 text-sm text-muted-foreground">
+                …
+              </span>
+            ) : (
+              <Button
+                key={entry}
+                variant={entry === currentPage ? "default" : "outline"}
+                size="icon-sm"
+                className={cn("tabular-nums", entry !== currentPage && "hidden sm:inline-flex")}
+                aria-current={entry === currentPage ? "page" : undefined}
+                onClick={() => go(entry)}
               >
-                <span className="hidden sm:inline">
-                  {t("pagination__previous")}
-                </span>
-              </PaginationPrevious>
-            </PaginationItem>
-            {pageNumbers(currentPage, totalPages).map((entry, i) => (
-              <PaginationItem
-                key={entry === "gap" ? `gap-${i}` : entry}
-                className={entry === currentPage ? "" : "max-sm:hidden"}
-              >
-                {entry === "gap" ? (
-                  <PaginationEllipsis />
-                ) : (
-                  <PaginationLink
-                    isActive={entry === currentPage}
-                    onClick={() => handlePageChange(entry)}
-                  >
-                    {entry}
-                  </PaginationLink>
-                )}
-              </PaginationItem>
-            ))}
-            <PaginationItem>
-              <PaginationNext
-                disabled={currentPage === totalPages}
-                onClick={() => handlePageChange(currentPage + 1)}
-              >
-                <span className="hidden sm:inline">
-                  {t("pagination__next")}
-                </span>
-              </PaginationNext>
-            </PaginationItem>
-          </PaginationContent>
-        </Pagination>
-      )}
+                {entry}
+              </Button>
+            ),
+          )}
+          <Button
+            variant="outline"
+            size="icon-sm"
+            disabled={last}
+            onClick={() => go(currentPage + 1)}
+            aria-label={t("users__go_next")}
+          >
+            <ChevronRight />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon-sm"
+            className="hidden sm:inline-flex"
+            disabled={last}
+            onClick={() => go(totalPages)}
+            aria-label={t("users__go_last")}
+          >
+            <ChevronsRight />
+          </Button>
+        </nav>
+      </div>
     </div>
   );
 }
