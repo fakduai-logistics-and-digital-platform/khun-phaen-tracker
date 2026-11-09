@@ -127,6 +127,8 @@ export function TableViewRow({
   return (
     <>
       <tr
+        data-flip-id={String(id)}
+        data-flip-active={phase === "leave"}
         className={cn(
           "cursor-pointer transition-colors hover:bg-accent/50",
           phase === "enter" && "duration-300 animate-in fade-in slide-in-from-top-2",

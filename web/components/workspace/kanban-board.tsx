@@ -5,6 +5,7 @@ import {
   DndContext,
   KeyboardSensor,
   PointerSensor,
+  DragOverlay,
   closestCorners,
   useDroppable,
   useSensor,
@@ -14,9 +15,8 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { Plus } from "lucide-react";
+import { GripVertical } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { PaginationFooter } from "@/components/shared/pagination-footer";
 import { useI18n } from "@/lib/i18n";
 import { useStore } from "@/lib/store";
@@ -24,7 +24,8 @@ import { columnSettings } from "@/lib/stores/columnSettings";
 import { currentWorkspaceShortName } from "@/lib/stores/workspace";
 import type { Task } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { KanbanCard } from "./kanban-card";
+import { KanbanCard, KanbanCardView } from "./kanban-card";
+import { useFlipLayout } from "./use-flip-layout";
 
 type ColumnStatus = "todo" | "in-progress" | "in-test" | "done";
 type Columns = Record<ColumnStatus, Task[]>;
@@ -54,21 +55,21 @@ function KanbanColumn({ status, items, children }: { status: ColumnStatus; items
   const style = COLUMN_STYLE[status];
 
   return (
-    <div className="flex min-w-65 flex-col gap-3 rounded-xl bg-muted/40 p-3">
-      <div className="flex items-center justify-between">
+    <div className="flex min-w-65 flex-col gap-3">
+      <div className="flex items-center justify-between px-1">
         <div className="flex items-center gap-2">
           <span className={cn("size-2.5 shrink-0 rounded-full", style.dotClass)} />
-          <span className="text-sm font-medium">{t(style.labelKey)}</span>
-          <Badge variant="secondary" className="tabular-nums">
+          <span className="text-sm font-semibold">{t(style.labelKey)}</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Badge variant="outline" className="rounded-full tabular-nums">
             {items.length}
           </Badge>
+          <GripVertical className="size-4 text-muted-foreground" aria-hidden="true" />
         </div>
-        <Button type="button" variant="ghost" size="icon" className="size-7" title="Add task" aria-label="Add task">
-          <Plus />
-        </Button>
       </div>
 
-      <div ref={setNodeRef} className="flex min-h-75 flex-1 flex-col gap-2">
+      <div ref={setNodeRef} className="flex min-h-75 flex-1 flex-col gap-3">
         {children}
       </div>
     </div>
@@ -107,6 +108,10 @@ export function KanbanBoard({
   const enabledColumns = new Map(settings.map((s) => [s.id, s.enabled]));
   const [columns, setColumns] = useState<Columns>(() => groupTasks(tasks));
   const draggingRef = useRef(false);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const skipFlipRef = useRef(false);
+  useFlipLayout(rootRef, skipFlipRef, [columns]);
 
   useEffect(() => {
     if (!draggingRef.current) setColumns(groupTasks(tasks));
@@ -124,8 +129,9 @@ export function KanbanBoard({
     return COLUMN_ORDER.find((status) => from[status].some((task) => String(task.id) === String(id)));
   };
 
-  function handleDragStart(_event: DragStartEvent) {
+  function handleDragStart({ active }: DragStartEvent) {
     draggingRef.current = true;
+    setActiveId(String(active.id));
     onDragState?.({ dragging: true });
   }
 
@@ -151,6 +157,7 @@ export function KanbanBoard({
 
   function finishDrag() {
     draggingRef.current = false;
+    setActiveId(null);
     onDragState?.({ dragging: false });
   }
 
@@ -165,6 +172,7 @@ export function KanbanBoard({
         const newIndex = columns[finalColumn].findIndex((task) => String(task.id) === String(over.id));
         if (oldIndex >= 0 && newIndex >= 0) {
           const next = arrayMove(columns[finalColumn], oldIndex, newIndex);
+          skipFlipRef.current = true;
           setColumns((prev) => ({ ...prev, [finalColumn as ColumnStatus]: next }));
         }
       }
@@ -188,8 +196,12 @@ export function KanbanBoard({
     finishDrag();
   }
 
+  const activeTask = activeId
+    ? COLUMN_ORDER.flatMap((status) => columns[status]).find((task) => String(task.id) === activeId)
+    : undefined;
+
   return (
-    <div className="flex flex-col">
+    <div ref={rootRef} className="relative flex flex-col">
       <DndContext
         sensors={sensors}
         collisionDetection={closestCorners}
@@ -198,7 +210,7 @@ export function KanbanBoard({
         onDragEnd={handleDragEnd}
         onDragCancel={handleDragCancel}
       >
-        <div className="grid grid-cols-1 gap-3 overflow-x-auto pb-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-6 overflow-x-auto pb-4 md:grid-cols-2 lg:grid-cols-4">
           {COLUMN_ORDER.map((status) => (
             <KanbanColumn key={status} status={status} items={columns[status]}>
               <SortableContext
@@ -220,6 +232,17 @@ export function KanbanBoard({
             </KanbanColumn>
           ))}
         </div>
+        <DragOverlay>
+          {activeTask && (
+            <KanbanCardView
+              task={activeTask}
+              done={activeTask.status === "done"}
+              enabledColumns={enabledColumns}
+              shortName={shortName}
+              className="rotate-2 cursor-grabbing bg-card shadow-xl"
+            />
+          )}
+        </DragOverlay>
       </DndContext>
 
       {totalTasks > 0 && (

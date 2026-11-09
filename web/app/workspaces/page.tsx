@@ -167,8 +167,7 @@ export default function WorkspacePage() {
               totalPages={page.totalPages}
               totalTasks={page.totalTasks}
               pageSize={page.pageSize}
-              filters={page.filters}
-              onFiltersChange={(next) => ws.filters.set(next)}
+              allTasks={allTasks}
               sprintManagerTasks={page.filteredTasks}
               assignees={assignees}
               onStatusChange={(detail) => void taskActions.handleStatusChange(ev(detail))}

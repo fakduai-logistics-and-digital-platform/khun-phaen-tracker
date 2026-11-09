@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { PaginationFooter } from "@/components/shared/pagination-footer";
 import { useI18n } from "@/lib/i18n";
 import { useStore } from "@/lib/store";
 import { columnSettings } from "@/lib/stores/columnSettings";
 import { currentWorkspaceShortName } from "@/lib/stores/workspace";
-import type { FilterOptions, Sprint, Task } from "@/lib/types";
+import type { Sprint, Task } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { PriorityDropdown, StatusDropdown, type DropdownAnchor } from "./table-view-dropdowns";
 import { TableViewToolbar } from "./table-view-toolbar";
@@ -15,7 +15,9 @@ import { TableViewHeader } from "./table-view-header";
 import { TableViewMobileCard } from "./table-view-mobile-card";
 import { TableViewQuickPreview } from "./table-view-quick-preview";
 import { TableViewRow } from "./table-view-row";
-import { sortTasks, type PriorityValue, type SortColumn, type SortDirection } from "./table-view-config";
+import { type PriorityValue, type SortColumn } from "./table-view-config";
+import { applyTableQuery, DEFAULT_SORTS, useTableQuery } from "./table-query";
+import { useFlipLayout } from "./use-flip-layout";
 import { useRowTransitions } from "./use-row-transitions";
 import { useTableColumnWidths } from "./use-table-column-widths";
 
@@ -24,12 +26,6 @@ type Id = string | number;
 export interface TableViewProps {
   tasks?: Task[];
   sprints?: Sprint[];
-  currentPage?: number;
-  totalPages?: number;
-  totalTasks?: number;
-  pageSize?: number;
-  filters?: FilterOptions;
-  onFiltersChange?: (filters: FilterOptions) => void;
   onEdit?: (task: Task) => void;
   onDelete?: (id: Id) => void;
   onDeleteSelected?: (ids: Id[]) => void;
@@ -40,24 +36,6 @@ export interface TableViewProps {
   onChangeStatus?: (ids: Id[]) => void;
   onChangeProject?: (ids: Id[]) => void;
   onExportQR?: (ids: Id[]) => void;
-  onPageChange?: (page: number) => void;
-  onPageSizeChange?: (size: number) => void;
-}
-
-type SortState = { column: SortColumn; direction: SortDirection };
-
-const SORT_STORAGE_KEY = "table-view-sort-v1";
-const DEFAULT_SORT: SortState = { column: "created_at", direction: "desc" };
-
-function loadSort(): SortState {
-  try {
-    const saved = JSON.parse(localStorage.getItem(SORT_STORAGE_KEY) ?? "null");
-    if (saved && typeof saved.column === "string" && (saved.direction === "asc" || saved.direction === "desc"))
-      return saved;
-  } catch {
-    /* A corrupt saved sort falls back to the default. */
-  }
-  return DEFAULT_SORT;
 }
 
 function toggleInSet(set: Set<Id>, id: Id) {
@@ -70,12 +48,6 @@ function toggleInSet(set: Set<Id>, id: Id) {
 export function TableView({
   tasks = [],
   sprints = [],
-  currentPage = 1,
-  totalPages = 1,
-  totalTasks = 0,
-  pageSize = 20,
-  filters,
-  onFiltersChange,
   onEdit,
   onDelete,
   onDeleteSelected,
@@ -86,15 +58,16 @@ export function TableView({
   onChangeStatus,
   onChangeProject,
   onExportQR,
-  onPageChange,
-  onPageSizeChange,
 }: TableViewProps) {
   const { t } = useI18n();
   const settings = useStore(columnSettings);
   const shortName = useStore(currentWorkspaceShortName);
   const enabled = useMemo(() => new Map(settings.map((s) => [s.id, s.enabled])), [settings]);
 
-  const [{ column: sortColumn, direction: sortDirection }, setSort] = useState(loadSort);
+  const [query, setQuery] = useTableQuery(20);
+  const [page, setPage] = useState(1);
+  const sortColumn = query.sorts[0]?.id ?? DEFAULT_SORTS[0].id;
+  const sortDirection = (query.sorts[0] ?? DEFAULT_SORTS[0]).desc ? "desc" : "asc";
   const [selected, setSelected] = useState<Set<Id>>(new Set());
   const [expandedMobile, setExpandedMobile] = useState<Set<Id>>(new Set());
   const [expandedChecklists, setExpandedChecklists] = useState<Set<Id>>(new Set());
@@ -103,8 +76,25 @@ export function TableView({
   const [previewId, setPreviewId] = useState<Id | null>(null);
   const { displayWidth, viewportRef, resizingCol, startResize } = useTableColumnWidths();
 
-  const sortedTasks = useMemo(() => sortTasks(tasks, sortColumn, sortDirection), [tasks, sortColumn, sortDirection]);
+  const matched = useMemo(
+    () =>
+      applyTableQuery(
+        tasks.filter((task) => !task.is_archived),
+        query,
+      ),
+    [tasks, query],
+  );
+  const totalTasks = matched.length;
+  const totalPages = Math.max(1, Math.ceil(totalTasks / query.pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const sortedTasks = useMemo(
+    () => matched.slice((currentPage - 1) * query.pageSize, currentPage * query.pageSize),
+    [matched, currentPage, query.pageSize],
+  );
   const rows = useRowTransitions(sortedTasks);
+  const tableRef = useRef<HTMLTableElement>(null);
+  const noFlipRef = useRef(false);
+  useFlipLayout(tableRef, noFlipRef, [rows]);
   const sortedTaskIds = useMemo(
     () => sortedTasks.map((task) => task.id).filter((id): id is Id => id !== undefined),
     [sortedTasks],
@@ -152,14 +142,8 @@ export function TableView({
   const selectedIds = [...selected];
 
   function toggleSort(column: SortColumn) {
-    setSort((prev) => {
-      const next: SortState =
-        prev.column === column
-          ? { column, direction: prev.direction === "asc" ? "desc" : "asc" }
-          : { column, direction: "asc" };
-      localStorage.setItem(SORT_STORAGE_KEY, JSON.stringify(next));
-      return next;
-    });
+    const current = query.sorts[0];
+    setQuery({ sorts: [{ id: column, desc: current?.id === column ? !current.desc : false }] });
   }
 
   function toggleSelectAll() {
@@ -204,7 +188,7 @@ export function TableView({
   const checklistIndent = 40 + (enabled.get("priority") ? displayWidth("priority") + 16 : 0);
 
   const emptyState = (
-    <div className="flex flex-col items-center gap-2">
+    <div className="flex flex-col items-center gap-2 duration-300 animate-in fade-in">
       <svg
         className="size-10 text-muted-foreground/40 lg:size-12"
         fill="none"
@@ -226,11 +210,17 @@ export function TableView({
   return (
     <>
       <div className="overflow-hidden rounded-lg border bg-card shadow-sm">
-        {filters && onFiltersChange && (
-          <div className="hidden md:block">
-            <TableViewToolbar filters={filters} onFiltersChange={onFiltersChange} />
-          </div>
-        )}
+        <div className="hidden border-b md:block">
+          <TableViewToolbar
+            tasks={tasks}
+            sprints={sprints}
+            query={query}
+            onQueryChange={(patch) => {
+              setQuery(patch);
+              setPage(1);
+            }}
+          />
+        </div>
         {selected.size > 0 && (
           <TableViewBulkBar
             count={selected.size}
@@ -251,7 +241,7 @@ export function TableView({
             setStatusAnchor(null);
           }}
         >
-          <table className="w-full min-w-[1080px] table-fixed [&_td]:overflow-hidden">
+          <table ref={tableRef} className="w-full min-w-[1080px] table-fixed [&_td]:overflow-hidden">
             <TableViewHeader
               enabled={enabled}
               allOnPageSelected={allOnPageSelected}
@@ -329,9 +319,12 @@ export function TableView({
             currentPage={currentPage}
             totalPages={totalPages}
             totalTasks={totalTasks}
-            pageSize={pageSize}
-            onPageChange={onPageChange}
-            onPageSizeChange={onPageSizeChange}
+            pageSize={query.pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={(pageSize) => {
+              setQuery({ pageSize });
+              setPage(1);
+            }}
           />
         )}
       </div>

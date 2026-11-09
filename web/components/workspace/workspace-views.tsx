@@ -1,6 +1,6 @@
 "use client";
 
-import type { Assignee, FilterOptions, Sprint, Task } from "@/lib/types";
+import type { Assignee, Sprint, Task } from "@/lib/types";
 import { CalendarView } from "./calendar-view";
 import { GanttView } from "./gantt-view";
 import { KanbanBoard } from "./kanban-board";
@@ -22,8 +22,7 @@ export interface WorkspaceViewsProps {
   totalPages: number;
   totalTasks: number;
   pageSize: number;
-  filters?: FilterOptions;
-  onFiltersChange?: (filters: FilterOptions) => void;
+  allTasks: Task[];
   sprintManagerTasks: Task[];
   assignees: Assignee[];
   onStatusChange?: (detail: { id: Id; status: Task["status"] }) => void;
@@ -49,8 +48,7 @@ export function WorkspaceViews({
   totalPages,
   totalTasks,
   pageSize,
-  filters,
-  onFiltersChange,
+  allTasks,
   sprintManagerTasks,
   assignees,
   onStatusChange,
@@ -71,7 +69,7 @@ export function WorkspaceViews({
     <div className="mt-8">
       {loadingData && filteredTasks.length === 0 ? (
         <TaskViewPlaceholder loading />
-      ) : filteredTasks.length === 0 ? (
+      ) : (currentView === "table" ? allTasks.length === 0 : filteredTasks.length === 0) ? (
         <TaskViewPlaceholder loading={false} />
       ) : currentView === "kanban" ? (
         <div className={FADE_IN}>
@@ -102,11 +100,8 @@ export function WorkspaceViews({
       ) : currentView === "table" ? (
         <div className={FADE_IN}>
           <TableView
-            tasks={tasks}
+            tasks={allTasks}
             sprints={sprints}
-            filters={filters}
-            onFiltersChange={onFiltersChange}
-            {...paging}
             onEdit={onEdit}
             onDelete={onDelete}
             onDeleteSelected={onDeleteSelected}

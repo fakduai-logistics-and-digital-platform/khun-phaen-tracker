@@ -54,44 +54,43 @@ export function dueDateOf(task: Task) {
   return task.due_date || task.end_date || "";
 }
 
-export function sortTasks(tasks: Task[], column: SortColumn, direction: SortDirection) {
-  return [...tasks].sort((a, b) => {
-    let aVal: string | number;
-    let bVal: string | number;
+/** Ascending comparison of two tasks by one column; callers flip the sign for descending. */
+export function compareTasks(a: Task, b: Task, column: SortColumn) {
+  let aVal: string | number;
+  let bVal: string | number;
 
-    switch (column) {
-      case "priority":
-        aVal = PRIORITY_ORDER[a.priority || "none"] ?? 0;
-        bVal = PRIORITY_ORDER[b.priority || "none"] ?? 0;
-        break;
-      case "assignee":
-        aVal = a.assignees && a.assignees.length > 0 ? a.assignees[0].name : "";
-        bVal = b.assignees && b.assignees.length > 0 ? b.assignees[0].name : "";
-        break;
-      case "updated_at":
-        aVal = a.updated_at || "";
-        bVal = b.updated_at || "";
-        break;
-      case "created_at":
-        aVal = a.created_at || "";
-        bVal = b.created_at || "";
-        break;
-      case "date":
-        aVal = dueDateOf(a);
-        bVal = dueDateOf(b);
-        break;
-      default:
-        aVal = ((a as unknown as Record<string, string>)[column] as string) || "";
-        bVal = ((b as unknown as Record<string, string>)[column] as string) || "";
-    }
+  switch (column) {
+    case "priority":
+      aVal = PRIORITY_ORDER[a.priority || "none"] ?? 0;
+      bVal = PRIORITY_ORDER[b.priority || "none"] ?? 0;
+      break;
+    case "assignee":
+      aVal = a.assignees && a.assignees.length > 0 ? a.assignees[0].name : "";
+      bVal = b.assignees && b.assignees.length > 0 ? b.assignees[0].name : "";
+      break;
+    case "updated_at":
+      aVal = a.updated_at || "";
+      bVal = b.updated_at || "";
+      break;
+    case "created_at":
+      aVal = a.created_at || "";
+      bVal = b.created_at || "";
+      break;
+    case "date":
+      aVal = dueDateOf(a);
+      bVal = dueDateOf(b);
+      break;
+    default:
+      aVal = ((a as unknown as Record<string, string>)[column] as string) || "";
+      bVal = ((b as unknown as Record<string, string>)[column] as string) || "";
+  }
 
-    if (typeof aVal === "string") {
-      aVal = aVal.toLowerCase();
-      bVal = (bVal as string).toLowerCase();
-    }
-    if (direction === "asc") return aVal > bVal ? 1 : -1;
-    return aVal < bVal ? 1 : -1;
-  });
+  if (typeof aVal === "string") {
+    aVal = aVal.toLowerCase();
+    bVal = (bVal as string).toLowerCase();
+  }
+  if (aVal === bVal) return 0;
+  return aVal > bVal ? 1 : -1;
 }
 
 export function isOverdue(dateStr: string, status: Task["status"], isArchived = false) {

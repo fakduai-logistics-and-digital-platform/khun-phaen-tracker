@@ -10,10 +10,11 @@ const ENTER_MS = 400;
 /**
  * Marks rows that appeared or disappeared between two refreshes so they can animate in and out.
  * Removed rows stay in the list for a moment at their old position. A page or filter change replaces
- * the whole set, so nothing animates unless some rows survive between the two lists.
+ * the whole set, so those rows fade in without ghosts of the old ones.
  */
 export function useRowTransitions<T extends Keyed>(items: T[]): TransitionRow<T>[] {
   const previous = useRef<T[]>(items);
+  const mounted = useRef(false);
   const [rows, setRows] = useState<TransitionRow<T>[]>(() => items.map((item) => ({ item, phase: undefined })));
 
   useEffect(() => {
@@ -22,7 +23,11 @@ export function useRowTransitions<T extends Keyed>(items: T[]): TransitionRow<T>
     const nowIds = new Set(items.map((item) => String(item.id)));
     const beforeIds = new Set(before.map((item) => String(item.id)));
     const survivors = items.filter((item) => beforeIds.has(String(item.id))).length;
-    if (before.length === 0 || survivors === 0) {
+    if (!mounted.current) {
+      mounted.current = true;
+      return;
+    }
+    if (before.length === items.length && survivors === items.length) {
       setRows(items.map((item) => ({ item, phase: undefined })));
       return;
     }
@@ -31,9 +36,11 @@ export function useRowTransitions<T extends Keyed>(items: T[]): TransitionRow<T>
       item,
       phase: beforeIds.has(String(item.id)) ? undefined : "enter",
     }));
-    before.forEach((item, index) => {
-      if (!nowIds.has(String(item.id))) next.splice(Math.min(index, next.length), 0, { item, phase: "leave" });
-    });
+    if (survivors > 0) {
+      before.forEach((item, index) => {
+        if (!nowIds.has(String(item.id))) next.splice(Math.min(index, next.length), 0, { item, phase: "leave" });
+      });
+    }
     setRows(next);
 
     const timers = [
