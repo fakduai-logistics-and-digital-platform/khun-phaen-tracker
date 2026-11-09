@@ -16,6 +16,8 @@ import { useI18n } from "@/lib/i18n";
 
 type TcActionsMenuProps = {
   workspaceId: string;
+  /** `all`, `none` or a project id; the shared page opens on the same project. */
+  projectId: string;
   isAuthorized: boolean;
   onDownloadTemplate: () => void;
   onImportFile: (file: File) => void;
@@ -24,6 +26,7 @@ type TcActionsMenuProps = {
 
 export function TcActionsMenu({
   workspaceId,
+  projectId,
   isAuthorized,
   onDownloadTemplate,
   onImportFile,
@@ -74,7 +77,14 @@ export function TcActionsMenu({
             {t("testCases__export")}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={() => window.open(withBase(publicTestCasesPath(workspaceId)), "_blank")}>
+          <DropdownMenuItem
+            onSelect={() =>
+              window.open(
+                withBase(publicTestCasesPath(workspaceId, projectId === "all" ? undefined : projectId)),
+                "_blank",
+              )
+            }
+          >
             <ExternalLink />
             {t("testCases__public_view")}
           </DropdownMenuItem>

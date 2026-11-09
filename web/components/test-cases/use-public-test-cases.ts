@@ -12,7 +12,8 @@ import {
   type PublicTestCase,
 } from "./public-model";
 
-export function usePublicTestCases(workspaceId: string | undefined) {
+/** `projectId` is `all`, `none` (cases without a project) or a project id. */
+export function usePublicTestCases(workspaceId: string | undefined, projectId = "all") {
   const [suites, setSuites] = useState<PublicSuite[]>([]);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
@@ -31,7 +32,7 @@ export function usePublicTestCases(workspaceId: string | undefined) {
     setLoading(true);
     try {
       const [suiteResp, runResp] = await Promise.all([
-        api.public.listSuites(workspaceId),
+        api.public.listSuites(workspaceId, projectId),
         api.public.getLatestTestRun(workspaceId),
       ]);
 
@@ -56,6 +57,7 @@ export function usePublicTestCases(workspaceId: string | undefined) {
       }));
 
       const params: Record<string, any> = { limit: PAGE_SIZE };
+      if (projectId !== "all") params.project_id = projectId;
       if (query) params.q = query;
       if (filterPriority) params.priority = filterPriority;
       if (filterStatus) params.status = filterStatus;
@@ -83,7 +85,7 @@ export function usePublicTestCases(workspaceId: string | undefined) {
     } finally {
       if (current === requestId.current) setLoading(false);
     }
-  }, [workspaceId, query, filterPriority, filterStatus]);
+  }, [workspaceId, projectId, query, filterPriority, filterStatus]);
 
   useEffect(() => {
     const delay = previousQuery.current !== query ? 300 : 0;
@@ -96,7 +98,10 @@ export function usePublicTestCases(workspaceId: string | undefined) {
     if (!workspaceId || exporting) return;
     setExporting(true);
     try {
-      const casesResp = await api.public.getAllTestCases(workspaceId);
+      const casesResp = await api.public.getAllTestCases(
+        workspaceId,
+        projectId === "all" ? undefined : { project_id: projectId },
+      );
       if (!casesResp.ok) return;
       const allCases: PublicTestCase[] = (await casesResp.json()).map(mapCase);
 
@@ -109,7 +114,7 @@ export function usePublicTestCases(workspaceId: string | undefined) {
     } finally {
       setExporting(false);
     }
-  }, [workspaceId, exporting, suites, runCaseMap]);
+  }, [workspaceId, projectId, exporting, suites, runCaseMap]);
 
   const toggleSuite = useCallback((id: string) => {
     setSuites((prev) => prev.map((s) => (s.id === id ? { ...s, collapsed: !s.collapsed } : s)));

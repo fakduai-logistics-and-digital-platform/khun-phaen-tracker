@@ -1,16 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { useI18n } from "@/lib/i18n";
 import { useWorkzyTime } from "./use-workzy-time";
+import { WorkzyLogo } from "./workzy-logo";
 
 function clock(iso: string, locale: string) {
   return new Date(iso).toLocaleTimeString(locale, {
@@ -31,36 +26,25 @@ export function WorkzyTimeCard() {
     const h = Math.floor(seconds / 3600);
     const m = Math.floor(seconds / 60) % 60;
     const s = seconds % 60;
-    return h > 0
-      ? t("workzy__dur_hms", { h, m, s })
-      : t("workzy__dur_ms", { m, s });
+    return h > 0 ? t("workzy__dur_hms", { h, m, s }) : t("workzy__dur_ms", { m, s });
   };
   const worked = t("workzy__worked", {
     time: duration(progress.workedSeconds),
   });
   const target = progress.kind === "target";
-  const done =
-    progress.kind === "done" || (target && progress.remainingSeconds === 0);
+  const done = progress.kind === "done" || (target && progress.remainingSeconds === 0);
 
   const rows: [string, string][] = [
     [t("workzy__label_check_in"), clock(progress.checkIn, locale)],
     ...(progress.checkOut
-      ? ([[t("workzy__label_check_out"), clock(progress.checkOut, locale)]] as [
-          string,
-          string,
-        ][])
+      ? ([[t("workzy__label_check_out"), clock(progress.checkOut, locale)]] as [string, string][])
       : []),
     ...(target && progress.leaveAt && !done
-      ? ([[t("workzy__label_leave"), clock(progress.leaveAt, locale)]] as [
-          string,
-          string,
-        ][])
+      ? ([[t("workzy__label_leave"), clock(progress.leaveAt, locale)]] as [string, string][])
       : []),
     [t("workzy__label_worked"), duration(progress.workedSeconds)],
     ...(target && !done
-      ? ([
-          [t("workzy__label_remaining"), duration(progress.remainingSeconds)],
-        ] as [string, string][])
+      ? ([[t("workzy__label_remaining"), duration(progress.remainingSeconds)]] as [string, string][])
       : []),
   ];
 
@@ -73,7 +57,10 @@ export function WorkzyTimeCard() {
         className="mx-2 mb-1 block w-auto rounded-lg border bg-sidebar-accent/40 p-3 text-left transition-colors hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none group-data-[collapsible=icon]:hidden"
       >
         <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>Workzy</span>
+          <span className="flex items-center gap-1.5">
+            <WorkzyLogo className="size-4" />
+            Workzy
+          </span>
           <span className="tabular-nums">
             {progress.checkOut
               ? t("workzy__in_out", {
@@ -94,13 +81,7 @@ export function WorkzyTimeCard() {
                 })
             : worked}
         </p>
-        {target && (
-          <Progress
-            value={progress.percent}
-            className="mt-2 h-1.5"
-            aria-label={worked}
-          />
-        )}
+        {target && <Progress value={progress.percent} className="mt-2 h-1.5" aria-label={worked} />}
         <div className="mt-2 flex flex-wrap justify-between gap-x-2 text-xs text-muted-foreground tabular-nums">
           {target ? (
             <>
@@ -114,11 +95,7 @@ export function WorkzyTimeCard() {
               )}
             </>
           ) : (
-            <span>
-              {progress.kind === "done"
-                ? t("workzy__checked_out")
-                : t("workzy__no_target")}
-            </span>
+            <span>{progress.kind === "done" ? t("workzy__checked_out") : t("workzy__no_target")}</span>
           )}
         </div>
       </button>
@@ -138,13 +115,7 @@ export function WorkzyTimeCard() {
                   : t("workzy__no_target")}
             </DialogDescription>
           </DialogHeader>
-          {target && (
-            <Progress
-              value={progress.percent}
-              className="h-2"
-              aria-label={worked}
-            />
-          )}
+          {target && <Progress value={progress.percent} className="h-2" aria-label={worked} />}
           <dl className="divide-y text-sm tabular-nums">
             {rows.map(([label, value]) => (
               <div key={label} className="flex justify-between py-2">

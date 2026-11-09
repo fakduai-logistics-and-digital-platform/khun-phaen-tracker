@@ -4,7 +4,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { PropertySelect } from "@/components/task-detail/property-select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
@@ -118,8 +118,8 @@ export function TestCaseStepList({
       variant="ghost"
       size="icon"
       className="size-8 text-muted-foreground hover:text-destructive"
-      title="Delete step"
-      aria-label="Delete step"
+      title={t("tcEditor__delete_step")}
+      aria-label={t("tcEditor__delete_step")}
       onClick={() => removeStep(index)}
     >
       <Trash2 size={15} />
@@ -138,7 +138,7 @@ export function TestCaseStepList({
             )}
             onClick={showRaw}
           >
-            Raw
+            {t("tcEditor__view_raw")}
           </button>
           <button
             type="button"
@@ -148,7 +148,7 @@ export function TestCaseStepList({
             )}
             onClick={showSteps}
           >
-            Steps
+            {t("tcEditor__view_steps")}
           </button>
         </div>
       )}
@@ -168,16 +168,16 @@ export function TestCaseStepList({
 
             {readOnly ? (
               <div className="space-y-2 py-1">
-                <div className="text-sm font-medium text-foreground">{step.action || "No action"}</div>
+                <div className="text-sm font-medium text-foreground">{step.action || t("tcEditor__no_action")}</div>
                 {step.data && (
                   <div className="text-xs font-medium text-muted-foreground">
-                    <span className="mr-1 font-medium">Data:</span>
+                    <span className="mr-1 font-medium">{t("tcEditor__step_data")}:</span>
                     {step.data}
                   </div>
                 )}
                 {step.expected && (
                   <div className="text-xs font-medium text-muted-foreground">
-                    <span className="mr-1 font-medium">Expected:</span>
+                    <span className="mr-1 font-medium">{t("tcEditor__step_expected")}:</span>
                     {step.expected}
                   </div>
                 )}
@@ -188,19 +188,19 @@ export function TestCaseStepList({
                   value={step.action ?? ""}
                   onChange={(e) => updateStep(index, { action: e.target.value })}
                   className="min-h-9 resize-none"
-                  placeholder="Action"
+                  placeholder={t("tcEditor__step_action")}
                 />
                 <Textarea
                   value={step.data ?? ""}
                   onChange={(e) => updateStep(index, { data: e.target.value })}
                   className="min-h-9 resize-none"
-                  placeholder="Data"
+                  placeholder={t("tcEditor__step_data")}
                 />
                 <Textarea
                   value={step.expected ?? ""}
                   onChange={(e) => updateStep(index, { expected: e.target.value })}
                   className="min-h-9 resize-none"
-                  placeholder="Expected result"
+                  placeholder={t("tcEditor__expected_result")}
                 />
               </>
             )}
@@ -221,7 +221,7 @@ export function TestCaseStepList({
             onChange={(e) => onGherkinRawChange?.(e.target.value)}
             className="relative m-0 h-full min-h-40 resize-none border-0 bg-transparent px-4 py-3 text-transparent caret-foreground shadow-none focus-visible:ring-0 dark:bg-transparent"
             spellCheck={false}
-            placeholder={"Given preconditions...\nWhen actions...\nThen expected results..."}
+            placeholder={t("tcEditor__gherkin_placeholder")}
           />
         </div>
       )}
@@ -241,21 +241,26 @@ export function TestCaseStepList({
             {readOnly ? (
               <div className="py-2 text-sm font-medium text-foreground">
                 <span className="mr-2 font-medium text-primary">{step.keyword}</span>
-                {step.text || "No text"}
+                {step.text || t("tcEditor__no_text")}
               </div>
             ) : (
               <>
-                <PropertySelect
-                  id={`step-keyword-${index}`}
-                  value={step.keyword}
-                  options={gherkinKeywordOptions}
-                  className="max-w-none"
-                  onSelect={(value) => updateStep(index, { keyword: String(value) })}
-                />
+                <Select value={step.keyword} onValueChange={(value) => updateStep(index, { keyword: value })}>
+                  <SelectTrigger id={`step-keyword-${index}`} className="w-full" aria-label={t("tcEditor__keyword")}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {gherkinKeywordOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <Input
                   value={step.text ?? ""}
                   onChange={(e) => updateStep(index, { text: e.target.value })}
-                  placeholder="Write step..."
+                  placeholder={t("tcEditor__write_step")}
                 />
               </>
             )}

@@ -14,12 +14,35 @@ pub async fn get(env: &Env, key: &str) -> Option<String> {
     env.kv("CACHE").ok()?.get(key).text().await.ok().flatten()
 }
 pub async fn put(env: &Env, key: &str, body: &str) {
-    if let Ok(builder) = env.kv("CACHE").and_then(|kv| kv.put(key, body).map_err(Into::into)) {
+    if let Ok(builder) = env
+        .kv("CACHE")
+        .and_then(|kv| kv.put(key, body).map_err(Into::into))
+    {
         let _ = builder.expiration_ttl(PUBLIC_TTL).execute().await;
     }
 }
 pub fn json(body: String) -> Result<Response> {
     let mut response = Response::ok(body)?;
-    response.headers_mut().set("Content-Type", "application/json")?;
+    response
+        .headers_mut()
+        .set("Content-Type", "application/json")?;
     Ok(response)
+}
+/// Fingerprint of the data public QA pages are built from. It changes whenever a test case, suite, run or
+/// project is added, edited or removed, so a cached page is reused only while it still matches the database.
+pub async fn fingerprint(env: &Env, workspace: &str) -> Option<String> {
+    let db = env.d1("DB").ok()?;
+    let row: Option<serde_json::Value> = crate::db::first(
+        &db,
+        "SELECT COUNT(*) c, COALESCE(MAX(updated_at),'') m FROM documents WHERE workspace_id=? AND kind IN('test-cases','test-suites','test-runs','projects','assignees')",
+        &[workspace.into()],
+    )
+    .await
+    .ok()?;
+    let row = row?;
+    Some(format!(
+        "{}:{}",
+        row["c"],
+        row["m"].as_str().unwrap_or_default()
+    ))
 }

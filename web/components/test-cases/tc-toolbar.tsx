@@ -15,6 +15,7 @@ type TcToolbarProps = {
   view: TcView;
   onViewChange: (view: TcView) => void;
   workspaceId: string;
+  projectId: string;
   workspaceLabel: string;
   caseCount: number;
   suiteCount: number;
@@ -38,6 +39,7 @@ export function TcToolbar({
   view,
   onViewChange,
   workspaceId,
+  projectId,
   workspaceLabel,
   caseCount,
   suiteCount,
@@ -113,6 +115,7 @@ export function TcToolbar({
             <div className="h-6 w-px bg-border" />
             <TcActionsMenu
               workspaceId={workspaceId}
+              projectId={projectId}
               isAuthorized={isAuthorized}
               onDownloadTemplate={onDownloadTemplate}
               onImportFile={onImportFile}

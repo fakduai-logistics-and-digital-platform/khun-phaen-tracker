@@ -122,8 +122,11 @@ pub async fn handle(req: &mut Request, env: &Env, user: &User, parts: &[&str]) -
         let Some(old) = get(env, &w.id, kind, id).await? else {
             return http::error(404, "Record not found");
         };
-        if kind == "assignees" && !old["user_id"].is_null() && w.owner_id != user.id {
-            return http::error(403, "Only owner may remove linked workspace members");
+        if kind == "assignees" && !old["user_id"].is_null() && !w.managed_by(user) {
+            return http::error(
+                403,
+                "Only the owner or an admin may remove linked workspace members",
+            );
         }
         crate::cascades::delete(env, &w.id, kind, id, &old).await?;
         realtime::publish(env, &w.id, entity(kind), "delete", id, Value::Null).await;
@@ -213,9 +216,12 @@ pub async fn handle(req: &mut Request, env: &Env, user: &User, parts: &[&str]) -
     if kind == "assignees"
         && input.get("user_id").is_some()
         && http::text(&input, "user_id") != old_user
-        && w.owner_id != user.id
+        && !w.managed_by(user)
     {
-        return http::error(403, "Only workspace owner may change linked users");
+        return http::error(
+            403,
+            "Only the workspace owner or an admin may change linked users",
+        );
     }
     if kind == "assignees" {
         if let Some(linked) = value["user_id"].as_str().filter(|s| !s.is_empty()) {

@@ -1,85 +1,92 @@
 "use client";
 
-import { CheckCircle2, ClipboardCheck, Keyboard, MessageSquare, ShieldCheck, Target } from "lucide-react";
+import { FieldGroup } from "@/components/ui/field";
+import { useI18n } from "@/lib/i18n";
 import { EditorTextField } from "./editor-fields";
 import type { EditorForm } from "./editor-options";
 
-type EditorBodySectionsProps = {
+type SectionProps = {
   form: EditorForm;
   setField: <K extends keyof EditorForm>(key: K, value: EditorForm[K]) => void;
   isAuthorized: boolean;
 };
 
-export function EditorBodySections({ form, setField, isAuthorized }: EditorBodySectionsProps) {
+export function EditorDetailsTab({ form, setField, isAuthorized }: SectionProps) {
+  const { t } = useI18n();
   const readOnly = !isAuthorized;
 
   return (
-    <>
-      <section className="grid grid-cols-1 gap-5 border-t p-6 md:grid-cols-2">
+    <FieldGroup>
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <EditorTextField
-          label="Precondition"
-          icon={ShieldCheck}
+          id="editor-preconditions"
+          label={t("tcEditor__precondition")}
           value={form.preconditions}
           onChange={(v) => setField("preconditions", v)}
           readOnly={readOnly}
-          placeholder="Conditions required before this test starts..."
+          placeholder={t("tcEditor__precondition_placeholder")}
         />
         <EditorTextField
-          label="Post-conditions"
-          icon={Target}
+          id="editor-postconditions"
+          label={t("tcEditor__postcondition")}
           value={form.postconditions}
           onChange={(v) => setField("postconditions", v)}
           readOnly={readOnly}
-          placeholder="Expected state after this test finishes..."
+          placeholder={t("tcEditor__postcondition_placeholder")}
         />
-      </section>
-
-      <section className="border-t p-6">
+      </div>
+      <EditorTextField
+        id="editor-input"
+        label={t("tcEditor__input")}
+        value={form.input}
+        onChange={(v) => setField("input", v)}
+        readOnly={readOnly}
+        placeholder={t("tcEditor__input_placeholder")}
+      />
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <EditorTextField
-          label="Input"
-          icon={Keyboard}
-          value={form.input}
-          onChange={(v) => setField("input", v)}
+          id="editor-expected"
+          label={t("tcEditor__expected_result")}
+          value={form.expectedResult}
+          onChange={(v) => setField("expectedResult", v)}
           readOnly={readOnly}
-          placeholder="Data that tester must enter..."
+          placeholder={t("tcEditor__expected_placeholder")}
         />
-        <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
-          <EditorTextField
-            label="Expected Result"
-            icon={CheckCircle2}
-            value={form.expectedResult}
-            onChange={(v) => setField("expectedResult", v)}
-            readOnly={readOnly}
-            placeholder="Expected behavior after running the step..."
-          />
-          <EditorTextField
-            label="Actual Result"
-            icon={ClipboardCheck}
-            value={form.actualResult}
-            onChange={(v) => setField("actualResult", v)}
-            readOnly={readOnly}
-            placeholder="Actual behavior found during testing..."
-          />
-        </div>
-      </section>
-
-      <section className="grid grid-cols-1 gap-5 border-t p-6 lg:grid-cols-2">
         <EditorTextField
-          label="Dev Note"
-          icon={MessageSquare}
+          id="editor-actual"
+          label={t("tcEditor__actual_result")}
+          value={form.actualResult}
+          onChange={(v) => setField("actualResult", v)}
+          readOnly={readOnly}
+          placeholder={t("tcEditor__actual_placeholder")}
+        />
+      </div>
+    </FieldGroup>
+  );
+}
+
+export function EditorNotesTab({ form, setField, isAuthorized }: SectionProps) {
+  const { t } = useI18n();
+
+  return (
+    <FieldGroup>
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <EditorTextField
+          id="editor-dev-note"
+          label={t("tcEditor__dev_note")}
           value={form.devNote}
           onChange={(v) => setField("devNote", v)}
-          placeholder="Developer note..."
+          placeholder={t("tcEditor__dev_note_placeholder")}
         />
         <EditorTextField
-          label="Test Note"
-          icon={MessageSquare}
+          id="editor-test-note"
+          label={t("tcEditor__test_note")}
           value={form.testNote}
           onChange={(v) => setField("testNote", v)}
-          readOnly={readOnly}
-          placeholder="Tester note..."
+          readOnly={!isAuthorized}
+          placeholder={t("tcEditor__test_note_placeholder")}
         />
-      </section>
-    </>
+      </div>
+    </FieldGroup>
   );
 }

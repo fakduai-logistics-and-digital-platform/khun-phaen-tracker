@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PropertySelect } from "@/components/task-detail/property-select";
 import { useI18n } from "@/lib/i18n";
+import { TcHistoryButton } from "./tc-history";
+import { formatDateTime } from "./tc-times";
 import { cn } from "@/lib/utils";
 import { fixedOptions, statusOptions } from "./tc-options";
 import { TcPriorityMenu } from "./tc-priority-menu";
@@ -31,7 +33,7 @@ export function TcSheetTable({
   assigneeOptions,
   handlers,
 }: TcSheetTableProps) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
 
   return (
     <Table className="border-collapse border-t text-sm">
@@ -44,7 +46,8 @@ export function TcSheetTable({
           <TableHead className={cn(CELL, "w-36")}>{t("tcpub__col_status")}</TableHead>
           <TableHead className={cn(CELL, "w-36")}>{t("tcpub__col_fixed")}</TableHead>
           <TableHead className={cn(CELL, "w-44")}>{t("tcopt__prop_assign_dev")}</TableHead>
-          <TableHead className={cn(CELL, "w-24")} />
+          <TableHead className={cn(CELL, "w-40")}>{t("tcTime__col_passed")}</TableHead>
+          <TableHead className={cn(CELL, "w-32")} />
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -105,8 +108,22 @@ export function TcSheetTable({
                 onSelect={(v) => handlers.onUpdateAssignDev(testCase, String(v))}
               />
             </TableCell>
+            <TableCell
+              className={cn(
+                CELL,
+                "text-xs tabular-nums",
+                testCase.passed_at ? "text-success" : "text-muted-foreground",
+              )}
+            >
+              {formatDateTime(testCase.passed_at, locale) || "—"}
+            </TableCell>
             <TableCell className={CELL}>
               <div className="flex items-center justify-end gap-1">
+                <TcHistoryButton
+                  testCaseId={testCase.id}
+                  updatedAt={testCase.updated_at}
+                  passedAt={testCase.passed_at}
+                />
                 <Button
                   type="button"
                   variant="ghost"
@@ -137,7 +154,7 @@ export function TcSheetTable({
         ))}
         {suite.cases.length === 0 && (
           <TableRow>
-            <TableCell colSpan={8} className={cn(CELL, "py-6 text-center text-muted-foreground")}>
+            <TableCell colSpan={9} className={cn(CELL, "py-6 text-center text-muted-foreground")}>
               {t("testCases__empty_suite")}
             </TableCell>
           </TableRow>

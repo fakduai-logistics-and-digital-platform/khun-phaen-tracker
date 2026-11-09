@@ -46,12 +46,16 @@ export type TestCase = {
   dev_note?: string;
   test_note?: string;
   attachments: TestCaseAttachment[];
+  project_id?: string;
+  updated_at?: string;
+  passed_at?: string | null;
 };
 
 export type Suite = {
   id: string;
   title: string;
   description: string;
+  project_id?: string;
   cases: TestCase[];
   page: number;
   hasMore: boolean;
@@ -185,5 +189,8 @@ export function mapBackendToFrontend(tc: any): TestCase {
     dev_note: tc.dev_note || "",
     test_note: tc.test_note || "",
     attachments: tc.attachments || [],
+    project_id: tc.project_id || "",
+    updated_at: tc.updated_at,
+    passed_at: tc.passed_at ?? null,
   };
 }

@@ -882,6 +882,7 @@ export const api = {
         wsId: string,
         params?: {
           suite_id?: string;
+          project_id?: string;
           limit?: number;
           page?: number;
           q?: string;
@@ -902,8 +903,9 @@ export const api = {
           credentials: "include",
         });
       },
-      counts: (wsId: string): Promise<Response> => {
-        return fetch(`${API_BASE_URL}/workspaces/${wsId}/test-cases/counts`, {
+      counts: (wsId: string, projectId?: string): Promise<Response> => {
+        const query = projectId && projectId !== "all" ? `?project_id=${encodeURIComponent(projectId)}` : "";
+        return fetch(`${API_BASE_URL}/workspaces/${wsId}/test-cases/counts${query}`, {
           headers: api.data._headers(),
           credentials: "include",
         });
@@ -912,6 +914,7 @@ export const api = {
         wsId: string,
         params?: {
           suite_id?: string;
+          project_id?: string;
           q?: string;
           field?: string;
           priority?: string;
@@ -927,6 +930,12 @@ export const api = {
             ).toString()
           : "";
         return fetch(`${API_BASE_URL}/workspaces/${wsId}/test-cases/all${qs}`, {
+          headers: api.data._headers(),
+          credentials: "include",
+        });
+      },
+      history: (id: string): Promise<Response> => {
+        return fetch(`${API_BASE_URL}/test-cases/${id}/history`, {
           headers: api.data._headers(),
           credentials: "include",
         });
@@ -1046,8 +1055,9 @@ export const api = {
     },
     // Test Suites
     testSuites: {
-      list: (wsId: string): Promise<Response> => {
-        return fetch(`${API_BASE_URL}/workspaces/${wsId}/test-suites`, {
+      list: (wsId: string, projectId?: string): Promise<Response> => {
+        const query = projectId && projectId !== "all" ? `?project_id=${encodeURIComponent(projectId)}` : "";
+        return fetch(`${API_BASE_URL}/workspaces/${wsId}/test-suites${query}`, {
           headers: api.data._headers(),
           credentials: "include",
         });
@@ -1060,7 +1070,7 @@ export const api = {
           body: JSON.stringify(suite),
         });
       },
-      update: (id: string, payload: { title: string }): Promise<Response> => {
+      update: (id: string, payload: { title?: string; project_id?: string }): Promise<Response> => {
         return fetch(`${API_BASE_URL}/test-suites/${id}`, {
           method: "PATCH",
           headers: api.data._headers(true),
@@ -1078,13 +1088,18 @@ export const api = {
     },
   },
   public: {
-    listSuites: (wsId: string): Promise<Response> => {
-      return fetch(`${API_BASE_URL}/public/workspaces/${wsId}/test-suites`);
+    listSuites: (wsId: string, projectId?: string): Promise<Response> => {
+      const query = projectId && projectId !== "all" ? `?project_id=${encodeURIComponent(projectId)}` : "";
+      return fetch(`${API_BASE_URL}/public/workspaces/${wsId}/test-suites${query}`);
+    },
+    listProjects: (wsId: string): Promise<Response> => {
+      return fetch(`${API_BASE_URL}/public/workspaces/${wsId}/projects`);
     },
     listTestCases: (
       wsId: string,
       params?: {
         suite_id?: string;
+        project_id?: string;
         limit?: number;
         page?: number;
         q?: string;
@@ -1105,6 +1120,7 @@ export const api = {
       wsId: string,
       params?: {
         suite_id?: string;
+        project_id?: string;
         q?: string;
         field?: string;
         priority?: string;

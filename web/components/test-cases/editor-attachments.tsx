@@ -3,6 +3,7 @@
 import { useRef } from "react";
 import { Paperclip, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/lib/i18n";
 import { MAX_ATTACHMENTS } from "./editor-options";
 import type { AttachmentFile } from "./use-editor-attachments";
 
@@ -20,14 +21,13 @@ type EditorAttachmentsProps = {
 };
 
 export function EditorAttachments({ attachments, isAuthorized, onAdd, onRemove }: EditorAttachmentsProps) {
+  const { t } = useI18n();
   const inputRef = useRef<HTMLInputElement>(null);
 
   return (
-    <section className="border-t p-6">
-      <h2 className="text-base font-semibold">Attachments</h2>
-
+    <section className="flex flex-col gap-4">
       {attachments.length > 0 && (
-        <div className="mt-4 flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-3">
           {attachments.map((att, index) => (
             <div key={att.url} className="w-40 overflow-hidden rounded-lg border">
               {att.file.type.startsWith("image/") ? (
@@ -48,8 +48,8 @@ export function EditorAttachments({ attachments, isAuthorized, onAdd, onRemove }
                       variant="ghost"
                       size="icon"
                       className="size-6"
-                      title="Remove"
-                      aria-label={`Remove ${att.file.name}`}
+                      title={t("tcEditor__remove")}
+                      aria-label={`${t("tcEditor__remove")} ${att.file.name}`}
                       onClick={() => onRemove(index)}
                     >
                       <X />
@@ -75,17 +75,19 @@ export function EditorAttachments({ attachments, isAuthorized, onAdd, onRemove }
               e.target.value = "";
             }}
           />
-          <Button type="button" variant="outline" size="sm" className="mt-4" onClick={() => inputRef.current?.click()}>
-            <Plus />
-            Add attachment
-          </Button>
-          <span className="ml-2 text-xs text-muted-foreground">
-            ({attachments.length}/{MAX_ATTACHMENTS})
-          </span>
+          <div className="flex items-center gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => inputRef.current?.click()}>
+              <Plus />
+              {t("tcEditor__add_attachment")}
+            </Button>
+            <span className="text-xs text-muted-foreground">
+              ({attachments.length}/{MAX_ATTACHMENTS})
+            </span>
+          </div>
         </>
       ) : (
         isAuthorized && (
-          <p className="mt-4 text-xs text-muted-foreground">Maximum {MAX_ATTACHMENTS} attachments reached.</p>
+          <p className="text-xs text-muted-foreground">{t("tcEditor__max_attachments", { count: MAX_ATTACHMENTS })}</p>
         )
       )}
     </section>

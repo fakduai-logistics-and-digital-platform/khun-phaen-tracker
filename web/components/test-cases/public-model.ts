@@ -22,6 +22,8 @@ export type PublicTestCase = {
   step_format?: string;
   gherkin_steps?: any[];
   classic_steps?: any[];
+  updated_at?: string;
+  passed_at?: string | null;
 };
 
 export type PublicSuite = {
@@ -78,6 +80,8 @@ export function mapCase(tc: any): PublicTestCase {
     step_format: tc.step_format,
     gherkin_steps: tc.gherkin_steps,
     classic_steps: tc.classic_steps,
+    updated_at: tc.updated_at,
+    passed_at: tc.passed_at ?? null,
   };
 }
 

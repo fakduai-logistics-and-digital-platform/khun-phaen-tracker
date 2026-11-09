@@ -107,7 +107,9 @@ export function useWorkspacePage() {
   const myTasksStorageKey = `${MY_TASKS_FILTER_STORAGE_KEY}:${workspaceId}:${authUser?.id || authUser?.user_id || "anon"}`;
   const isMyTasksActive =
     myAssigneeId !== undefined && myAssigneeId !== null && String(filters?.assignee_id) === String(myAssigneeId);
-  const isOwner = !isMyTasksWorkspace && ownerId && authUser?.id ? ownerId === authUser.id : false;
+  // An admin who can open this workspace manages it like its owner.
+  const isOwner =
+    !isMyTasksWorkspace && authUser?.id ? ownerId === authUser.id || authUser.role === "admin" : false;
   const isAdminOrOwner = isOwner || authUser?.role === "admin";
   const visibleMilestones = milestones.filter((m) => !m.is_hidden);
   const monthlySummary = useMemo(() => buildMonthlySummary(allTasks), [allTasks]);

@@ -144,6 +144,44 @@ try {
  assert.equal((await ok(`${p}/test-cases?field=test_no&q=${tc.test_no}`))[0].id,tc.id);
  assert.ok((await ok(`${p}/test-suites`)).some(s=>s._id==='unassigned'&&s.case_count===1));
  assert.equal((await ok(`${p}/test-cases/counts`))[suite.id],1);
+ // Project scoping: a case lives in its suite's project, moving a suite moves its cases, and lists filter by project.
+ const projectRes=await request(`${p}/projects`,'POST',{name:'Repo A'},admin);assert.ok(projectRes.status<300);const repo=projectRes.data.project;
+ assert.equal((await request(`/api/test-suites/${suite.id}`,'PATCH',{project_id:'missing'},qa.token)).status,400);
+ await ok(`/api/test-suites/${suite.id}`,'PATCH',{project_id:repo.id},qa.token);
+ assert.equal((await ok(`/api/test-cases/${tc.id}`)).project_id,repo.id);
+ assert.deepEqual((await ok(`${p}/test-cases?project_id=${repo.id}`)).map(c=>c.id),[tc.id]);
+ assert.ok((await ok(`${p}/test-cases?project_id=none`)).every(c=>c.id!==tc.id));
+ assert.deepEqual((await ok(`${p}/test-suites?project_id=${repo.id}`)).map(s=>s.id),[suite.id]);
+ assert.ok(!(await ok(`${p}/test-suites?project_id=none`)).some(s=>s.id===suite.id));
+ assert.equal((await ok(`${p}/test-cases/counts?project_id=${repo.id}`))[suite.id],1);
+ const publicProjects=await ok(`/api/public/workspaces/${ws1.id}/projects`,'GET',undefined,null);
+ assert.deepEqual(Object.keys(publicProjects.find(x=>x.id===repo.id)).sort(),['id','name']);
+ assert.deepEqual((await ok(`/api/public/workspaces/${ws1.id}/test-cases?project_id=${repo.id}`,'GET',undefined,null)).map(c=>c.id),[tc.id]);
+ await ok(`/api/test-cases/${unassigned.id}`,'PATCH',{project_id:repo.id},qa.token);
+ assert.equal((await ok(`${p}/test-cases?project_id=${repo.id}`)).length,2);
+ assert.equal((await request(`/api/test-cases/${unassigned.id}`,'PATCH',{project_id:'missing'},qa.token)).status,400);
+ await ok(`/api/test-cases/${unassigned.id}`,'PATCH',{project_id:''},qa.token);
+ await ok(`/api/test-suites/${suite.id}`,'PATCH',{project_id:''},qa.token);
+ assert.equal((await ok(`/api/test-cases/${tc.id}`)).project_id,'');
+ assert.equal((await ok(`${p}/test-cases?project_id=${repo.id}`)).length,0);
+ console.log('PASS: test cases and suites are scoped to projects and can be moved between them');
+ // An admin who belongs to a workspace manages it like its owner, but admins do not see workspaces they are not part of.
+ const coAdmin=await createUser('coadmin','Developer');
+ await ok(`/api/auth/users/${coAdmin.id}`,'PUT',{role:'admin'});
+ assert.equal((await request(p,'PUT',{name:'Hijack'},coAdmin.token)).status,403);
+ assert.ok(!(await ok('/api/workspaces','GET',undefined,coAdmin.token)).workspaces.some(w=>w.id===ws1.id));
+ await ok(`${p}/assignees`,'POST',{name:'Co admin',user_id:coAdmin.id});
+ assert.equal((await request(p,'PUT',{name:ws1.name},dev.token)).status,403);
+ await ok(p,'PUT',{name:ws1.name},coAdmin.token);
+ console.log('PASS: admins manage workspaces they belong to like the owner');
+ // Public pages are cached, but a new or removed case must show up immediately.
+ const publicCases=async()=>(await ok(`/api/public/workspaces/${ws1.id}/test-cases?limit=100`,'GET',undefined,null)).length;
+ const publicBefore=await publicCases();
+ const fresh=await ok(`${p}/test-cases`,'POST',{name:'Fresh public case',suite_id:suite.id},qa.token,201);
+ assert.equal(await publicCases(),publicBefore+1,'new case visible on the public page');
+ await ok(`/api/test-cases/${fresh.id}`,'DELETE',undefined,qa.token);
+ assert.equal(await publicCases(),publicBefore,'deleted case gone from the public page');
+ console.log('PASS: public pages reflect new and deleted test cases without waiting for the cache');
  await ok(`/api/test-suites/${suite.id}`,'PATCH',{title:'Renamed suite'},qa.token);
  assert.equal((await request(`/api/test-cases/${tc.id}/status`,'PATCH',{status:'passed'},dev.token)).status,403);
  await ok(`/api/test-cases/${tc.id}/fixed`,'PATCH',{fixed:'yes'},dev.token);
@@ -157,6 +195,9 @@ try {
  await ok(`/api/test-cases/${tc.id}/steps`,'PATCH',{step_format:'gherkin',gherkin_steps:[{keyword:'given',text:'User logs in'}]},qa.token);
  assert.equal((await ok(`/api/test-cases/${tc.id}`)).classic_steps,null);
  await ok(`/api/test-cases/${tc.id}/priority`,'PATCH',{priority:'high'},qa.token);
+ const history=await ok(`/api/test-cases/${tc.id}/history`);
+ assert.ok(history.some(h=>h.action==='update'&&h.user_name&&h.changes.some(c=>c.field==='priority'&&c.to==='high')),'priority change recorded with its author');
+ assert.ok(history.some(h=>h.action==='create'));
  await ok(`/api/test-cases/${tc.id}/assign-tester`,'PATCH',{assign_tester:qaWorker.id},qa.token);
  const converted=await ok(`/api/test-cases/${tc.id}/convert-to-task`,'POST',{},dev.token,201);
  assert.equal((await ok(`${p}/tasks/${converted.task_id}`)).task.testcase_id,tc.id);
@@ -164,6 +205,8 @@ try {
  const run=await ok(`${p}/test-runs`,'POST',{name:'Run',test_case_ids:[tc.id,unassigned.id]},qa.token,201);
  const listing=await ok(`${p}/test-runs`);assert.equal(listing.total,1);assert.ok(Array.isArray(listing.data));
  await Promise.all([ok(`${p}/test-runs/${run.id}/cases/${tc.id}/status`,'PATCH',{status:'passed'},qa.token),ok(`${p}/test-runs/${run.id}/cases/${unassigned.id}/status`,'PATCH',{status:'failed'},qa.token)]);
+ const passedCase=await ok(`/api/test-cases/${tc.id}`);assert.ok(passedCase.passed_at&&passedCase.status_changed_at,'passed time recorded');
+ const failedCase=await ok(`/api/test-cases/${unassigned.id}`);assert.equal(failedCase.passed_at,null);assert.ok(failedCase.status_changed_at);
  const runDetail=await ok(`${p}/test-runs/${run.id}`);assert.equal(runDetail.stats.passed,1);assert.equal(runDetail.stats.failed,1);assert.equal(runDetail.test_cases[0].test_case.id,tc.id);
  await ok(`${p}/test-runs/${run.id}/status`,'PATCH',{status:'completed'},qa.token);
  assert.equal((await ok(`/api/public/workspaces/${ws1.id}/test-runs/latest`,'GET',undefined,null)).status,'completed');

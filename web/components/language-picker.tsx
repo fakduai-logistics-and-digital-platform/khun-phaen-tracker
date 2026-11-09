@@ -12,21 +12,20 @@ import { LOCALES, useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 export function LanguagePicker({ className }: { className?: string }) {
-  const { locale, setLocale } = useI18n();
+  const { locale, setLocale, t } = useI18n();
   return (
-    <DropdownMenu>
+    <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className={cn("gap-2 uppercase", className)}>
-          <Languages className="size-4 text-primary" />
-          {locale}
+        <Button variant="ghost" size="icon" className={cn("scale-95 rounded-full", className)}>
+          <Languages className="size-[1.2rem]" />
+          <span className="sr-only">{t("layout__change_language")}</span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-40">
+      <DropdownMenuContent align="end">
         {LOCALES.map((lang) => (
           <DropdownMenuItem key={lang.code} onSelect={() => setLocale(lang.code)}>
-            <span>{lang.flag}</span>
-            <span className="flex-1">{lang.label}</span>
-            {locale === lang.code && <Check className="size-4" />}
+            {lang.label}
+            <Check size={14} className={cn("ms-auto", locale !== lang.code && "hidden")} />
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>

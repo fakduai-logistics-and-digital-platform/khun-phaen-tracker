@@ -243,7 +243,7 @@ export default function DashboardPage() {
         workspace={ws}
         variant={viewMode}
         pinned={pinnedIds.includes(ws.id)}
-        isOwner={!!user && ws.owner_id === user.id}
+        isOwner={!!user && (ws.owner_id === user.id || user.role === "admin")}
         taskCount={taskCounts[ws.id]}
         copied={copiedId === ws.id}
         createdLabel={formatCreated(ws.created_at)}

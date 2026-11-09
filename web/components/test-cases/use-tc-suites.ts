@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from "react";
 import { api } from "@/lib/api/apis";
 import { notify } from "./tc-notify";
 import type { Suite } from "./tc-types";
@@ -8,11 +8,18 @@ import type { Suite } from "./tc-types";
 type UseTcSuitesArgs = {
   workspaceId: string;
   setSuites: Dispatch<SetStateAction<Suite[]>>;
+  /** Project currently shown (`all`, `none` or an id); new suites start there. */
+  projectId: string;
+  reload: () => void | Promise<void>;
 };
 
-export function useTcSuites({ workspaceId, setSuites }: UseTcSuitesArgs) {
+export function useTcSuites({ workspaceId, setSuites, projectId, reload }: UseTcSuitesArgs) {
   const [showCreateSuite, setShowCreateSuite] = useState(false);
   const [newSuiteName, setNewSuiteName] = useState("");
+  const [newSuiteProject, setNewSuiteProject] = useState("none");
+  useEffect(() => {
+    if (showCreateSuite) setNewSuiteProject(projectId === "all" ? "none" : projectId);
+  }, [showCreateSuite, projectId]);
   const [editingSuite, setEditingSuite] = useState<Suite | null>(null);
   const [suiteToDelete, setSuiteToDelete] = useState<Suite | null>(null);
   const [deleteMode, setDeleteMode] = useState<"move" | "delete">("move");
@@ -20,7 +27,10 @@ export function useTcSuites({ workspaceId, setSuites }: UseTcSuitesArgs) {
   const createSuite = useCallback(async () => {
     if (!newSuiteName.trim() || !workspaceId) return;
     try {
-      const resp = await api.data.testSuites.create(workspaceId, { title: newSuiteName });
+      const resp = await api.data.testSuites.create(workspaceId, {
+        title: newSuiteName,
+        project_id: newSuiteProject === "none" ? "" : newSuiteProject,
+      });
       if (resp.ok) {
         const newSuite = await resp.json();
         setSuites((prev) => [
@@ -37,14 +47,17 @@ export function useTcSuites({ workspaceId, setSuites }: UseTcSuitesArgs) {
       console.error("Create suite error:", e);
       notify("An unexpected error occurred", "error");
     }
-  }, [newSuiteName, setSuites, workspaceId]);
+    // The new suite may belong to a project other than the one on screen.
+    void reload();
+  }, [newSuiteName, newSuiteProject, reload, setSuites, workspaceId]);
 
   const updateSuite = useCallback(async () => {
     if (!editingSuite || !editingSuite.title.trim()) return;
     const suiteId = editingSuite.id || (editingSuite as unknown as { _id: string })._id;
     const newTitle = editingSuite.title;
     try {
-      const resp = await api.data.testSuites.update(suiteId, { title: newTitle });
+      const project = editingSuite.project_id || "";
+      const resp = await api.data.testSuites.update(suiteId, { title: newTitle, project_id: project });
       if (resp.ok) {
         setSuites((prev) =>
           prev.map((s) => {
@@ -54,6 +67,7 @@ export function useTcSuites({ workspaceId, setSuites }: UseTcSuitesArgs) {
         );
         notify("Suite updated", "success");
         setEditingSuite(null);
+        void reload();
       } else {
         const errorData = await resp.text();
         console.error("Failed to update suite. Status:", resp.status, "Error:", errorData);
@@ -63,7 +77,7 @@ export function useTcSuites({ workspaceId, setSuites }: UseTcSuitesArgs) {
       console.error("Update suite error:", e);
       notify("An error occurred", "error");
     }
-  }, [editingSuite, setSuites]);
+  }, [editingSuite, reload, setSuites]);
 
   const deleteSuite = useCallback(async () => {
     if (!suiteToDelete) return;
@@ -111,6 +125,8 @@ export function useTcSuites({ workspaceId, setSuites }: UseTcSuitesArgs) {
     setShowCreateSuite,
     newSuiteName,
     setNewSuiteName,
+    newSuiteProject,
+    setNewSuiteProject,
     editingSuite,
     setEditingSuite,
     suiteToDelete,

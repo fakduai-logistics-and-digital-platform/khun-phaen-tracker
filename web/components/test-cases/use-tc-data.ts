@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/api/apis";
-import { getAssignees } from "@/lib/db";
+import { getAssignees, getProjectsList } from "@/lib/db";
 import { connectRealtime } from "@/lib/stores/realtime";
+import type { Project } from "@/lib/types";
 import {
   EMPTY_FILTERS,
   mapBackendToFrontend,
@@ -29,9 +30,12 @@ export function useTcData({ workspaceId, roomCode }: UseTcDataArgs) {
   const [activeFilters, setActiveFilters] = useState<ActiveFilters>({ ...EMPTY_FILTERS });
   const [selectedSuiteId, setSelectedSuiteId] = useState("");
   const [selectedCaseId, setSelectedCaseId] = useState("");
+  const [projects, setProjects] = useState<Project[]>([]);
+  /** `all`, `none` (cases without a project) or a project id. */
+  const [projectId, setProjectId] = useState("all");
 
-  const latest = useRef({ query, field, activeFilters, suites, selectedSuiteId, selectedCaseId });
-  latest.current = { query, field, activeFilters, suites, selectedSuiteId, selectedCaseId };
+  const latest = useRef({ query, field, activeFilters, suites, selectedSuiteId, selectedCaseId, projectId });
+  latest.current = { query, field, activeFilters, suites, selectedSuiteId, selectedCaseId, projectId };
 
   const loadData = useCallback(
     async (q?: string, searchField?: string, keepState = false, filtersOverride?: ActiveFilters) => {
@@ -52,7 +56,8 @@ export function useTcData({ workspaceId, roomCode }: UseTcDataArgs) {
           assign_dev: filters.assign_dev?.length > 0 ? filters.assign_dev.join(",") : undefined,
         };
 
-        const suiteResp = await api.data.testSuites.list(workspaceId);
+        const project = cur.projectId;
+        const suiteResp = await api.data.testSuites.list(workspaceId, project);
         if (!suiteResp.ok) return;
         const suiteData = await suiteResp.json();
 
@@ -67,6 +72,7 @@ export function useTcData({ workspaceId, roomCode }: UseTcDataArgs) {
             const page = keepState ? prevPages.get(s.id) || 1 : 1;
             return api.data.testCases.list(workspaceId, {
               suite_id: s.id === "unassigned" ? "none" : s.id,
+              project_id: project === "all" ? undefined : project,
               page,
               limit: PAGE_SIZE,
               ...Object.fromEntries(Object.entries(filterParams).filter(([, v]) => v !== undefined)),
@@ -112,6 +118,39 @@ export function useTcData({ workspaceId, roomCode }: UseTcDataArgs) {
   const loadDataRef = useRef(loadData);
   loadDataRef.current = loadData;
 
+  const projectKey = `tc-project:${workspaceId}`;
+  useEffect(() => {
+    if (!workspaceId) return;
+    const saved = localStorage.getItem(projectKey) || "all";
+    // Read by loadData through the ref in the same commit, before the first fetch.
+    latest.current.projectId = saved;
+    setProjectId(saved);
+    let cancelled = false;
+    void getProjectsList().then((list) => {
+      if (cancelled) return;
+      setProjects(list);
+      // A saved project that no longer exists falls back to every project.
+      if (saved !== "all" && saved !== "none" && !list.some((p) => String(p.id) === saved)) {
+        latest.current.projectId = "all";
+        setProjectId("all");
+        void loadDataRef.current();
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [workspaceId, projectKey]);
+
+  const changeProject = useCallback(
+    (next: string) => {
+      latest.current.projectId = next;
+      setProjectId(next);
+      localStorage.setItem(projectKey, next);
+      void loadDataRef.current();
+    },
+    [projectKey],
+  );
+
   useEffect(() => {
     let cancelled = false;
     void getAssignees(true).then((list) => {
@@ -152,6 +191,7 @@ export function useTcData({ workspaceId, roomCode }: UseTcDataArgs) {
       try {
         const resp = await api.data.testCases.list(workspaceId, {
           suite_id: suiteId === "unassigned" ? "none" : suiteId,
+          project_id: latest.current.projectId === "all" ? undefined : latest.current.projectId,
           page,
           limit: PAGE_SIZE,
         });
@@ -175,7 +215,9 @@ export function useTcData({ workspaceId, roomCode }: UseTcDataArgs) {
     setSuites((prev) =>
       prev.map((s) => ({
         ...s,
-        cases: s.cases.map((c) => (c.id === caseId ? { ...c, ...patch } : c)),
+        cases: s.cases.map((c) =>
+          c.id === caseId ? { ...c, ...patch, updated_at: new Date().toISOString() } : c,
+        ),
       })),
     );
   }, []);
@@ -241,6 +283,9 @@ export function useTcData({ workspaceId, roomCode }: UseTcDataArgs) {
     suites,
     setSuites,
     assignees,
+    projects,
+    projectId,
+    changeProject,
     query,
     setQuery,
     field,

@@ -7,6 +7,7 @@ import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { fixedOptions, statusOptions } from "./tc-options";
 import { TcPriorityMenu } from "./tc-priority-menu";
+import { TcHistoryButton } from "./tc-history";
 import type { AssigneeOption, TestCase } from "./tc-types";
 
 type TcCaseRowProps = {
@@ -114,6 +115,7 @@ export function TcCaseRow({
           className="w-fit min-w-36 max-w-56"
           onSelect={(v) => onUpdateAssignDev(String(v))}
         />
+        <TcHistoryButton testCaseId={testCase.id} updatedAt={testCase.updated_at} passedAt={testCase.passed_at} />
       </div>
 
       <div className="col-start-3 row-start-1 flex items-center gap-1 @xl:col-start-4 @4xl:col-start-5">

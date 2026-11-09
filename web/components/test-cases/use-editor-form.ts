@@ -8,28 +8,32 @@ import { Folder } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api/apis";
 import { useAuth } from "@/lib/auth/auth-provider";
-import { getAssignees } from "@/lib/db";
+import { useI18n } from "@/lib/i18n";
+import { getAssignees, getProjectsList } from "@/lib/db";
 import { connectRealtime } from "@/lib/stores/realtime";
 import { broadcastTestCaseAssignment } from "@/lib/stores/testCaseNotifications";
-import type { Assignee } from "@/lib/types";
+import type { Assignee, Project } from "@/lib/types";
 import { createInitialForm, DEFAULT_GHERKIN_STEPS, type EditorForm, type EditorOption } from "./editor-options";
 import { useEditorAttachments } from "./use-editor-attachments";
 
-function suiteOption(value: string, label: string): EditorOption {
-  return { value, label, icon: Folder, iconClass: "text-gray-400" };
+function suiteOption(value: string, label: string, project_id = ""): EditorOption {
+  return { value, label, project_id, icon: Folder, iconClass: "text-muted-foreground" };
 }
 
 export function useEditorForm(workspaceId: string | undefined) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
+  const { t } = useI18n();
   const caseId = searchParams.get("case") || "";
   const isEditing = !!caseId;
   const suiteParam = searchParams.get("suite") || "";
+  const projectParam = searchParams.get("project") || "";
 
   const [form, setForm] = useState<EditorForm>(() => ({ ...createInitialForm(suiteParam), testNo: caseId }));
   const [savedAssign, setSavedAssign] = useState({ dev: "unassigned", tester: "unassigned" });
-  const [suiteOptions, setSuiteOptions] = useState<EditorOption[]>([]);
+  const [allSuiteOptions, setAllSuiteOptions] = useState<EditorOption[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [workspaceAssignees, setWorkspaceAssignees] = useState<Assignee[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const attachmentState = useEditorAttachments();
@@ -41,9 +45,29 @@ export function useEditorForm(workspaceId: string | undefined) {
     [],
   );
 
+  // With projects, a case can only sit in a suite of its own project; without any, every suite is offered.
+  const suiteOptions = useMemo(
+    () =>
+      projects.length > 0
+        ? allSuiteOptions.filter((option) => (option.project_id || "") === form.projectId)
+        : allSuiteOptions,
+    [allSuiteOptions, projects.length, form.projectId],
+  );
+
+  /** Switching project leaves the suite alone only when it belongs to the new project. */
+  const setProject = useCallback(
+    (projectId: string) =>
+      setForm((f) => {
+        const inProject = allSuiteOptions.filter((o) => (o.project_id || "") === projectId);
+        const keep = inProject.some((o) => o.value === f.suiteId);
+        return { ...f, projectId, suiteId: keep ? f.suiteId : (inProject[0]?.value ?? "") };
+      }),
+    [allSuiteOptions],
+  );
+
   const assigneeOptions = useMemo<EditorOption[]>(
     () => [
-      { value: "unassigned", label: "Unassigned", user_id: undefined, avatarColor: "#64748b" },
+      { value: "unassigned", label: t("tcEditor__unassigned"), user_id: undefined, avatarColor: "#64748b" },
       ...workspaceAssignees.map((a) => ({
         value: String(a.id || ""),
         label: a.name,
@@ -52,7 +76,7 @@ export function useEditorForm(workspaceId: string | undefined) {
         avatarColor: a.color,
       })),
     ],
-    [workspaceAssignees],
+    [workspaceAssignees, t],
   );
 
   const availableAssigneeOptions = useMemo(
@@ -61,8 +85,8 @@ export function useEditorForm(workspaceId: string | undefined) {
         ? assigneeOptions
         : assigneeOptions
             .filter((o) => o.value === "unassigned" || String(o.user_id) === String(user?.id))
-            .map((o) => (String(o.user_id) === String(user?.id) ? { ...o, label: "me" } : o)),
-    [isAuthorized, assigneeOptions, user?.id],
+            .map((o) => (String(o.user_id) === String(user?.id) ? { ...o, label: t("tcEditor__me") } : o)),
+    [isAuthorized, assigneeOptions, user?.id, t],
   );
 
   useEffect(() => {
@@ -78,14 +102,25 @@ export function useEditorForm(workspaceId: string | undefined) {
         setWorkspaceAssignees(assignees);
 
         if (workspaceId) {
-          const suiteResp = await api.data.testSuites.list(workspaceId);
+          const [suiteResp, projectList] = await Promise.all([
+            api.data.testSuites.list(workspaceId),
+            getProjectsList(),
+          ]);
+          if (cancelled) return;
+          setProjects(projectList);
           if (suiteResp.ok) {
             const suites = await suiteResp.json();
-            const options = suites.map((s: any) => suiteOption(s.id || s._id, s.title));
+            const options: EditorOption[] = suites
+              .filter((s: any) => (s.id || s._id) !== "unassigned")
+              .map((s: any) => suiteOption(s.id || s._id, s.title, s.project_id || ""));
             if (cancelled) return;
-            setSuiteOptions(options);
-            if (options.length > 0 && options[0].value) {
-              setForm((f) => (f.suiteId ? f : { ...f, suiteId: options[0].value }));
+            setAllSuiteOptions(options);
+            if (!isEditing) {
+              // New case: start in the requested suite (or project) and take that suite's project.
+              const requested = options.find((o) => o.value === suiteParam);
+              const projectId = requested ? requested.project_id || "" : projectParam;
+              const first = requested ?? options.find((o) => (o.project_id || "") === projectId);
+              setForm((f) => ({ ...f, projectId, suiteId: first?.value ?? "" }));
             }
           }
         }
@@ -110,6 +145,7 @@ export function useEditorForm(workspaceId: string | undefined) {
               ...f,
               name: tc.name || "",
               suiteId: tc.suite_id || "",
+              projectId: tc.project_id || "",
               description: tc.description || "",
               preconditions: tc.preconditions || "",
               postconditions: tc.postconditions || "",
@@ -164,38 +200,38 @@ export function useEditorForm(workspaceId: string | undefined) {
       const resp = await api.data.testCases.convertToTask(caseId);
       if (resp.ok) {
         const data = await resp.json();
-        toast.success("Task created successfully");
+        toast.success(t("tcEditor__task_created"));
         router.push(taskPath(workspaceId!, data.task_id));
       } else {
         const error = await resp.text();
-        toast.error(`Failed to create task: ${error}`);
+        toast.error(`${t("tcEditor__task_create_failed")}: ${error}`);
       }
     } catch {
-      toast.error("An error occurred");
+      toast.error(t("tcEditor__error"));
     }
-  }, [caseId, router, workspaceId]);
+  }, [caseId, router, workspaceId, t]);
 
   const createSuite = useCallback(
     async (title: string): Promise<boolean> => {
       if (!title.trim() || !workspaceId) return false;
       try {
-        const resp = await api.data.testSuites.create(workspaceId, { title });
+        const resp = await api.data.testSuites.create(workspaceId, { title, project_id: form.projectId });
         if (resp.ok) {
           const newSuite = await resp.json();
           const newId = newSuite.id || newSuite._id;
-          setSuiteOptions((prev) => [...prev, suiteOption(newId, newSuite.title)]);
+          setAllSuiteOptions((prev) => [...prev, suiteOption(newId, newSuite.title, form.projectId)]);
           setField("suiteId", newId);
-          toast.success("Suite created successfully");
+          toast.success(t("tcEditor__suite_created"));
           return true;
         }
-        toast.error("Failed to create suite");
+        toast.error(t("tcEditor__suite_create_failed"));
       } catch (e) {
         console.error("Create suite error:", e);
-        toast.error("An unexpected error occurred");
+        toast.error(t("tcEditor__unexpected_error"));
       }
       return false;
     },
-    [workspaceId, setField],
+    [workspaceId, form.projectId, setField, t],
   );
 
   const submit = useCallback(async () => {
@@ -205,6 +241,7 @@ export function useEditorForm(workspaceId: string | undefined) {
     try {
       const payload = {
         suite_id: form.suiteId && form.suiteId !== "undefined" ? String(form.suiteId) : null,
+        project_id: form.projectId,
         name: form.name.trim(),
         description: form.description,
         preconditions: form.preconditions,
@@ -251,15 +288,15 @@ export function useEditorForm(workspaceId: string | undefined) {
           await api.data.testCases.uploadAttachment(workspaceId, testCaseId, formData);
         }
 
-        toast.success(isEditing ? "Test case updated successfully" : "Test case created successfully");
+        toast.success(isEditing ? t("tcEditor__updated") : t("tcEditor__created"));
         backToRepository();
       } else {
         const error = await resp.json();
-        toast.error(error.error || `Failed to ${isEditing ? "update" : "create"} test case`);
+        toast.error(error.error || (isEditing ? t("tcEditor__update_failed") : t("tcEditor__create_failed")));
       }
     } catch (e) {
       console.error("Save error:", e);
-      toast.error("An unexpected error occurred");
+      toast.error(t("tcEditor__unexpected_error"));
     } finally {
       setIsSaving(false);
     }
@@ -272,6 +309,7 @@ export function useEditorForm(workspaceId: string | undefined) {
     savedAssign,
     attachmentState.attachments,
     backToRepository,
+    t,
   ]);
 
   return {
@@ -282,6 +320,8 @@ export function useEditorForm(workspaceId: string | undefined) {
     isAuthorized,
     isSaving,
     suiteOptions,
+    projects,
+    setProject,
     assigneeOptions,
     availableAssigneeOptions,
     ...attachmentState,

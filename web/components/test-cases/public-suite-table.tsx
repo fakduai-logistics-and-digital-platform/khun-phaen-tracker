@@ -15,6 +15,7 @@ import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
+import { formatDateTime, TcTimes } from "./tc-times";
 import { fixedLabel, priorityLabel, priorityVariant, resultVariant, statusLabel } from "./public-labels";
 import type { PublicSuite } from "./public-model";
 
@@ -49,7 +50,7 @@ type PublicSuiteTableProps = {
 };
 
 export function PublicSuiteTable({ suite, view, hasRun, runCaseMap, onToggle }: PublicSuiteTableProps) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
 
   return (
     <Card className="gap-0 overflow-hidden py-0">
@@ -94,6 +95,7 @@ export function PublicSuiteTable({ suite, view, hasRun, runCaseMap, onToggle }: 
                     <span className="text-sm text-muted-foreground">{tc.assign_dev}</span>
                   )}
                 </div>
+                <TcTimes updatedAt={tc.updated_at} passedAt={tc.passed_at} />
               </li>
             );
           })}
@@ -115,6 +117,8 @@ export function PublicSuiteTable({ suite, view, hasRun, runCaseMap, onToggle }: 
               <TableHead className={cn(CELL, "w-32")}>{t("tcpub__col_fixed")}</TableHead>
               {hasRun && <TableHead className={cn(CELL, "w-32")}>{t("tcpub__col_run_result")}</TableHead>}
               <TableHead className={cn(CELL, "min-w-40")}>{t("tcpub__col_developer")}</TableHead>
+              <TableHead className={cn(CELL, "w-44")}>{t("tcTime__col_edited")}</TableHead>
+              <TableHead className={cn(CELL, "w-44")}>{t("tcTime__col_passed")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -151,12 +155,24 @@ export function PublicSuiteTable({ suite, view, hasRun, runCaseMap, onToggle }: 
                   <TableCell className={cn(CELL, "text-muted-foreground")}>
                     {tc.assign_dev === "unassigned" ? "—" : tc.assign_dev}
                   </TableCell>
+                  <TableCell className={cn(CELL, "text-xs text-muted-foreground tabular-nums")}>
+                    {formatDateTime(tc.updated_at, locale) || "—"}
+                  </TableCell>
+                  <TableCell
+                    className={cn(
+                      CELL,
+                      "text-xs tabular-nums",
+                      tc.passed_at ? "text-success" : "text-muted-foreground",
+                    )}
+                  >
+                    {formatDateTime(tc.passed_at, locale) || "—"}
+                  </TableCell>
                 </TableRow>
               );
             })}
             {suite.cases.length === 0 && (
               <TableRow>
-                <TableCell colSpan={hasRun ? 8 : 7} className={cn(CELL, "py-6 text-center text-muted-foreground")}>
+                <TableCell colSpan={hasRun ? 10 : 9} className={cn(CELL, "py-6 text-center text-muted-foreground")}>
                   {t("tcpub__no_cases_in_suite")}
                 </TableCell>
               </TableRow>

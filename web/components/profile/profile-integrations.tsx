@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Link2, Timer, Unlink } from "lucide-react";
+import { Link2, Unlink } from "lucide-react";
+import { WorkzyLogo } from "@/components/workzy/workzy-logo";
 import { WORKZY_CHANGED } from "@/components/workzy/use-workzy-time";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -96,7 +97,7 @@ export function ProfileIntegrations() {
         <Card className="gap-4 shadow-none">
           <CardHeader>
             <div className="flex size-10 items-center justify-center rounded-lg bg-muted">
-              <Timer />
+              <WorkzyLogo />
             </div>
             <CardAction>
               <Button

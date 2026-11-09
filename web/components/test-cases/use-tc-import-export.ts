@@ -1,21 +1,31 @@
 "use client";
 
-import { useCallback, useState, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useState } from "react";
 import { api } from "@/lib/api/apis";
 import { useI18n } from "@/lib/i18n";
+import type { Project } from "@/lib/types";
 import { downloadCsv, EXPORT_HEADERS, parseCSV, stepsToText, toCsv } from "./tc-csv";
 import { notify } from "./tc-notify";
 import { mapBackendToFrontend, type ImportProgress, type ImportSummary, type Suite, type TestCase } from "./tc-types";
 
 type UseTcImportExportArgs = {
   workspaceId: string;
+  projects: Project[];
+  /** `all`, `none` or a project id: what the repository currently shows. */
+  projectId: string;
   suites: Suite[];
-  setSuites: Dispatch<SetStateAction<Suite[]>>;
   selectedSuiteId: string;
   reload: () => Promise<void>;
 };
 
-export function useTcImportExport({ workspaceId, suites, setSuites, selectedSuiteId, reload }: UseTcImportExportArgs) {
+export function useTcImportExport({
+  workspaceId,
+  projects,
+  projectId,
+  suites,
+  selectedSuiteId,
+  reload,
+}: UseTcImportExportArgs) {
   const { t } = useI18n();
   const [showImportModal, setShowImportModal] = useState(false);
   const [importProgress, setImportProgress] = useState<ImportProgress>({
@@ -47,7 +57,10 @@ export function useTcImportExport({ workspaceId, suites, setSuites, selectedSuit
         });
       }
 
-      const casesResp = await api.data.testCases.all(workspaceId);
+      // Only what is on screen: a selected project exports just that project's cases.
+      const casesResp = await api.data.testCases.all(workspaceId, {
+        project_id: projectId === "all" ? undefined : projectId,
+      });
       if (!casesResp.ok) {
         notify("Failed to fetch test cases for export", "error");
         return;
@@ -61,10 +74,12 @@ export function useTcImportExport({ workspaceId, suites, setSuites, selectedSuit
 
       const nameOf = (id: string) => userNameMap.get(id) || (id === "unassigned" ? unassignedLabel() : id);
 
+      const projectNames = new Map(projects.map((p) => [String(p.id), p.name]));
       const rows = allCases.map((c) => {
         const testerId = c.assignee || "unassigned";
         const devId = c.assign_dev || "unassigned";
         return [
+          String(projectNames.get(c.project_id || "") || ""),
           String(suiteMap.get(c.suite_id) || "Unassigned"),
           String(c.test_no),
           String(c.title || ""),
@@ -87,7 +102,7 @@ export function useTcImportExport({ workspaceId, suites, setSuites, selectedSuit
       console.error("Export error:", e);
       notify("Failed to export test cases", "error");
     }
-  }, [t, workspaceId]);
+  }, [projectId, projects, t, workspaceId]);
 
   const importFile = useCallback(
     async (file: File) => {
@@ -105,10 +120,20 @@ export function useTcImportExport({ workspaceId, suites, setSuites, selectedSuit
       });
 
       const casesToCreate: Record<string, any>[] = [];
+      // Suites are matched by title inside their own project, so the same title may exist in several projects.
+      const suiteKey = (project: string, title: string) => `${project}\u0000${title.toLowerCase().trim()}`;
       const suiteMap = new Map<string, string>();
-      suites.forEach((s) => {
-        if (s.id !== "unassigned") suiteMap.set(s.title.toLowerCase().trim(), s.id);
-      });
+      if (workspaceId) {
+        const resp = await api.data.testSuites.list(workspaceId);
+        if (resp.ok) {
+          for (const s of await resp.json()) {
+            const id = s.id || s._id;
+            if (id !== "unassigned") suiteMap.set(suiteKey(s.project_id || "", String(s.title || "")), id);
+          }
+        }
+      }
+      const baseProject = projectId === "all" || projectId === "none" ? "" : projectId;
+      const selectedProject = suites.find((s) => s.id === selectedSuiteId)?.project_id || "";
 
       const skipped: ImportSummary["skipped"] = [];
 
@@ -128,23 +153,38 @@ export function useTcImportExport({ workspaceId, suites, setSuites, selectedSuit
           continue;
         }
 
-        let suiteId: string | null = selectedSuiteId === "unassigned" ? null : selectedSuiteId;
+        // A "Project" column picks the project by name; without it rows go to the project on screen.
+        let rowProject = baseProject;
+        const projectName = row["project"];
+        if (projectName) {
+          const found = projects.find((p) => p.name.toLowerCase().trim() === projectName.toLowerCase().trim());
+          if (!found) {
+            skipped.push({ row: i + 1, reason: `Unknown project "${projectName}".` });
+            continue;
+          }
+          rowProject = String(found.id);
+        }
+
+        let suiteId: string | null =
+          selectedSuiteId !== "unassigned" && selectedProject === rowProject ? selectedSuiteId : null;
         const suiteName = row["suite"] || row["collection"] || row["test suite"] || row["suit"];
 
-        if (suiteName && suiteName.trim()) {
-          const normalizedName = suiteName.trim().toLowerCase();
-          if (suiteMap.has(normalizedName)) {
-            suiteId = suiteMap.get(normalizedName) || null;
+        if (suiteName && suiteName.trim() && suiteName.trim().toLowerCase() !== "unassigned") {
+          const key = suiteKey(rowProject, suiteName);
+          if (suiteMap.has(key)) {
+            suiteId = suiteMap.get(key) || null;
           } else {
             try {
               if (workspaceId) {
-                const sResp = await api.data.testSuites.create(workspaceId, { title: suiteName.trim() });
+                const sResp = await api.data.testSuites.create(workspaceId, {
+                  title: suiteName.trim(),
+                  project_id: rowProject,
+                });
                 if (sResp.ok) {
                   const newS = await sResp.json();
                   const newSId = newS.id || newS._id;
-                  suiteMap.set(normalizedName, newSId);
+                  suiteMap.set(key, newSId);
                   suiteId = newSId;
-                  setSuites((prev) => [...prev, { ...newS, id: newSId, cases: [], page: 1, hasMore: false }]);
                 }
               }
             } catch (err) {
@@ -176,6 +216,7 @@ export function useTcImportExport({ workspaceId, suites, setSuites, selectedSuit
           step_format: "classic",
           classic_steps: classicSteps.length > 0 ? classicSteps : undefined,
           suite_id: suiteId,
+          project_id: rowProject,
         });
       }
 
@@ -221,7 +262,7 @@ export function useTcImportExport({ workspaceId, suites, setSuites, selectedSuit
       setShowImportModal(false);
       setImportSummary({ success: successCount, failed: failedCount, failedNames, skipped });
     },
-    [reload, selectedSuiteId, setSuites, suites, workspaceId],
+    [projectId, projects, reload, selectedSuiteId, suites, workspaceId],
   );
 
   const closeImportSummary = useCallback(() => setImportSummary(null), []);

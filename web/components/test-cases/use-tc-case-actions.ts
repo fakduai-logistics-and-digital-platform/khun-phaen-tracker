@@ -5,6 +5,7 @@ import { api } from "@/lib/api/apis";
 import { useI18n } from "@/lib/i18n";
 import { broadcastTestCaseAssignment } from "@/lib/stores/testCaseNotifications";
 import { notify } from "./tc-notify";
+import { formatDateTime } from "./tc-times";
 import {
   mapBackendToFrontend,
   type AssigneeRecord,
@@ -16,6 +17,8 @@ import {
 type UseTcCaseActionsArgs = {
   workspaceId: string;
   assignees: AssigneeRecord[];
+  /** Project on screen (`all`, `none` or an id). */
+  projectId: string;
   setSuites: Dispatch<SetStateAction<Suite[]>>;
   patchTestCase: (caseId: string, patch: Partial<TestCase>) => void;
   selectedCaseId: string;
@@ -28,6 +31,7 @@ type UseTcCaseActionsArgs = {
 export function useTcCaseActions({
   workspaceId,
   assignees,
+  projectId,
   setSuites,
   patchTestCase,
   selectedCaseId,
@@ -36,25 +40,69 @@ export function useTcCaseActions({
   setShowDetail,
   openTaskDetail,
 }: UseTcCaseActionsArgs) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const [failTarget, setFailTarget] = useState<TestCase | null>(null);
+  const [failNote, setFailNote] = useState("");
+  const [savingFail, setSavingFail] = useState(false);
   const [updatingPriorityIds, setUpdatingPriorityIds] = useState<Set<string>>(new Set());
   const [caseToDeleteId, setCaseToDeleteId] = useState("");
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
-  const updateStatus = useCallback(
+  const applyStatus = useCallback(
     async (testCase: TestCase, newStatus: string) => {
       try {
         const resp = await api.data.testCases.updateStatus(testCase.id, newStatus);
         if (resp.ok) {
-          patchTestCase(testCase.id, { status: newStatus as TestCase["status"] });
+          patchTestCase(testCase.id, {
+            status: newStatus as TestCase["status"],
+            passed_at: newStatus === "passed" ? new Date().toISOString() : null,
+          });
           notify("Status updated", "success");
+          return true;
         }
       } catch {
         notify("Failed to update status", "error");
       }
+      return false;
     },
     [patchTestCase],
   );
+
+  /** "Failed" first asks the tester for a note, prefilled with the current date and time. */
+  const updateStatus = useCallback(
+    async (testCase: TestCase, newStatus: string) => {
+      if (newStatus === "failed" && testCase.status !== "failed") {
+        setFailNote(t("tcFail__template", { when: formatDateTime(new Date().toISOString(), locale) }));
+        setFailTarget(testCase);
+        return;
+      }
+      await applyStatus(testCase, newStatus);
+    },
+    [applyStatus, locale, t],
+  );
+
+  const cancelFail = useCallback(() => setFailTarget(null), []);
+
+  const confirmFail = useCallback(async () => {
+    if (!failTarget) return;
+    setSavingFail(true);
+    try {
+      if (!(await applyStatus(failTarget, "failed"))) return;
+      const note = failNote.trim();
+      if (note) {
+        const testNote = failTarget.test_note ? `${failTarget.test_note}\n\n${note}` : note;
+        const resp = await api.data.testCases.updateNotes(failTarget.id, {
+          dev_note: failTarget.dev_note || "",
+          test_note: testNote,
+        });
+        if (resp.ok) patchTestCase(failTarget.id, { test_note: testNote });
+        else notify("Failed to update notes", "error");
+      }
+      setFailTarget(null);
+    } finally {
+      setSavingFail(false);
+    }
+  }, [applyStatus, failNote, failTarget, patchTestCase]);
 
   const updateFixed = useCallback(
     async (testCase: TestCase, newFixed: string) => {
@@ -227,6 +275,8 @@ export function useTcCaseActions({
 
       const payload = {
         suite_id: suiteId === "unassigned" ? null : suiteId,
+        // Without a suite the case follows the project on screen.
+        project_id: suiteId === "unassigned" && projectId !== "all" && projectId !== "none" ? projectId : undefined,
         name: title.trim(),
         description: "",
         preconditions: "",
@@ -276,12 +326,18 @@ export function useTcCaseActions({
         notify(t("page__error"), "error");
       }
     },
-    [setSelectedCaseId, setSelectedSuiteId, setShowDetail, setSuites, t, workspaceId],
+    [projectId, setSelectedCaseId, setSelectedSuiteId, setShowDetail, setSuites, t, workspaceId],
   );
 
   return {
     updatingPriorityIds,
     showDeleteModal,
+    failTarget,
+    failNote,
+    setFailNote,
+    savingFail,
+    cancelFail,
+    confirmFail,
     updateStatus,
     updateFixed,
     updatePriority,

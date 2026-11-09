@@ -21,6 +21,13 @@ impl Workspace {
             "short_name":self.short_name,"color":self.color,"icon":self.icon,"created_at":self.created_at})
     }
 }
+impl Workspace {
+    /// The owner, or an admin who has access to this workspace, may change its settings and linked members.
+    /// Admins still only reach workspaces they belong to; `access` decides that.
+    pub fn managed_by(&self, user: &User) -> bool {
+        self.owner_id == user.id || user.role == "admin"
+    }
+}
 pub async fn access(env: &Env, user: &User, id: &str) -> Result<Option<Workspace>> {
     db::first(&env.d1("DB")?,"SELECT w.* FROM workspaces w WHERE (w.id=? OR w.room_code=?) AND (w.owner_id=? OR EXISTS(SELECT 1 FROM workspace_members m WHERE m.workspace_id=w.id AND m.user_id=?) OR EXISTS(SELECT 1 FROM documents d WHERE d.workspace_id=w.id AND d.kind='assignees' AND json_extract(d.payload,'$.user_id')=?))",&[id.into(),id.into(),user.id.clone().into(),user.id.clone().into(),user.id.clone().into()]).await
 }
@@ -85,8 +92,8 @@ pub async fn handle(req: &mut Request, env: &Env, user: &User, parts: &[&str]) -
     if parts.get(3) == Some(&"daily-report") && method == Method::Get {
         return crate::statistics::daily(env, &w.id).await;
     }
-    if w.owner_id != user.id {
-        return http::error(403, "Workspace owner required");
+    if !w.managed_by(user) {
+        return http::error(403, "Workspace owner or admin required");
     }
     if parts.len() == 3 && method == Method::Delete {
         db.batch(vec![db::statement(&db,"INSERT OR IGNORE INTO storage_delete_jobs(file_key) SELECT file_key FROM stored_objects WHERE workspace_id=?",&[w.id.clone().into()])?,db::statement(&db,"DELETE FROM workspaces WHERE id=? AND owner_id=?",&[w.id.into(),user.id.clone().into()])?]).await?;
@@ -100,14 +107,13 @@ pub async fn handle(req: &mut Request, env: &Env, user: &User, parts: &[&str]) -
         }
         db::run(
             &db,
-            "UPDATE workspaces SET name=?,short_name=?,color=?,icon=? WHERE id=? AND owner_id=?",
+            "UPDATE workspaces SET name=?,short_name=?,color=?,icon=? WHERE id=?",
             &[
                 name.into(),
                 body["short_name"].as_str().map(str::to_owned).into(),
                 body["color"].as_str().map(str::to_owned).into(),
                 body["icon"].as_str().map(str::to_owned).into(),
                 w.id.into(),
-                user.id.clone().into(),
             ],
         )
         .await?;

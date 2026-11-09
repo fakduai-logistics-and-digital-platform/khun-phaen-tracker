@@ -1,4 +1,4 @@
-use crate::{auth::User, db, documents, http, realtime, records, workspaces};
+use crate::{auth::User, db, documents, http, qa_history, realtime, records, workspaces};
 use serde_json::{json, Value};
 use worker::*;
 pub fn stats(cases: &Value) -> Value {
@@ -165,18 +165,31 @@ pub async fn handle(req: &mut Request, env: &Env, user: &User, parts: &[&str]) -
         {
             return http::error(404, "Case not in this test run");
         }
-        if documents::get(env, ws, "test-cases", tc).await?.is_none() {
+        let Some(case) = documents::get(env, ws, "test-cases", tc).await? else {
             return http::error(404, "Test case not found");
-        }
+        };
         // Resolve the array position inside SQL so simultaneous case updates do not replace each other.
         writes.push(db::statement(&db,"UPDATE documents SET payload=json_set(payload,'$.test_cases['||(SELECT key FROM json_each(json_extract(payload,'$.test_cases')) WHERE json_extract(value,'$.test_case_id')=? LIMIT 1)||'].status',?,'$.updated_at',?),updated_at=? WHERE id=? AND workspace_id=? AND kind='test-runs'",&[tc.into(),status.into(),db::timestamp().into(),db::timestamp().into(),id.into(),ws.into()])?);
         if ["passed", "failed"].contains(&status) {
+            if http::text(&case, "status") != status {
+                writes.push(qa_history::entry_statement(
+                    &db,
+                    ws,
+                    tc,
+                    user,
+                    "run",
+                    vec![json!({"field":"status","from":http::text(&case,"status"),"to":status})],
+                )?);
+            }
             writes.push(records::patch_statement(
                 &db,
                 ws,
                 "test-cases",
                 tc,
-                &json!({"status":status,"updated_at":db::timestamp()}),
+                &{
+                    let now = db::timestamp();
+                    json!({"status":status,"updated_at":now,"status_changed_at":now,"passed_at":if status=="passed"{json!(now)}else{Value::Null}})
+                },
             )?);
         }
     } else {

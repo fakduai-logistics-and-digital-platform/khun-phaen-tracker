@@ -2,6 +2,21 @@ use crate::{db, documents::Document, http, records};
 use serde_json::{json, Value};
 use wasm_bindgen::JsValue;
 use worker::*;
+const NO_PROJECT: &str = "NOT EXISTS(SELECT 1 FROM documents p WHERE p.id=json_extract(d.payload,'$.project_id') AND p.kind='projects' AND p.workspace_id=d.workspace_id)";
+/// `project_id` query value, or `None` for "all projects".
+pub fn project_param(q: &std::collections::HashMap<String, String>) -> Option<String> {
+    q.get("project_id")
+        .filter(|v| !v.is_empty() && v.as_str() != "all")
+        .cloned()
+}
+fn project_clause(filter: &mut String, args: &mut Vec<JsValue>, project: &str) {
+    if project == "none" || project == "unassigned" {
+        filter.push_str(&format!(" AND {NO_PROJECT}"));
+    } else {
+        filter.push_str(" AND json_extract(d.payload,'$.project_id')=?");
+        args.push(project.into());
+    }
+}
 pub async fn list(req: &Request, env: &Env, workspace: &str, all: bool) -> Result<Response> {
     let q = records::query(req)?;
     let (page, limit) = records::page(&q, 10, 1000);
@@ -17,6 +32,9 @@ pub async fn list(req: &Request, env: &Env, workspace: &str, all: bool) -> Resul
             filter.push_str(" AND json_extract(d.payload,'$.suite_id')=?");
             args.push(v.clone().into());
         }
+    }
+    if let Some(project) = project_param(&q) {
+        project_clause(&mut filter, &mut args, &project);
     }
     for field in ["priority", "status", "fixed", "assign_dev"] {
         if let Some(v) = q
@@ -89,17 +107,37 @@ pub async fn list(req: &Request, env: &Env, workspace: &str, all: bool) -> Resul
         .collect::<std::result::Result<Vec<_>, _>>()?;
     http::ok(json!(values))
 }
-pub async fn counts(env: &Env, workspace: &str) -> Result<Value> {
-    let rows:Vec<Value>=db::all(&env.d1("DB")?,"SELECT COALESCE(json_extract(payload,'$.suite_id'),'') suite,COUNT(*) count FROM documents WHERE workspace_id=? AND kind='test-cases' GROUP BY suite",&[workspace.into()]).await?;
+pub async fn counts(env: &Env, workspace: &str, project: Option<&str>) -> Result<Value> {
+    let mut filter = "d.workspace_id=? AND d.kind='test-cases'".to_owned();
+    let mut args: Vec<JsValue> = vec![workspace.into()];
+    if let Some(project) = project {
+        project_clause(&mut filter, &mut args, project);
+    }
+    let rows:Vec<Value>=db::all(&env.d1("DB")?,&format!("SELECT COALESCE(json_extract(d.payload,'$.suite_id'),'') suite,COUNT(*) count FROM documents d WHERE {filter} GROUP BY suite"),&args).await?;
     let mut out = json!({});
     for row in rows {
         out[http::text(&row, "suite")] = row["count"].clone();
     }
     Ok(out)
 }
-pub async fn suites(env: &Env, workspace: &str) -> Result<Response> {
+pub async fn suites(env: &Env, workspace: &str, project: Option<&str>) -> Result<Response> {
     let mut suites = records::values(env, workspace, "test-suites").await?;
-    let counts = counts(env, workspace).await?;
+    if let Some(project) = project {
+        let existing: Vec<String> = records::values(env, workspace, "projects")
+            .await?
+            .iter()
+            .map(|p| http::text(p, "id").to_owned())
+            .collect();
+        suites.retain(|suite| {
+            let id = http::text(suite, "project_id");
+            if project == "none" || project == "unassigned" {
+                id.is_empty() || !existing.iter().any(|p| p == id)
+            } else {
+                id == project
+            }
+        });
+    }
+    let counts = counts(env, workspace, project).await?;
     let mut unassigned = 0;
     for (key, count) in counts.as_object().into_iter().flatten() {
         if let Some(suite) = suites.iter_mut().find(|s| http::text(s, "id") == key) {

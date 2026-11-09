@@ -1,8 +1,11 @@
-use crate::{auth::User, cascades, db, documents, http, qa_query, realtime, records, workspaces};
+use crate::{
+    auth::User, cascades, db, documents, http, qa_history, qa_query, realtime, records, workspaces,
+};
 use serde_json::{json, Value};
 use worker::*;
 const FIELDS: &[&str] = &[
     "suite_id",
+    "project_id",
     "name",
     "description",
     "preconditions",
@@ -48,10 +51,14 @@ pub async fn workspace(
     }
     if req.method() == Method::Get {
         if kind == "test-suites" {
-            return qa_query::suites(env, workspace).await;
+            let project = qa_query::project_param(&records::query(req)?);
+            return qa_query::suites(env, workspace, project.as_deref()).await;
         }
         return match item {
-            Some("counts") => http::ok(qa_query::counts(env, workspace).await?),
+            Some("counts") => {
+                let project = qa_query::project_param(&records::query(req)?);
+                http::ok(qa_query::counts(env, workspace, project.as_deref()).await?)
+            }
             Some("next-number") => http::ok(
                 json!({"next_number":records::next_number(env,workspace,"test-cases",false).await?}),
             ),
@@ -72,9 +79,9 @@ pub async fn workspace(
     }
     let input = http::body(req).await?;
     let mut value = if kind == "test-suites" {
-        records::pick(&input, &["title", "description"])
+        records::pick(&input, &["title", "description", "project_id"])
     } else {
-        let mut value = json!({"suite_id":"","status":"draft","priority":"medium","fixed":"no","assign_dev":"unassigned","assign_tester":"unassigned","step_format":"classic","classic_steps":[],"gherkin_steps":null,"attachments":[]});
+        let mut value = json!({"suite_id":"","project_id":"","status":"draft","priority":"medium","fixed":"no","assign_dev":"unassigned","assign_tester":"unassigned","step_format":"classic","classic_steps":[],"gherkin_steps":null,"attachments":[]});
         records::merge(&mut value, &records::pick(&input, FIELDS));
         value
     };
@@ -91,16 +98,37 @@ pub async fn workspace(
     {
         return http::error(400, "Title or name required");
     }
+    if kind == "test-suites" {
+        let project = normalized_project(&value);
+        if let Some(error) = check_project(env, workspace, &project).await? {
+            return http::error(400, error);
+        }
+        value["project_id"] = json!(project);
+    }
     if kind == "test-cases" {
         if let Some(error) = validate(env, workspace, &mut value).await? {
             return http::error(400, error);
         }
         value["test_no"] = json!(records::next_number(env, workspace, kind, true).await?);
+        if value["status"] == "passed" {
+            value["passed_at"] = json!(db::timestamp());
+            value["status_changed_at"] = value["passed_at"].clone();
+        }
     }
     let id = db::id();
     records::identity(&mut value, workspace, &id);
     let db = env.d1("DB")?;
     let mut writes = vec![records::insert_statement(&db, kind, &value, None)?];
+    if kind == "test-cases" {
+        writes.push(qa_history::entry_statement(
+            &db,
+            workspace,
+            &id,
+            user,
+            "create",
+            Vec::new(),
+        )?);
+    }
     let plan = crate::notifications::plan(env, user, &value, kind).await?;
     writes.extend(plan.statements);
     db.batch(writes).await?;
@@ -150,6 +178,9 @@ pub async fn resource(
         return http::error(403, "Access denied");
     }
     let mut value = row.value()?;
+    if kind == "test-cases" && action == Some("history") && req.method() == Method::Get {
+        return http::ok(json!(qa_history::list(env, ws, id).await?));
+    }
     if req.method() == Method::Get && action.is_none() {
         return http::ok(value);
     }
@@ -161,13 +192,55 @@ pub async fn resource(
             return http::error(403, "Admin or QA permissions required");
         }
         let input = http::body(req).await?;
-        let title = http::text(&input, "title").trim();
-        if title.is_empty() {
-            return http::error(400, "Suite title required");
+        let mut patch = json!({"updated_at":db::timestamp()});
+        if input.get("title").is_some() {
+            let title = http::text(&input, "title").trim().to_owned();
+            if title.is_empty() {
+                return http::error(400, "Suite title required");
+            }
+            patch["title"] = json!(title);
         }
-        let patch = json!({"title":title,"updated_at":db::timestamp()});
-        db::run(&env.d1("DB")?,"UPDATE documents SET payload=json_set(payload,'$.title',?,'$.updated_at',?),updated_at=? WHERE id=? AND workspace_id=? AND kind='test-suites'",&[title.into(),db::timestamp().into(),db::timestamp().into(),id.into(),ws.as_str().into()]).await?;
+        let moving = input.get("project_id").is_some();
+        if moving {
+            let project = normalized_project(&input);
+            if let Some(error) = check_project(env, ws, &project).await? {
+                return http::error(400, error);
+            }
+            patch["project_id"] = json!(project);
+        }
+        if patch.as_object().is_some_and(|p| p.len() == 1) {
+            return http::error(400, "Nothing to update");
+        }
+        let db = env.d1("DB")?;
+        let mut writes = vec![records::patch_statement(
+            &db,
+            ws,
+            "test-suites",
+            id,
+            &patch,
+        )?];
+        if moving {
+            let cases: Vec<records::Row> = db::all(
+                &db,
+                "SELECT * FROM documents WHERE workspace_id=? AND kind='test-cases' AND json_extract(payload,'$.suite_id')=?",
+                &[ws.as_str().into(), id.into()],
+            )
+            .await?;
+            for case in cases {
+                writes.push(records::patch_statement(
+                    &db,
+                    ws,
+                    "test-cases",
+                    &case.id,
+                    &json!({"project_id":patch["project_id"],"updated_at":patch["updated_at"]}),
+                )?);
+            }
+        }
+        db.batch(writes).await?;
         realtime::publish(env, ws, "test_suite", "update", id, patch).await;
+        if moving {
+            realtime::publish(env, ws, "test_case", "refresh", id, Value::Null).await;
+        }
         return http::ok(json!({"success":true}));
     }
     if req.method() == Method::Delete {
@@ -219,10 +292,15 @@ pub async fn resource(
             _ => return http::error(403, "Admin or QA permissions required"),
         }
     }
+    let previous_status = http::text(&value, "status").to_owned();
+    let before = value.clone();
     let mut patch = records::pick(&input, fields);
     records::merge(&mut value, &patch);
     if let Some(error) = validate(env, ws, &mut value).await? {
         return http::error(400, error);
+    }
+    if input.get("suite_id").is_some() || input.get("project_id").is_some() {
+        patch["project_id"] = value["project_id"].clone();
     }
     if input.get("step_format").is_some() {
         patch["gherkin_steps"] = value["gherkin_steps"].clone();
@@ -230,8 +308,25 @@ pub async fn resource(
     }
     patch["updated_at"] = json!(db::timestamp());
     value["updated_at"] = patch["updated_at"].clone();
+    if input.get("status").is_some() && http::text(&value, "status") != previous_status {
+        // Remember when the status changed and, for "passed", when the tester marked it.
+        patch["status_changed_at"] = patch["updated_at"].clone();
+        patch["passed_at"] = if http::text(&value, "status") == "passed" {
+            patch["updated_at"].clone()
+        } else {
+            Value::Null
+        };
+        value["status_changed_at"] = patch["status_changed_at"].clone();
+        value["passed_at"] = patch["passed_at"].clone();
+    }
     let db = env.d1("DB")?;
     let mut writes = vec![records::patch_statement(&db, ws, kind, id, &patch)?];
+    let changed = qa_history::changes(env, ws, &before, &value).await;
+    if !changed.is_empty() {
+        writes.push(qa_history::entry_statement(
+            &db, ws, id, user, "update", changed,
+        )?);
+    }
     let plan = if input.get("assign_dev").is_some() || input.get("assign_tester").is_some() {
         crate::notifications::plan(env, user, &value, kind).await?
     } else {
@@ -242,6 +337,24 @@ pub async fn resource(
     crate::notifications::deliver(env, &plan.recipients).await;
     realtime::publish(env, ws, "test_case", "update", id, value).await;
     http::ok(json!({"success":true}))
+}
+fn normalized_project(value: &Value) -> String {
+    let id = http::text(value, "project_id").trim();
+    if id == "none" || id == "unassigned" {
+        String::new()
+    } else {
+        id.to_owned()
+    }
+}
+async fn check_project(env: &Env, ws: &str, project: &str) -> Result<Option<&'static str>> {
+    if !project.is_empty()
+        && documents::get(env, ws, "projects", project)
+            .await?
+            .is_none()
+    {
+        return Ok(Some("Project does not belong to this workspace"));
+    }
+    Ok(None)
 }
 async fn validate(env: &Env, ws: &str, value: &mut Value) -> Result<Option<&'static str>> {
     for (key, allowed) in [
@@ -274,19 +387,27 @@ async fn validate(env: &Env, ws: &str, value: &mut Value) -> Result<Option<&'sta
     if http::text(value, "name").trim().is_empty() {
         return Ok(Some("Test case name required"));
     }
+    let mut project = normalized_project(value);
     if let Some(suite) = value["suite_id"]
         .as_str()
         .filter(|s| !s.is_empty() && *s != "unassigned")
     {
-        if documents::get(env, ws, "test-suites", suite)
-            .await?
-            .is_none()
-        {
+        // A case always lives in the project of its suite.
+        let Some(found) = documents::get(env, ws, "test-suites", suite).await? else {
             return Ok(Some("Suite does not belong to this workspace"));
+        };
+        project = normalized_project(&found);
+        if check_project(env, ws, &project).await?.is_some() {
+            // The suite points at a deleted project: treat the case as project-less instead of blocking saves.
+            project.clear();
         }
     } else {
         value["suite_id"] = json!("")
     }
+    if let Some(error) = check_project(env, ws, &project).await? {
+        return Ok(Some(error));
+    }
+    value["project_id"] = json!(project);
     for field in ["assign_dev", "assign_tester"] {
         if let Some(id) = value[field]
             .as_str()

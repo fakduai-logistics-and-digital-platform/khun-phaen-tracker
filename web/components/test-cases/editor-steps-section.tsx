@@ -1,7 +1,8 @@
 "use client";
 
-import { PropertySelect } from "@/components/task-detail/property-select";
-import { stepFormatOptions, type EditorForm } from "./editor-options";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useI18n } from "@/lib/i18n";
+import type { EditorForm } from "./editor-options";
 import { TestCaseStepList } from "./test-case-step-list";
 
 type EditorStepsSectionProps = {
@@ -11,20 +12,20 @@ type EditorStepsSectionProps = {
 };
 
 export function EditorStepsSection({ form, setField, isAuthorized }: EditorStepsSectionProps) {
+  const { t } = useI18n();
+
   return (
-    <section className="p-6">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <h2 className="text-base font-semibold">Test Case Steps</h2>
-          <PropertySelect
-            id="editor-step-format"
-            value={form.stepFormat}
-            options={stepFormatOptions}
-            className="w-28"
-            onSelect={(v) => setField("stepFormat", String(v) as EditorForm["stepFormat"])}
-          />
-        </div>
-      </div>
+    <div className="flex flex-col gap-4">
+      <Tabs value={form.stepFormat} onValueChange={(v) => setField("stepFormat", v as EditorForm["stepFormat"])}>
+        <TabsList className="h-8 w-fit">
+          <TabsTrigger value="classic" className="px-3 text-xs">
+            {t("tcEditor__format_classic")}
+          </TabsTrigger>
+          <TabsTrigger value="gherkin" className="px-3 text-xs">
+            Gherkin
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       {form.stepFormat === "classic" ? (
         <TestCaseStepList
@@ -45,6 +46,6 @@ export function EditorStepsSection({ form, setField, isAuthorized }: EditorSteps
           onGherkinRawChange={(raw) => setField("gherkinRaw", raw)}
         />
       )}
-    </section>
+    </div>
   );
 }

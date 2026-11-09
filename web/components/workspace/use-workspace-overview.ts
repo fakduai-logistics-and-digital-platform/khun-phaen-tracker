@@ -73,7 +73,7 @@ export function useWorkspaceOverview() {
   const [loadingTestData, setLoadingTestData] = useState(false);
   const runId = useRef(0);
 
-  const isOwner = ownerId === user?.id;
+  const isOwner = ownerId === user?.id || user?.role === "admin";
   const completionRate = stats.total > 0 ? Math.round((stats.done / stats.total) * 100) : 0;
   const tcPassRate = testCaseCounts.total > 0 ? Math.round((testCaseCounts.passed / testCaseCounts.total) * 100) : 0;
   const monthlySummary = useMemo(() => buildMonthlySummary(allTasks), [allTasks]);

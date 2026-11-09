@@ -1,5 +1,7 @@
 "use client";
 
+import type { Project } from "@/lib/types";
+import { TcProjectSelect } from "./tc-project-select";
 import { TcRunList } from "./tc-run-list";
 import { TcSuiteList } from "./tc-suite-list";
 import type { Suite, TestRun } from "./tc-types";
@@ -8,6 +10,9 @@ type TcSidebarProps = {
   width: number;
   onStartResize: (event: React.PointerEvent) => void;
   isAuthorized: boolean;
+  projects: Project[];
+  projectId: string;
+  onProjectChange: (value: string) => void;
   suites: Suite[];
   selectedSuiteId: string;
   isSuitesOpen: boolean;
@@ -31,6 +36,9 @@ export function TcSidebar({
   width,
   onStartResize,
   isAuthorized,
+  projects,
+  projectId,
+  onProjectChange,
   suites,
   selectedSuiteId,
   isSuitesOpen,
@@ -58,6 +66,11 @@ export function TcSidebar({
         onPointerDown={onStartResize}
       />
       <div className="h-full overflow-y-auto pb-4 pl-4 pr-3 pt-4">
+        {projects.length > 0 && (
+          <div className="mb-4">
+            <TcProjectSelect value={projectId} projects={projects} onChange={onProjectChange} includeAll />
+          </div>
+        )}
         <TcSuiteList
           suites={suites}
           selectedSuiteId={selectedSuiteId}

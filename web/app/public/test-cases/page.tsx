@@ -13,7 +13,10 @@ import { PublicRunBanner } from "@/components/test-cases/public-run-banner";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PublicSuiteTable, type PublicView } from "@/components/test-cases/public-suite-table";
 import { usePublicTestCases } from "@/components/test-cases/use-public-test-cases";
+import { TcProjectSelect } from "@/components/test-cases/tc-project-select";
+import { api } from "@/lib/api/apis";
 import { useI18n } from "@/lib/i18n";
+import type { Project } from "@/lib/types";
 
 const VIEW_STORAGE_KEY = "public-test-cases-view";
 
@@ -31,8 +34,35 @@ function PublicTestCases() {
     setView(value);
     localStorage.setItem(VIEW_STORAGE_KEY, value);
   }
-  const workspaceId = useSearchParams().get("ws") ?? undefined;
-  const data = usePublicTestCases(workspaceId);
+  const searchParams = useSearchParams();
+  const workspaceId = searchParams.get("ws") ?? undefined;
+  const [projectId, setProjectId] = useState(searchParams.get("project") || "all");
+  const [projects, setProjects] = useState<Project[]>([]);
+  const data = usePublicTestCases(workspaceId, projectId);
+
+  useEffect(() => {
+    if (!workspaceId) return;
+    let cancelled = false;
+    void api.public
+      .listProjects(workspaceId)
+      .then((resp) => (resp.ok ? resp.json() : []))
+      .then((list: Project[]) => {
+        if (!cancelled) setProjects(list);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [workspaceId]);
+
+  function changeProject(next: string) {
+    setProjectId(next);
+    // Keep the address shareable without going through the router (it would re-add the base path).
+    const url = new URL(window.location.href);
+    if (next === "all") url.searchParams.delete("project");
+    else url.searchParams.set("project", next);
+    window.history.replaceState(null, "", url);
+  }
   const { suites, latestRun } = data;
 
   useEffect(() => {
@@ -93,6 +123,15 @@ function PublicTestCases() {
               className="pl-9"
             />
           </div>
+          {projects.length > 0 && (
+            <TcProjectSelect
+              value={projectId}
+              projects={projects}
+              onChange={changeProject}
+              includeAll
+              className="h-9 w-48"
+            />
+          )}
           <PropertySelect
             id="public-filter-priority"
             value={data.filterPriority}

@@ -32,6 +32,6 @@ export function taskPath(workspaceId: string, taskId: string | number) {
   return build("/workspaces/task", { ws: workspaceSlug(workspaceId), id: taskId });
 }
 
-export function publicTestCasesPath(workspaceId: string) {
-  return build("/public/test-cases", { ws: workspaceId });
+export function publicTestCasesPath(workspaceId: string, projectId?: string) {
+  return build("/public/test-cases", projectId ? { ws: workspaceId, project: projectId } : { ws: workspaceId });
 }

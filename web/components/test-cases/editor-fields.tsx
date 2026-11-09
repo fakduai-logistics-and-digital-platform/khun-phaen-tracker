@@ -1,79 +1,93 @@
 "use client";
 
-import { Label } from "@/components/ui/label";
+import type { LucideIcon } from "lucide-react";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { PropertySelect as OptionSelect } from "@/components/task-detail/property-select";
+import { cn } from "@/lib/utils";
 import type { EditorOption } from "./editor-options";
 
-type Icon = React.ComponentType<{ size?: number; className?: string }>;
+type SelectChoice = { value: string; label: string; icon?: LucideIcon; iconClass?: string; avatarColor?: string };
+
+function ChoiceLabel({ choice }: { choice: SelectChoice }) {
+  return (
+    <span className="flex items-center gap-2">
+      {choice.icon ? (
+        <choice.icon className={cn("size-4", choice.iconClass)} />
+      ) : choice.avatarColor ? (
+        <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: choice.avatarColor }} />
+      ) : null}
+      <span className="truncate">{choice.label}</span>
+    </span>
+  );
+}
+
+type PropertyFieldProps = {
+  id: string;
+  label: string;
+  value: string;
+  onValueChange: (value: string) => void;
+  options: (SelectChoice | EditorOption)[];
+  disabled?: boolean;
+  placeholder?: string;
+  action?: React.ReactNode;
+};
+
+/** Labelled shadcn Select used for every property in the editor sidebar. */
+export function PropertyField({
+  id,
+  label,
+  value,
+  onValueChange,
+  options,
+  disabled,
+  placeholder,
+  action,
+}: PropertyFieldProps) {
+  const choices = options as SelectChoice[];
+  return (
+    <Field>
+      <div className="flex items-center justify-between">
+        <FieldLabel htmlFor={id}>{label}</FieldLabel>
+        {action}
+      </div>
+      <Select value={value || undefined} onValueChange={onValueChange} disabled={disabled}>
+        <SelectTrigger id={id} className="w-full">
+          <SelectValue placeholder={placeholder} />
+        </SelectTrigger>
+        <SelectContent>
+          {choices.map((choice) => (
+            <SelectItem key={choice.value} value={choice.value}>
+              <ChoiceLabel choice={choice} />
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </Field>
+  );
+}
 
 type EditorTextFieldProps = {
+  id: string;
   label: string;
-  icon: Icon;
   value: string;
   onChange: (value: string) => void;
   placeholder: string;
   readOnly?: boolean;
 };
 
-export function EditorTextField({ label, icon: Icon, value, onChange, placeholder, readOnly }: EditorTextFieldProps) {
+export function EditorTextField({ id, label, value, onChange, placeholder, readOnly }: EditorTextFieldProps) {
   return (
-    <div className="flex flex-col gap-2">
-      <Label>
-        <Icon size={16} className="text-muted-foreground" />
-        {label}
-      </Label>
+    <Field>
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
       <Textarea
+        id={id}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         readOnly={readOnly}
-        className="resize-none"
-        aria-label={label}
+        className="min-h-24 resize-y"
         placeholder={placeholder}
       />
-    </div>
-  );
-}
-
-type PropertySelectProps = {
-  id: string;
-  label: string;
-  icon: Icon;
-  value: string;
-  onValueChange: (value: string) => void;
-  options: EditorOption[];
-  showSearch?: boolean;
-  disabled?: boolean;
-  action?: React.ReactNode;
-};
-
-export function PropertySelect({
-  id,
-  label,
-  icon: Icon,
-  value,
-  onValueChange,
-  options,
-  disabled,
-  action,
-}: PropertySelectProps) {
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between">
-        <Label htmlFor={id}>
-          <Icon size={16} className="text-muted-foreground" />
-          {label}
-        </Label>
-        {action}
-      </div>
-      <OptionSelect
-        id={id}
-        value={value}
-        options={options}
-        disabled={disabled}
-        className="max-w-none"
-        onSelect={(next) => onValueChange(String(next))}
-      />
-    </div>
+    </Field>
   );
 }

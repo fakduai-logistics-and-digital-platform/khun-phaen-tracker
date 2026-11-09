@@ -11,7 +11,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { useI18n } from "@/lib/i18n";
 
 type EditorCreateSuiteDialogProps = {
   open: boolean;
@@ -20,6 +21,7 @@ type EditorCreateSuiteDialogProps = {
 };
 
 export function EditorCreateSuiteDialog({ open, onOpenChange, onCreate }: EditorCreateSuiteDialogProps) {
+  const { t } = useI18n();
   const [name, setName] = useState("");
 
   async function create() {
@@ -34,12 +36,12 @@ export function EditorCreateSuiteDialog({ open, onOpenChange, onCreate }: Editor
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Create New Suite</DialogTitle>
-          <DialogDescription>Enter a name for the new test suite.</DialogDescription>
+          <DialogTitle>{t("tcEditor__suite_dialog_title")}</DialogTitle>
+          <DialogDescription>{t("tcEditor__suite_dialog_desc")}</DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="new-suite-name">Suite Name</Label>
+        <Field>
+          <FieldLabel htmlFor="new-suite-name">{t("tcEditor__suite_name")}</FieldLabel>
           <Input
             id="new-suite-name"
             value={name}
@@ -50,16 +52,16 @@ export function EditorCreateSuiteDialog({ open, onOpenChange, onCreate }: Editor
                 void create();
               }
             }}
-            placeholder="e.g. Authentication, Dashboard..."
+            placeholder={t("tcEditor__suite_name_placeholder")}
           />
-        </div>
+        </Field>
 
         <DialogFooter>
-          <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-            Cancel
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            {t("common.cancel")}
           </Button>
           <Button type="button" disabled={!name.trim()} onClick={() => void create()}>
-            Create Suite
+            {t("tcEditor__suite_create")}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -1,6 +1,7 @@
 import type { TestCase } from "./tc-types";
 
 export const TEMPLATE_HEADERS = [
+  "Project",
   "Suite",
   "Test Case No",
   "Test Name",
@@ -16,6 +17,7 @@ export const TEMPLATE_HEADERS = [
 
 const TEMPLATE_ROWS = [
   [
+    "",
     "Authentication",
     "1",
     "Sample Login",
@@ -31,6 +33,7 @@ const TEMPLATE_ROWS = [
 ];
 
 export const EXPORT_HEADERS = [
+  "Project",
   "Suite",
   "Test Case No",
   "Test Name",

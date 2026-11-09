@@ -50,7 +50,12 @@ export default function TestCasesPage() {
   const isAuthorized = user?.role === "admin" || user?.profile?.position === "QA Tester";
 
   const data = useTcData({ workspaceId, roomCode });
-  const suites = useTcSuites({ workspaceId, setSuites: data.setSuites });
+  const suites = useTcSuites({
+    workspaceId,
+    setSuites: data.setSuites,
+    projectId: data.projectId,
+    reload: () => data.loadData(undefined, undefined, true),
+  });
   const resize = useTcResize();
   const lightbox = useTcLightbox();
   const [showDetail, setShowDetail] = useState(false);
@@ -74,6 +79,7 @@ export default function TestCasesPage() {
   const actions = useTcCaseActions({
     workspaceId,
     assignees: data.assignees,
+    projectId: data.projectId,
     setSuites: data.setSuites,
     patchTestCase: data.patchTestCase,
     selectedCaseId: data.selectedCaseId,
@@ -95,8 +101,9 @@ export default function TestCasesPage() {
   const detail = useTcDetail({ selectedCase: data.selectedCase, isAuthorized, setSuites: data.setSuites });
   const imports = useTcImportExport({
     workspaceId,
+    projects: data.projects,
+    projectId: data.projectId,
     suites: data.suites,
-    setSuites: data.setSuites,
     selectedSuiteId: data.selectedSuiteId,
     reload: () => data.loadData(undefined, undefined, true),
   });
@@ -120,6 +127,8 @@ export default function TestCasesPage() {
   const editorUrl = (suiteId: string, caseId = "") => {
     const qs = new URLSearchParams(searchParams.toString());
     qs.set("suite", suiteId);
+    if (data.projectId !== "all" && data.projectId !== "none") qs.set("project", data.projectId);
+    else qs.delete("project");
     if (caseId) qs.set("case", caseId);
     else qs.delete("case");
     return `/workspaces/test-cases/editor/?${qs.toString()}`;
@@ -143,6 +152,10 @@ export default function TestCasesPage() {
     onQuickCreate: actions.quickCreate,
   };
 
+  const projectName =
+    data.projectId === "none"
+      ? t("tcProject__none")
+      : data.projects.find((p) => String(p.id) === data.projectId)?.name || "";
   const selectedCase = data.selectedCase;
   const selectedSuite = data.selectedSuite;
   const inRunView = runs.viewMode === "test-run";
@@ -164,6 +177,9 @@ export default function TestCasesPage() {
             width={resize.leftSidebarWidth}
             onStartResize={resize.startSidebarResize}
             isAuthorized={isAuthorized}
+            projects={data.projects}
+            projectId={data.projectId}
+            onProjectChange={data.changeProject}
             suites={data.suites}
             selectedSuiteId={data.selectedSuiteId}
             isSuitesOpen={isSuitesOpen}
@@ -213,7 +229,10 @@ export default function TestCasesPage() {
                   view={view}
                   onViewChange={changeView}
                   workspaceId={workspaceId}
-                  workspaceLabel={workspaceName || "Current workspace"}
+                  projectId={data.projectId}
+                  workspaceLabel={[workspaceName || t("tcEditor__workspace_fallback"), projectName]
+                    .filter(Boolean)
+                    .join(" / ")}
                   caseCount={data.caseCount}
                   suiteCount={data.suiteCount}
                   query={data.query}
@@ -286,6 +305,7 @@ export default function TestCasesPage() {
       />
       <TcDialogs
         suites={suites}
+        projects={data.projects}
         actions={actions}
         runs={runs}
         importProgress={imports.showImportModal ? imports.importProgress : null}

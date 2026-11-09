@@ -10,10 +10,10 @@ mod comments;
 mod db;
 mod documents;
 mod file_urls;
-mod workzy;
 mod http;
 mod notifications;
 mod qa;
+mod qa_history;
 mod qa_query;
 mod realtime;
 mod records;
@@ -27,6 +27,7 @@ mod test_runs;
 mod uploads;
 mod users;
 mod workspaces;
+mod workzy;
 pub use auth::AuthService;
 pub use realtime::WorkspaceRoom;
 use serde_json::{json, Value};
@@ -172,19 +173,29 @@ async fn route(req: &mut Request, env: &Env) -> Result<Response> {
         && req.method() == Method::Get
     {
         let key = cache::public_key(req)?;
-        if let Some(body) = match &key {
-            Some(k) => cache::get(env, k).await,
-            None => None,
-        } {
-            return cache::json(body);
+        let stamp = cache::fingerprint(env, parts[3]).await;
+        if let (Some(k), Some(stamp)) = (&key, &stamp) {
+            // Cached entries are "<fingerprint>\n<body>"; a stale fingerprint means the data changed.
+            if let Some(body) = cache::get(env, k)
+                .await
+                .and_then(|entry| {
+                    entry
+                        .split_once('\n')
+                        .map(|(s, b)| (s.to_owned(), b.to_owned()))
+                })
+                .filter(|(cached, _)| cached == stamp)
+                .map(|(_, body)| body)
+            {
+                return cache::json(body);
+            }
         }
         if let Some(mut response) = public(req, env, &parts).await? {
             if response.status_code() != 200 {
                 return Ok(response);
             }
             let body = response.text().await?;
-            if let Some(k) = &key {
-                cache::put(env, k, &body).await;
+            if let (Some(k), Some(stamp)) = (&key, &stamp) {
+                cache::put(env, k, &format!("{stamp}\n{body}")).await;
             }
             return cache::json(body);
         }
@@ -326,6 +337,15 @@ async fn public(req: &mut Request, env: &Env, parts: &[&str]) -> Result<Option<R
         )
         .await
         .map(Some);
+    }
+    if parts[4] == "projects" {
+        // Only id and name are public; they let a shared QA page offer a project switch.
+        let projects = records::values(env, parts[3], "projects").await?;
+        let list: Vec<Value> = projects
+            .iter()
+            .map(|p| json!({"id":http::text(p,"id"),"name":http::text(p,"name")}))
+            .collect();
+        return http::ok(json!(list)).map(Some);
     }
     if parts[4] == "summary" {
         return test_runs::summary(env, parts[3]).await.map(Some);

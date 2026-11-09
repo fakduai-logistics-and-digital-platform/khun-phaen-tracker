@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { fixedOptions, priorityOptions, statusOptions } from "./tc-options";
+import { TcHistoryButton } from "./tc-history";
 import type { AssigneeOption, SidebarTab, Suite, TestCase, TestCaseAttachment } from "./tc-types";
 import { StoredImage } from "@/components/shared/stored-image";
 import type { useTcDetail } from "./use-tc-detail";
@@ -275,6 +276,13 @@ export function TcDetailPanel({
 
         {tab === "properties" && (
           <>
+            <TcHistoryButton
+              testCaseId={testCase.id}
+              updatedAt={testCase.updated_at}
+              passedAt={testCase.passed_at}
+              showTime
+              className="-ml-2 w-fit"
+            />
             <PropertySelect id="priority" label="Priority">
               <SearchableSelect
                 id="sidebar-prop-priority-update"

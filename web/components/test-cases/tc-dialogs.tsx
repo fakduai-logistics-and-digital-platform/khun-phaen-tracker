@@ -12,7 +12,10 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { useI18n } from "@/lib/i18n";
+import type { Project } from "@/lib/types";
+import { TcProjectSelect } from "./tc-project-select";
 import type { ImportProgress, ImportSummary } from "./tc-types";
 import type { useTcCaseActions } from "./use-tc-case-actions";
 import type { useTcRuns } from "./use-tc-runs";
@@ -64,6 +67,7 @@ function ConfirmDialog({
 
 export function TcDialogs({
   suites,
+  projects,
   actions,
   runs,
   importProgress,
@@ -71,6 +75,7 @@ export function TcDialogs({
   onCloseImportSummary,
 }: {
   suites: Suites;
+  projects: Project[];
   actions: Actions;
   runs: Runs;
   importProgress: ImportProgress | null;
@@ -107,6 +112,17 @@ export function TcDialogs({
                 placeholder={t("tc__ph_suite_name")}
               />
             </div>
+            {projects.length > 0 && (
+              <div className="space-y-2">
+                <Label htmlFor="new-suite-project">{t("tcProject__label")}</Label>
+                <TcProjectSelect
+                  id="new-suite-project"
+                  value={suites.newSuiteProject}
+                  projects={projects}
+                  onChange={suites.setNewSuiteProject}
+                />
+              </div>
+            )}
             <DialogFooter>
               <Button type="button" variant="ghost" onClick={() => suites.setShowCreateSuite(false)}>
                 {t("tc__cancel")}
@@ -142,6 +158,20 @@ export function TcDialogs({
                   onChange={(e) => suites.setEditingSuite({ ...editing, title: e.target.value })}
                 />
               </div>
+              {projects.length > 0 && (
+                <div className="space-y-2">
+                  <Label htmlFor="edit-suite-project">{t("tcProject__label")}</Label>
+                  <TcProjectSelect
+                    id="edit-suite-project"
+                    value={editing.project_id || "none"}
+                    projects={projects}
+                    onChange={(value) =>
+                      suites.setEditingSuite({ ...editing, project_id: value === "none" ? "" : value })
+                    }
+                  />
+                  <p className="text-xs text-muted-foreground">{t("tcProject__move_hint")}</p>
+                </div>
+              )}
               <DialogFooter>
                 <Button type="button" variant="ghost" onClick={() => suites.setEditingSuite(null)}>
                   {t("tc__cancel")}
@@ -189,6 +219,48 @@ export function TcDialogs({
           </fieldset>
         )}
       </ConfirmDialog>
+
+      <Dialog open={!!actions.failTarget} onOpenChange={(next) => !next && actions.cancelFail()}>
+        <DialogContent className="sm:max-w-lg">
+          <form
+            className="flex flex-col gap-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void actions.confirmFail();
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle>{t("tcFail__title")}</DialogTitle>
+              <DialogDescription>
+                {actions.failTarget ? `TC-${actions.failTarget.test_no} · ${actions.failTarget.title}` : ""}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="fail-note">{t("tcFail__label")}</Label>
+              <Textarea
+                id="fail-note"
+                className="min-h-32"
+                value={actions.failNote}
+                onChange={(e) => actions.setFailNote(e.target.value)}
+                onFocus={(e) => {
+                  const end = e.target.value.length;
+                  e.target.setSelectionRange(end, end);
+                }}
+              />
+              <p className="text-xs text-muted-foreground">{t("tcFail__hint")}</p>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={actions.cancelFail}>
+                {t("tc__cancel")}
+              </Button>
+              <Button type="submit" variant="destructive" disabled={actions.savingFail}>
+                {actions.savingFail && <Loader2 className="animate-spin" />}
+                {t("tcFail__confirm")}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <ConfirmDialog
         open={actions.showDeleteModal}
