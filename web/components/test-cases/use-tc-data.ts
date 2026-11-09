@@ -17,22 +17,37 @@ import {
 const PAGE_SIZE = 10;
 const AUTO_REFRESH_MS = 300000;
 
+type Snapshot = {
+  suites: Suite[];
+  query: string;
+  field: string;
+  activeFilters: ActiveFilters;
+  selectedSuiteId: string;
+  selectedCaseId: string;
+  projectId: string;
+};
+/** Last repository state per workspace, so coming back from the editor paints at once and refreshes quietly. */
+const snapshots = new Map<string, Snapshot>();
+
 type UseTcDataArgs = {
   workspaceId: string;
   roomCode: string | null;
 };
 
 export function useTcData({ workspaceId, roomCode }: UseTcDataArgs) {
-  const [suites, setSuites] = useState<Suite[]>([]);
+  const [restored] = useState(() => snapshots.get(workspaceId));
+  const [suites, setSuites] = useState<Suite[]>(restored?.suites ?? []);
   const [assignees, setAssignees] = useState<AssigneeRecord[]>([]);
-  const [query, setQuery] = useState("");
-  const [field, setField] = useState("all");
-  const [activeFilters, setActiveFilters] = useState<ActiveFilters>({ ...EMPTY_FILTERS });
-  const [selectedSuiteId, setSelectedSuiteId] = useState("");
-  const [selectedCaseId, setSelectedCaseId] = useState("");
+  const [query, setQuery] = useState(restored?.query ?? "");
+  const [field, setField] = useState(restored?.field ?? "all");
+  const [activeFilters, setActiveFilters] = useState<ActiveFilters>(restored?.activeFilters ?? { ...EMPTY_FILTERS });
+  const [selectedSuiteId, setSelectedSuiteId] = useState(restored?.selectedSuiteId ?? "");
+  const [selectedCaseId, setSelectedCaseId] = useState(restored?.selectedCaseId ?? "");
   const [projects, setProjects] = useState<Project[]>([]);
   /** `all`, `none` (cases without a project) or a project id. */
-  const [projectId, setProjectId] = useState("all");
+  const [projectId, setProjectId] = useState(restored?.projectId ?? "all");
+  const [fetchCount, setFetchCount] = useState(0);
+  const [loaded, setLoaded] = useState(!!restored);
 
   const latest = useRef({ query, field, activeFilters, suites, selectedSuiteId, selectedCaseId, projectId });
   latest.current = { query, field, activeFilters, suites, selectedSuiteId, selectedCaseId, projectId };
@@ -40,6 +55,7 @@ export function useTcData({ workspaceId, roomCode }: UseTcDataArgs) {
   const loadData = useCallback(
     async (q?: string, searchField?: string, keepState = false, filtersOverride?: ActiveFilters) => {
       if (!workspaceId) return;
+      setFetchCount((n) => n + 1);
       try {
         const cur = latest.current;
         const filters = filtersOverride ?? cur.activeFilters;
@@ -110,6 +126,9 @@ export function useTcData({ workspaceId, roomCode }: UseTcDataArgs) {
         }
       } catch (e) {
         console.error("Failed to load test cases:", e);
+      } finally {
+        setFetchCount((n) => n - 1);
+        setLoaded(true);
       }
     },
     [workspaceId],
@@ -163,7 +182,7 @@ export function useTcData({ workspaceId, roomCode }: UseTcDataArgs) {
         }
       });
     }
-    void loadDataRef.current();
+    void loadDataRef.current(undefined, undefined, !!snapshots.get(workspaceId));
     const interval = setInterval(() => {
       void loadDataRef.current(undefined, undefined, true);
     }, AUTO_REFRESH_MS);
@@ -172,6 +191,11 @@ export function useTcData({ workspaceId, roomCode }: UseTcDataArgs) {
       clearInterval(interval);
     };
   }, [roomCode, workspaceId]);
+
+  useEffect(() => {
+    if (!workspaceId || !loaded) return;
+    snapshots.set(workspaceId, { suites, query, field, activeFilters, selectedSuiteId, selectedCaseId, projectId });
+  }, [workspaceId, loaded, suites, query, field, activeFilters, selectedSuiteId, selectedCaseId, projectId]);
 
   const searchMounted = useRef(false);
   useEffect(() => {
@@ -282,6 +306,8 @@ export function useTcData({ workspaceId, roomCode }: UseTcDataArgs) {
   return {
     suites,
     setSuites,
+    fetching: fetchCount > 0,
+    loaded,
     assignees,
     projects,
     projectId,

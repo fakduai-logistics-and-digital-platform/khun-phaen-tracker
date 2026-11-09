@@ -2,6 +2,7 @@
 
 import { ChevronLeft, ChevronRight, Edit3, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useRowTransitions } from "@/components/workspace/use-row-transitions";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { TcCaseRow } from "./tc-case-row";
@@ -49,9 +50,13 @@ export function TcSuiteSection({
   onLoadPage,
 }: TcSuiteSectionProps) {
   const { t } = useI18n();
+  const rows = useRowTransitions(suite.cases || []);
 
   return (
-    <section id={`suite-${suite.id}`} className="@container scroll-mt-4">
+    <section
+      id={`suite-${suite.id}`}
+      className="@container scroll-mt-4 duration-300 animate-in fade-in slide-in-from-bottom-1"
+    >
       <div
         className={cn(
           "flex min-h-12 items-center gap-3 rounded-t-lg px-5 transition-colors duration-300",
@@ -101,6 +106,7 @@ export function TcSuiteSection({
       {view === "table" && (
         <TcSheetTable
           suite={suite}
+          rows={rows}
           selectedCaseId={selectedCaseId}
           isAuthorized={isAuthorized}
           updatingPriorityIds={updatingPriorityIds}
@@ -111,9 +117,10 @@ export function TcSuiteSection({
 
       {view === "list" && (
         <div className="divide-y divide-border">
-          {(suite.cases || []).map((testCase) => (
+          {rows.map(({ item: testCase, phase }) => (
             <TcCaseRow
               key={testCase.id}
+              phase={phase}
               testCase={testCase}
               selected={selectedCaseId === testCase.id}
               isAuthorized={isAuthorized}

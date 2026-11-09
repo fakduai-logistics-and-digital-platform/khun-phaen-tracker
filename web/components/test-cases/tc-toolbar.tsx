@@ -33,6 +33,9 @@ type TcToolbarProps = {
   onDownloadTemplate: () => void;
   onImportFile: (file: File) => void;
   onExport: () => void;
+  renumberTarget: string | null;
+  renumberLabel: string;
+  onRenumber: (target: string) => Promise<void>;
 };
 
 export function TcToolbar({
@@ -57,6 +60,9 @@ export function TcToolbar({
   onDownloadTemplate,
   onImportFile,
   onExport,
+  renumberTarget,
+  renumberLabel,
+  onRenumber,
 }: TcToolbarProps) {
   const { t } = useI18n();
   return (
@@ -120,6 +126,9 @@ export function TcToolbar({
               onDownloadTemplate={onDownloadTemplate}
               onImportFile={onImportFile}
               onExport={onExport}
+              renumberTarget={renumberTarget}
+              renumberLabel={renumberLabel}
+              onRenumber={onRenumber}
             />
           </div>
         </div>

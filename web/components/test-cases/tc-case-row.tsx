@@ -2,6 +2,7 @@
 
 import { Edit3, Eye, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import type { RowPhase } from "@/components/workspace/use-row-transitions";
 import { PropertySelect } from "@/components/task-detail/property-select";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -11,6 +12,7 @@ import { TcHistoryButton } from "./tc-history";
 import type { AssigneeOption, TestCase } from "./tc-types";
 
 type TcCaseRowProps = {
+  phase?: RowPhase;
   testCase: TestCase;
   selected: boolean;
   isAuthorized: boolean;
@@ -40,12 +42,16 @@ export function TcCaseRow({
   onUpdateFixed,
   onUpdatePriority,
   onUpdateAssignDev,
+  phase,
 }: TcCaseRowProps) {
   const { t } = useI18n();
 
   return (
     <div
       className={cn(
+        phase === "enter" && "duration-300 animate-in fade-in slide-in-from-top-2",
+        phase === "leave" &&
+          "pointer-events-none duration-200 animate-out fill-mode-forwards fade-out slide-out-to-right-8",
         "grid w-full grid-cols-[24px_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 px-3 py-2 text-left transition-colors @xl:grid-cols-[108px_60px_minmax(0,1fr)_auto] @4xl:grid-cols-[108px_60px_minmax(0,1fr)_auto_auto]",
         selected ? "bg-accent" : "hover:bg-accent/50",
       )}

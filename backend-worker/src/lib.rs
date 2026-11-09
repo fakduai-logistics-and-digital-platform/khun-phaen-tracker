@@ -14,6 +14,7 @@ mod http;
 mod notifications;
 mod qa;
 mod qa_history;
+mod qa_numbers;
 mod qa_query;
 mod realtime;
 mod records;

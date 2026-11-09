@@ -292,12 +292,9 @@ export function useTcCaseActions({
         if (resp.ok) {
           const newTcData = await resp.json();
 
-          if (!newTcData.test_no) {
-            const nextResp = await api.data.testCases.nextNumber(workspaceId);
-            if (nextResp.ok) {
-              const nextData = await nextResp.json();
-              newTcData.test_no = (nextData.next_number || 1) - 1;
-            }
+          if (!newTcData.test_no && newTcData.id) {
+            const created = await api.data.testCases.get(newTcData.id);
+            if (created.ok) Object.assign(newTcData, await created.json());
           }
 
           const newCase = mapBackendToFrontend(newTcData);

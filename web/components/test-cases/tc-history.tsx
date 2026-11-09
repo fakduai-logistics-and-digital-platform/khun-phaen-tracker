@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CheckCircle2, History } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/lib/api/apis";
@@ -45,6 +46,72 @@ function ChangeLine({ change }: { change: Change }) {
   );
 }
 
+function useHistory(testCaseId: string) {
+  const [entries, setEntries] = useState<Entry[] | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  async function load() {
+    setFailed(false);
+    try {
+      const resp = await api.data.testCases.history(testCaseId);
+      if (resp.ok) setEntries(await resp.json());
+      else setFailed(true);
+    } catch {
+      setFailed(true);
+    }
+  }
+  return { entries, failed, load };
+}
+
+function HistoryList({ entries, failed }: { entries: Entry[] | null; failed: boolean }) {
+  const { t, locale } = useI18n();
+  return (
+    <ul className="flex max-h-80 flex-col overflow-y-auto">
+      {entries === null && !failed && (
+        <li className="flex flex-col gap-3 p-4">
+          <Skeleton className="h-4 w-3/4" />
+          <Skeleton className="h-4 w-1/2" />
+        </li>
+      )}
+      {failed && <li className="p-4 text-sm text-destructive">{t("tcHistory__load_failed")}</li>}
+      {entries?.length === 0 && <li className="p-4 text-sm text-muted-foreground">{t("tcHistory__none")}</li>}
+      {entries?.map((entry) => (
+        <li key={entry.id} className="flex gap-3 border-b px-4 py-3 last:border-b-0">
+          <Avatar className="size-6 shrink-0">
+            <AvatarFallback className="text-xs">{entry.user_name?.[0]?.toUpperCase() || "?"}</AvatarFallback>
+          </Avatar>
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
+            <p className="text-sm">
+              <span className="font-medium">{entry.user_name}</span>{" "}
+              <span className="text-muted-foreground">{t(`tcHistory__action_${entry.action}`)}</span>
+            </p>
+            <p className="text-xs text-muted-foreground tabular-nums">{formatDateTime(entry.at, locale)}</p>
+            {entry.changes?.length > 0 && (
+              <ul className="flex flex-col gap-0.5 text-xs text-muted-foreground">
+                {entry.changes.map((change) => (
+                  <ChangeLine key={change.field} change={change} />
+                ))}
+              </ul>
+            )}
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function PassedLine({ passedAt }: { passedAt?: string | null }) {
+  const { t, locale } = useI18n();
+  const passed = formatDateTime(passedAt, locale);
+  if (!passed) return null;
+  return (
+    <p className="flex items-center gap-1.5 text-xs text-success tabular-nums">
+      <CheckCircle2 className="size-3.5" />
+      {t("tcTime__passed")} {passed}
+    </p>
+  );
+}
+
 type Props = {
   testCaseId: string;
   updatedAt?: string | null;
@@ -57,25 +124,11 @@ type Props = {
 /** History icon: opens who changed the test case, when, and what changed. */
 export function TcHistoryButton({ testCaseId, updatedAt, passedAt, showTime = false, className }: Props) {
   const { t, locale } = useI18n();
-  const [entries, setEntries] = useState<Entry[] | null>(null);
-  const [failed, setFailed] = useState(false);
+  const { entries, failed, load } = useHistory(testCaseId);
   const edited = formatDateTime(updatedAt, locale);
-  const passed = formatDateTime(passedAt, locale);
-
-  async function load(open: boolean) {
-    if (!open) return;
-    setFailed(false);
-    try {
-      const resp = await api.data.testCases.history(testCaseId);
-      if (resp.ok) setEntries(await resp.json());
-      else setFailed(true);
-    } catch {
-      setFailed(true);
-    }
-  }
 
   return (
-    <Popover onOpenChange={(open) => void load(open)}>
+    <Popover onOpenChange={(open) => open && void load()}>
       <PopoverTrigger asChild>
         <Button
           type="button"
@@ -93,45 +146,42 @@ export function TcHistoryButton({ testCaseId, updatedAt, passedAt, showTime = fa
       <PopoverContent align="end" className="w-80 p-0" onClick={(e) => e.stopPropagation()}>
         <div className="flex flex-col gap-1 border-b px-4 py-3">
           <p className="text-sm font-medium">{t("tcHistory__title")}</p>
-          {passed && (
-            <p className="flex items-center gap-1.5 text-xs text-success tabular-nums">
-              <CheckCircle2 className="size-3.5" />
-              {t("tcTime__passed")} {passed}
-            </p>
-          )}
+          <PassedLine passedAt={passedAt} />
         </div>
-        <ul className="flex max-h-80 flex-col overflow-y-auto">
-          {entries === null && !failed && (
-            <li className="flex flex-col gap-3 p-4">
-              <Skeleton className="h-4 w-3/4" />
-              <Skeleton className="h-4 w-1/2" />
-            </li>
-          )}
-          {failed && <li className="p-4 text-sm text-destructive">{t("tcHistory__load_failed")}</li>}
-          {entries?.length === 0 && <li className="p-4 text-sm text-muted-foreground">{t("tcHistory__none")}</li>}
-          {entries?.map((entry) => (
-            <li key={entry.id} className="flex gap-3 border-b px-4 py-3 last:border-b-0">
-              <Avatar className="size-6 shrink-0">
-                <AvatarFallback className="text-xs">{entry.user_name?.[0]?.toUpperCase() || "?"}</AvatarFallback>
-              </Avatar>
-              <div className="flex min-w-0 flex-1 flex-col gap-1">
-                <p className="text-sm">
-                  <span className="font-medium">{entry.user_name}</span>{" "}
-                  <span className="text-muted-foreground">{t(`tcHistory__action_${entry.action}`)}</span>
-                </p>
-                <p className="text-xs text-muted-foreground tabular-nums">{formatDateTime(entry.at, locale)}</p>
-                {entry.changes?.length > 0 && (
-                  <ul className="flex flex-col gap-0.5 text-xs text-muted-foreground">
-                    {entry.changes.map((change) => (
-                      <ChangeLine key={change.field} change={change} />
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </li>
-          ))}
-        </ul>
+        <HistoryList entries={entries} failed={failed} />
       </PopoverContent>
     </Popover>
+  );
+}
+
+/** The same history, opened from a menu item instead of its own icon. */
+export function TcHistoryDialog({
+  testCaseId,
+  passedAt,
+  open,
+  onOpenChange,
+}: {
+  testCaseId: string;
+  passedAt?: string | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const { t } = useI18n();
+  const { entries, failed, load } = useHistory(testCaseId);
+  useEffect(() => {
+    if (open) void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="gap-0 p-0 sm:max-w-md">
+        <DialogHeader className="gap-1 border-b px-4 py-3">
+          <DialogTitle className="text-sm">{t("tcHistory__title")}</DialogTitle>
+          <PassedLine passedAt={passedAt} />
+        </DialogHeader>
+        <HistoryList entries={entries} failed={failed} />
+      </DialogContent>
+    </Dialog>
   );
 }

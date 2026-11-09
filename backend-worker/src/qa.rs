@@ -1,11 +1,13 @@
 use crate::{
-    auth::User, cascades, db, documents, http, qa_history, qa_query, realtime, records, workspaces,
+    auth::User, cascades, db, documents, http, qa_history, qa_numbers, qa_query, realtime, records,
+    workspaces,
 };
 use serde_json::{json, Value};
 use worker::*;
 const FIELDS: &[&str] = &[
     "suite_id",
     "project_id",
+    "test_no",
     "name",
     "description",
     "preconditions",
@@ -59,9 +61,15 @@ pub async fn workspace(
                 let project = qa_query::project_param(&records::query(req)?);
                 http::ok(qa_query::counts(env, workspace, project.as_deref()).await?)
             }
-            Some("next-number") => http::ok(
-                json!({"next_number":records::next_number(env,workspace,"test-cases",false).await?}),
-            ),
+            Some("next-number") => {
+                let project = qa_query::project_param(&records::query(req)?).unwrap_or_default();
+                let project = if project == "unassigned" {
+                    String::new()
+                } else {
+                    project
+                };
+                http::ok(json!({"next_number":qa_numbers::next(env,workspace,&project).await?}))
+            }
             None | Some("all") | Some("all-test-cases") => {
                 qa_query::list(req, env, workspace, item.is_some()).await
             }
@@ -71,6 +79,19 @@ pub async fn workspace(
     let Some(user) = user else {
         return http::error(401, "Not logged in");
     };
+    if req.method() == Method::Post && item == Some("renumber") && kind == "test-cases" {
+        if !records::qa(user) {
+            return http::error(403, "Admin or QA permissions required");
+        }
+        let input = http::body(req).await?;
+        let project = normalized_project(&input);
+        if let Some(error) = check_project(env, workspace, &project).await? {
+            return http::error(400, error);
+        }
+        let changed = qa_numbers::renumber(env, workspace, &project).await?;
+        realtime::publish(env, workspace, "test_case", "refresh", "", Value::Null).await;
+        return http::ok(json!({"success":true,"changed":changed}));
+    }
     if req.method() != Method::Post || item.is_some() {
         return http::error(405, "Method not allowed");
     }
@@ -109,7 +130,18 @@ pub async fn workspace(
         if let Some(error) = validate(env, workspace, &mut value).await? {
             return http::error(400, error);
         }
-        value["test_no"] = json!(records::next_number(env, workspace, kind, true).await?);
+        let project = http::text(&value, "project_id").to_owned();
+        let number = match qa_numbers::requested(&value) {
+            Some(n) => {
+                if let Some(error) = qa_numbers::check(env, workspace, &project, n, None).await? {
+                    return http::error(409, error);
+                }
+                n
+            }
+            None if blank_number(&value) => qa_numbers::next(env, workspace, &project).await?,
+            None => return http::error(400, "Invalid test case number"),
+        };
+        value["test_no"] = json!(number);
         if value["status"] == "passed" {
             value["passed_at"] = json!(db::timestamp());
             value["status_changed_at"] = value["passed_at"].clone();
@@ -226,13 +258,31 @@ pub async fn resource(
                 &[ws.as_str().into(), id.into()],
             )
             .await?;
-            for case in cases {
+            let project = http::text(&patch, "project_id").to_owned();
+            let ids: Vec<&str> = cases.iter().map(|c| c.id.as_str()).collect();
+            let mut used = qa_numbers::used(env, ws, &project, &ids).await?;
+            let mut ordered = Vec::new();
+            for case in &cases {
+                ordered.push((
+                    case.value()?["test_no"].as_i64().unwrap_or(0),
+                    case.id.clone(),
+                ));
+            }
+            ordered.sort();
+            for (number, case_id) in ordered {
+                // Keep each number unless the target project already uses it.
+                let number = if number > 0 && !used.contains(&number) {
+                    number
+                } else {
+                    used.iter().max().copied().unwrap_or(0) + 1
+                };
+                used.insert(number);
                 writes.push(records::patch_statement(
                     &db,
                     ws,
                     "test-cases",
-                    &case.id,
-                    &json!({"project_id":patch["project_id"],"updated_at":patch["updated_at"]}),
+                    &case_id,
+                    &json!({"project_id":patch["project_id"],"test_no":number,"updated_at":patch["updated_at"]}),
                 )?);
             }
         }
@@ -302,6 +352,28 @@ pub async fn resource(
     if input.get("suite_id").is_some() || input.get("project_id").is_some() {
         patch["project_id"] = value["project_id"].clone();
     }
+    if action.is_none() {
+        let project = http::text(&value, "project_id").to_owned();
+        let moved = project != http::text(&before, "project_id");
+        let explicit = input.get("test_no").is_some() && !blank_number(&input);
+        let mut number = match qa_numbers::requested(&value) {
+            Some(n) => n,
+            None if explicit => return http::error(400, "Invalid test case number"),
+            None => qa_numbers::next(env, ws, &project).await?,
+        };
+        if explicit && number != before["test_no"].as_i64().unwrap_or(0) || moved {
+            let taken = qa_numbers::check(env, ws, &project, number, Some(id)).await?;
+            if taken.is_some() && explicit {
+                return http::error(409, "Test case number already exists in this project");
+            }
+            if taken.is_some() {
+                // Moved into a project that already uses this number: continue that project's sequence.
+                number = qa_numbers::next(env, ws, &project).await?;
+            }
+        }
+        patch["test_no"] = json!(number);
+        value["test_no"] = json!(number);
+    }
     if input.get("step_format").is_some() {
         patch["gherkin_steps"] = value["gherkin_steps"].clone();
         patch["classic_steps"] = value["classic_steps"].clone();
@@ -337,6 +409,12 @@ pub async fn resource(
     crate::notifications::deliver(env, &plan.recipients).await;
     realtime::publish(env, ws, "test_case", "update", id, value).await;
     http::ok(json!({"success":true}))
+}
+fn blank_number(value: &Value) -> bool {
+    value["test_no"].is_null()
+        || value["test_no"]
+            .as_str()
+            .is_some_and(|v| v.trim().is_empty())
 }
 fn normalized_project(value: &Value) -> String {
     let id = http::text(value, "project_id").trim();

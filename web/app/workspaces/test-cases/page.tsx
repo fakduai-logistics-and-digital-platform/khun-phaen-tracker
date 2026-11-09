@@ -28,6 +28,8 @@ import { useTcResize } from "@/components/test-cases/use-tc-resize";
 import { useTcRuns } from "@/components/test-cases/use-tc-runs";
 import { useTcSuites } from "@/components/test-cases/use-tc-suites";
 import { downloadTemplate } from "@/components/test-cases/tc-csv";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth/auth-provider";
 import { useI18n } from "@/lib/i18n";
 import { useStore } from "@/lib/store";
@@ -249,8 +251,36 @@ export default function TestCasesPage() {
                   onDownloadTemplate={downloadTemplate}
                   onImportFile={(file) => void imports.importFile(file)}
                   onExport={() => void imports.exportToCSV()}
+                  renumberTarget={data.projectId === "all" ? (data.projects.length ? null : "none") : data.projectId}
+                  renumberLabel={projectName || t("tcProject__none")}
+                  onRenumber={imports.renumber}
                 />
-                <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+                <div
+                  className="relative h-0.5 shrink-0 overflow-hidden bg-transparent"
+                  role="progressbar"
+                  aria-hidden={!data.fetching}
+                  aria-label={t("tcLoading__label")}
+                >
+                  <div
+                    className={cn(
+                      "absolute inset-y-0 w-1/3 rounded-full bg-primary opacity-0 transition-opacity duration-200",
+                      data.fetching && "animate-tc-load opacity-100",
+                    )}
+                  />
+                </div>
+                <div
+                  className={cn(
+                    "min-h-0 flex-1 space-y-4 overflow-y-auto p-4 transition-opacity duration-200",
+                    data.fetching && data.loaded && "opacity-70",
+                  )}
+                >
+                  {!data.loaded && data.filteredSuites.length === 0 && (
+                    <div className="space-y-3" aria-busy="true">
+                      {[0, 1, 2].map((row) => (
+                        <Skeleton key={row} className="h-12 w-full" style={{ animationDelay: `${row * 120}ms` }} />
+                      ))}
+                    </div>
+                  )}
                   {data.filteredSuites.map((suite) => (
                     <TcSuiteSection
                       key={suite.id}

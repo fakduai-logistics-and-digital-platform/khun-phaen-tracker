@@ -1,23 +1,23 @@
 "use client";
 
-import { Edit3, Eye, Trash2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PropertySelect } from "@/components/task-detail/property-select";
 import { useI18n } from "@/lib/i18n";
-import { TcHistoryButton } from "./tc-history";
+import { TcRowActions } from "./tc-row-actions";
+import type { TransitionRow } from "@/components/workspace/use-row-transitions";
 import { formatDateTime } from "./tc-times";
 import { cn } from "@/lib/utils";
 import { fixedOptions, statusOptions } from "./tc-options";
 import { TcPriorityMenu } from "./tc-priority-menu";
 import type { TcCaseHandlers } from "./tc-suite-section";
-import type { AssigneeOption, Suite } from "./tc-types";
+import type { AssigneeOption, Suite, TestCase } from "./tc-types";
 
 // Spreadsheet-style grid: every cell has a hairline border on its right and bottom edge.
 const CELL = "h-9 border-r border-b px-2 py-1 last:border-r-0";
 
 type TcSheetTableProps = {
   suite: Suite;
+  rows: TransitionRow<TestCase>[];
   selectedCaseId: string;
   isAuthorized: boolean;
   updatingPriorityIds: Set<string>;
@@ -27,6 +27,7 @@ type TcSheetTableProps = {
 
 export function TcSheetTable({
   suite,
+  rows,
   selectedCaseId,
   isAuthorized,
   updatingPriorityIds,
@@ -51,10 +52,16 @@ export function TcSheetTable({
         </TableRow>
       </TableHeader>
       <TableBody>
-        {(suite.cases || []).map((testCase, index) => (
+        {rows.map(({ item: testCase, phase }, index) => (
           <TableRow
             key={testCase.id}
-            className={cn("hover:bg-accent/40", selectedCaseId === testCase.id && "bg-accent")}
+            className={cn(
+              "hover:bg-accent/40",
+              selectedCaseId === testCase.id && "bg-accent",
+              phase === "enter" && "duration-300 animate-in fade-in slide-in-from-top-2",
+              phase === "leave" &&
+                "pointer-events-none duration-200 animate-out fill-mode-forwards fade-out slide-out-to-right-8",
+            )}
           >
             <TableCell className={cn(CELL, "bg-muted/60 text-center text-xs text-muted-foreground tabular-nums")}>
               {index + 1}
@@ -118,41 +125,16 @@ export function TcSheetTable({
               {formatDateTime(testCase.passed_at, locale) || "—"}
             </TableCell>
             <TableCell className={CELL}>
-              <div className="flex items-center justify-end gap-1">
-                <TcHistoryButton
-                  testCaseId={testCase.id}
-                  updatedAt={testCase.updated_at}
-                  passedAt={testCase.passed_at}
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="size-7"
-                  title={isAuthorized ? t("tc__title_edit") : t("tc__title_view_case_auth")}
-                  aria-label={isAuthorized ? t("tc__title_edit") : t("tc__title_view_case_auth")}
-                  onClick={() => handlers.onOpenEditor(suite.id, testCase.id)}
-                >
-                  {isAuthorized ? <Edit3 /> : <Eye />}
-                </Button>
-                {isAuthorized && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="size-7"
-                    title={t("tc__title_delete_case")}
-                    aria-label={t("tc__title_delete_case")}
-                    onClick={() => handlers.onDeleteCase(testCase.id)}
-                  >
-                    <Trash2 />
-                  </Button>
-                )}
-              </div>
+              <TcRowActions
+                testCase={testCase}
+                isAuthorized={isAuthorized}
+                onOpenEditor={() => handlers.onOpenEditor(suite.id, testCase.id)}
+                onDelete={() => handlers.onDeleteCase(testCase.id)}
+              />
             </TableCell>
           </TableRow>
         ))}
-        {suite.cases.length === 0 && (
+        {rows.length === 0 && (
           <TableRow>
             <TableCell colSpan={9} className={cn(CELL, "py-6 text-center text-muted-foreground")}>
               {t("testCases__empty_suite")}

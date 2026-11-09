@@ -946,10 +946,19 @@ export const api = {
           credentials: "include",
         });
       },
-      nextNumber: (wsId: string): Promise<Response> => {
-        return fetch(`${API_BASE_URL}/workspaces/${wsId}/test-cases/next-number`, {
+      nextNumber: (wsId: string, projectId?: string): Promise<Response> => {
+        const query = projectId ? `?project_id=${encodeURIComponent(projectId)}` : "";
+        return fetch(`${API_BASE_URL}/workspaces/${wsId}/test-cases/next-number${query}`, {
           headers: api.data._headers(),
           credentials: "include",
+        });
+      },
+      renumber: (wsId: string, projectId: string): Promise<Response> => {
+        return fetch(`${API_BASE_URL}/workspaces/${wsId}/test-cases/renumber`, {
+          method: "POST",
+          headers: api.data._headers(true),
+          credentials: "include",
+          body: JSON.stringify({ project_id: projectId }),
         });
       },
       create: (wsId: string, testCase: Record<string, any>): Promise<Response> => {

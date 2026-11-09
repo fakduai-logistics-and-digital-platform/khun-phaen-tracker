@@ -2,7 +2,7 @@
 
 import { consumeRoomParam } from "@/lib/room";
 import { taskPath } from "@/lib/routes";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Folder } from "lucide-react";
 import { toast } from "sonner";
@@ -36,6 +36,8 @@ export function useEditorForm(workspaceId: string | undefined) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [workspaceAssignees, setWorkspaceAssignees] = useState<Assignee[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [numberError, setNumberError] = useState<"" | "invalid" | "duplicate">("");
+  const numberEdited = useRef(false);
   const attachmentState = useEditorAttachments();
 
   const isAuthorized = user?.role === "admin" || user?.profile?.position === "QA Tester";
@@ -64,6 +66,61 @@ export function useEditorForm(workspaceId: string | undefined) {
       }),
     [allSuiteOptions],
   );
+
+  const setTestNo = useCallback((value: string) => {
+    numberEdited.current = true;
+    setForm((f) => ({ ...f, testNo: value.replace(/\D/g, "") }));
+  }, []);
+
+  // A new case starts at the next free number of its project; typing a number takes over.
+  useEffect(() => {
+    if (isEditing || !workspaceId || numberEdited.current) return;
+    let cancelled = false;
+    void (async () => {
+      const resp = await api.data.testCases.nextNumber(workspaceId, form.projectId);
+      if (!resp.ok || cancelled || numberEdited.current) return;
+      const data = await resp.json();
+      if (!cancelled) setForm((f) => ({ ...f, testNo: String(data.next_number) }));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isEditing, workspaceId, form.projectId]);
+
+  // Numbers are unique within a project: look the number up before the user saves.
+  useEffect(() => {
+    if (!form.testNo) {
+      setNumberError("");
+      return;
+    }
+    const number = Number(form.testNo);
+    if (!Number.isInteger(number) || number < 1) {
+      setNumberError("invalid");
+      return;
+    }
+    if (!workspaceId) return;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const resp = await api.data.testCases.all(workspaceId, {
+          project_id: form.projectId || "none",
+          field: "test_no",
+          q: String(number),
+        });
+        if (!resp.ok || cancelled) return;
+        const found = await resp.json();
+        const rows: any[] = Array.isArray(found) ? found : (found.data ?? []);
+        const taken = rows.some((row) => Number(row.test_no) === number && (row.id || row._id) !== caseId);
+        setNumberError(taken ? "duplicate" : "");
+      } catch {
+        /* The server still rejects a duplicate on save. */
+      }
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [form.testNo, form.projectId, workspaceId, caseId]);
 
   const assigneeOptions = useMemo<EditorOption[]>(
     () => [
@@ -125,14 +182,6 @@ export function useEditorForm(workspaceId: string | undefined) {
           }
         }
 
-        if (!isEditing && workspaceId) {
-          const resp = await api.data.testCases.nextNumber(workspaceId);
-          if (resp.ok) {
-            const data = await resp.json();
-            if (!cancelled) setForm((f) => ({ ...f, testNo: `TC-${data.next_number}` }));
-          }
-        }
-
         if (isEditing && caseId) {
           const tcResp = await api.data.testCases.get(caseId);
           if (tcResp.ok) {
@@ -153,7 +202,7 @@ export function useEditorForm(workspaceId: string | undefined) {
               priority: tc.priority || "medium",
               assignDev,
               assignTester,
-              testNo: `TC-${tc.test_no}`,
+              testNo: String(tc.test_no ?? ""),
               input: tc.input || "",
               expectedResult: tc.expected_result || "",
               actualResult: tc.actual_result || "",
@@ -236,12 +285,17 @@ export function useEditorForm(workspaceId: string | undefined) {
 
   const submit = useCallback(async () => {
     if (!form.name.trim()) return;
+    if (numberError) {
+      toast.error(t(numberError === "duplicate" ? "tcEditor__test_no_duplicate" : "tcEditor__test_no_invalid"));
+      return;
+    }
     setIsSaving(true);
 
     try {
       const payload = {
         suite_id: form.suiteId && form.suiteId !== "undefined" ? String(form.suiteId) : null,
         project_id: form.projectId,
+        test_no: form.testNo ? Number(form.testNo) : undefined,
         name: form.name.trim(),
         description: form.description,
         preconditions: form.preconditions,
@@ -292,7 +346,8 @@ export function useEditorForm(workspaceId: string | undefined) {
         backToRepository();
       } else {
         const error = await resp.json();
-        toast.error(error.error || (isEditing ? t("tcEditor__update_failed") : t("tcEditor__create_failed")));
+        if (resp.status === 409) setNumberError("duplicate");
+        toast.error(resp.status === 409 ? t("tcEditor__test_no_duplicate") : error.error || (isEditing ? t("tcEditor__update_failed") : t("tcEditor__create_failed")));
       }
     } catch (e) {
       console.error("Save error:", e);
@@ -302,6 +357,7 @@ export function useEditorForm(workspaceId: string | undefined) {
     }
   }, [
     form,
+    numberError,
     workspaceId,
     isEditing,
     caseId,
@@ -319,6 +375,8 @@ export function useEditorForm(workspaceId: string | undefined) {
     isEditing,
     isAuthorized,
     isSaving,
+    numberError,
+    setTestNo,
     suiteOptions,
     projects,
     setProject,

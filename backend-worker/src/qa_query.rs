@@ -9,7 +9,7 @@ pub fn project_param(q: &std::collections::HashMap<String, String>) -> Option<St
         .filter(|v| !v.is_empty() && v.as_str() != "all")
         .cloned()
 }
-fn project_clause(filter: &mut String, args: &mut Vec<JsValue>, project: &str) {
+pub fn project_clause(filter: &mut String, args: &mut Vec<JsValue>, project: &str) {
     if project == "none" || project == "unassigned" {
         filter.push_str(&format!(" AND {NO_PROJECT}"));
     } else {

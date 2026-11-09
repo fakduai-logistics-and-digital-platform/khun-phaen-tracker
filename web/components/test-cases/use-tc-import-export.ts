@@ -267,7 +267,23 @@ export function useTcImportExport({
 
   const closeImportSummary = useCallback(() => setImportSummary(null), []);
 
+  /** Renumbers one project's cases 1..n (`none` for cases without a project). */
+  const renumber = useCallback(
+    async (target: string) => {
+      try {
+        const resp = await api.data.testCases.renumber(workspaceId, target === "none" ? "" : target);
+        if (!resp.ok) throw new Error();
+        notify(t("tcRenumber__done"), "success");
+        await reload();
+      } catch {
+        notify(t("tcRenumber__failed"), "error");
+      }
+    },
+    [workspaceId, reload, t],
+  );
+
   return {
+    renumber,
     showImportModal,
     importProgress,
     importSummary,

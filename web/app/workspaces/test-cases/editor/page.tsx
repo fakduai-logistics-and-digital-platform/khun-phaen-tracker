@@ -95,7 +95,7 @@ function TestCaseEditor() {
                   <BreadcrumbSeparator />
                   <BreadcrumbItem className="min-w-0">
                     <BreadcrumbPage className="truncate">
-                      {isEditing ? form.testNo || editor.caseId : t("tcEditor__new_case")}
+                      {isEditing ? (form.testNo ? `TC-${form.testNo}` : editor.caseId) : t("tcEditor__new_case")}
                     </BreadcrumbPage>
                   </BreadcrumbItem>
                 </BreadcrumbList>
@@ -178,6 +178,8 @@ function TestCaseEditor() {
                 form={form}
                 setField={editor.setField}
                 isAuthorized={isAuthorized}
+                numberError={editor.numberError}
+                onTestNoChange={editor.setTestNo}
                 projects={editor.projects}
                 onProjectChange={editor.setProject}
                 suiteOptions={editor.suiteOptions}

@@ -85,24 +85,6 @@ pub fn identity(value: &mut Value, workspace: &str, id: &str) {
     value["created_at"] = json!(db::timestamp());
     value["updated_at"] = value["created_at"].clone();
 }
-pub async fn next_number(env: &Env, workspace: &str, kind: &str, allocate: bool) -> Result<i64> {
-    #[derive(Deserialize)]
-    struct Counter {
-        value: i64,
-    }
-    let db = env.d1("DB")?;
-    let sql = if allocate {
-        "INSERT INTO counters(workspace_id,kind,value) VALUES(?,?,1) ON CONFLICT(workspace_id,kind) DO UPDATE SET value=value+1 RETURNING value"
-    } else {
-        "SELECT COALESCE((SELECT value FROM counters WHERE workspace_id=? AND kind=?),0)+1 AS value"
-    };
-    Ok(
-        db::first::<Counter>(&db, sql, &[workspace.into(), kind.into()])
-            .await?
-            .ok_or_else(|| Error::RustError("Counter unavailable".into()))?
-            .value,
-    )
-}
 pub fn qa(user: &User) -> bool {
     user.role == "admin"
         || serde_json::from_str::<Value>(&user.profile)

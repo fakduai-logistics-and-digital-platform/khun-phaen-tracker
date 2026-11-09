@@ -1,10 +1,10 @@
 "use client";
 
-import { Folder, FolderOpen, Hash, Plus } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Folder, FolderOpen, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { FieldGroup } from "@/components/ui/field";
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { useI18n } from "@/lib/i18n";
 import type { Project } from "@/lib/types";
 import { PropertyField } from "./editor-fields";
@@ -14,6 +14,8 @@ type EditorPropertiesProps = {
   form: EditorForm;
   setField: <K extends keyof EditorForm>(key: K, value: EditorForm[K]) => void;
   isAuthorized: boolean;
+  numberError: "" | "invalid" | "duplicate";
+  onTestNoChange: (value: string) => void;
   projects: Project[];
   onProjectChange: (projectId: string) => void;
   suiteOptions: EditorOption[];
@@ -27,6 +29,8 @@ export function EditorProperties({
   form,
   setField,
   isAuthorized,
+  numberError,
+  onTestNoChange,
   projects,
   onProjectChange,
   suiteOptions,
@@ -41,13 +45,32 @@ export function EditorProperties({
     <Card className="gap-4 py-4">
       <CardHeader className="flex items-center justify-between px-4">
         <CardTitle className="text-sm">{t("tcEditor__properties")}</CardTitle>
-        <Badge variant="outline" className="font-mono">
-          <Hash />
-          {form.testNo || t("tcEditor__auto_test_no")}
-        </Badge>
       </CardHeader>
       <CardContent className="px-4">
         <FieldGroup className="gap-4">
+          <Field data-invalid={!!numberError}>
+            <FieldLabel htmlFor="editor-test-no">{t("tcEditor__test_no")}</FieldLabel>
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-sm text-muted-foreground">TC-</span>
+              <Input
+                id="editor-test-no"
+                inputMode="numeric"
+                className="font-mono"
+                value={form.testNo}
+                onChange={(e) => onTestNoChange(e.target.value)}
+                placeholder={t("tcEditor__auto_test_no")}
+                aria-invalid={!!numberError}
+                disabled={!isAuthorized}
+              />
+            </div>
+            {numberError ? (
+              <FieldError>
+                {t(numberError === "duplicate" ? "tcEditor__test_no_duplicate" : "tcEditor__test_no_invalid")}
+              </FieldError>
+            ) : (
+              <FieldDescription>{t("tcEditor__test_no_hint")}</FieldDescription>
+            )}
+          </Field>
           <PropertyField
             id="editor-status"
             label={t("tcopt__prop_status")}

@@ -165,6 +165,36 @@ try {
  assert.equal((await ok(`/api/test-cases/${tc.id}`)).project_id,'');
  assert.equal((await ok(`${p}/test-cases?project_id=${repo.id}`)).length,0);
  console.log('PASS: test cases and suites are scoped to projects and can be moved between them');
+ // Numbering: every project counts its own cases from 1, numbers are editable and never duplicated within a project.
+ const repoB=(await request(`${p}/projects`,'POST',{name:'Repo B'},admin)).data.project;
+ const suiteA=await ok(`${p}/test-suites`,'POST',{title:'Num A',project_id:repo.id},qa.token,201);
+ const suiteB=await ok(`${p}/test-suites`,'POST',{title:'Num B',project_id:repoB.id},qa.token,201);
+ const mk=(suite_id,extra={})=>request(`${p}/test-cases`,'POST',{name:'n',suite_id,...extra},qa.token);
+ const made=async(suite_id,extra)=>{const r=await mk(suite_id,extra);assert.equal(r.status,201,JSON.stringify(r.data));return ok(`/api/test-cases/${r.data.id}`)};
+ const a1=await made(suiteA.id),a2=await made(suiteA.id),b1=await made(suiteB.id),b2=await made(suiteB.id);
+ assert.deepEqual([a1.test_no,a2.test_no,b1.test_no,b2.test_no],[1,2,1,2]);
+ assert.equal((await ok(`${p}/test-cases/next-number?project_id=${repo.id}`)).next_number,3);
+ assert.equal((await mk(suiteA.id,{test_no:2})).status,409);
+ assert.equal((await mk(suiteA.id,{test_no:'abc'})).status,400);
+ const b10=await made(suiteB.id,{test_no:10});assert.equal(b10.test_no,10);
+ assert.equal((await request(`/api/test-cases/${a2.id}`,'PATCH',{test_no:1},qa.token)).status,409);
+ assert.equal((await request(`/api/test-cases/${a2.id}`,'PATCH',{test_no:0},qa.token)).status,400);
+ await ok(`/api/test-cases/${a2.id}`,'PATCH',{test_no:2,name:'same number is fine'},qa.token);
+ await ok(`/api/test-cases/${a2.id}`,'PATCH',{test_no:7},qa.token);
+ assert.equal((await ok(`/api/test-cases/${a2.id}`)).test_no,7);
+ // Moving a suite into a project that already uses its numbers continues that project's sequence.
+ await ok(`/api/test-suites/${suiteA.id}`,'PATCH',{project_id:repoB.id},qa.token);
+ const moved=(await ok(`${p}/test-cases?project_id=${repoB.id}`)).map(c=>c.test_no);
+ assert.equal(new Set(moved).size,moved.length);
+ // Renumbering closes gaps and keeps the current order, per project only.
+ const r1=await request(`${p}/test-cases/renumber`,'POST',{project_id:repoB.id},dev.token);assert.equal(r1.status,403);
+ assert.equal((await request(`${p}/test-cases/renumber`,'POST',{project_id:'missing'},qa.token)).status,400);
+ const renum=await request(`${p}/test-cases/renumber`,'POST',{project_id:repoB.id},qa.token);assert.equal(renum.status,200);
+ const afterB=(await ok(`${p}/test-cases?project_id=${repoB.id}`)).map(c=>c.test_no);
+ assert.deepEqual(afterB,afterB.map((_,i)=>i+1));
+ assert.equal((await ok(`/api/test-cases/${a1.id}`)).test_no,afterB.length);
+ for(const c of [a1,a2,b1,b2,b10])await ok(`/api/test-cases/${c.id}`,'DELETE',undefined,qa.token);
+ console.log('PASS: test case numbers are per project, editable and unique');
  // An admin who belongs to a workspace manages it like its owner, but admins do not see workspaces they are not part of.
  const coAdmin=await createUser('coadmin','Developer');
  await ok(`/api/auth/users/${coAdmin.id}`,'PUT',{role:'admin'});
