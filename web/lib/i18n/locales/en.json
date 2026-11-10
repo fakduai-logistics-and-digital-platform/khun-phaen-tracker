@@ -2029,5 +2029,21 @@
   "tc__unknown_user": "Unknown user",
   "tcPicker__title": "Choose a project",
   "tcPicker__description": "Test case numbers are counted per project. Pick a project to see its suites and test cases.",
-  "tcPicker__view_all": "View all projects"
+  "tcPicker__view_all": "View all projects",
+  "setup__new_password_label": "New password",
+  "setup__confirm_password_label": "Confirm password",
+  "setup__setting_up_for": "Setting up password for",
+  "setup__default_subtitle": "Create a secure password for your new account.",
+  "setup__verifying_token": "Verifying your link...",
+  "setup__error_no_token": "Setup link is missing or invalid.",
+  "setup__error_invalid_token": "This setup link is invalid or has expired.",
+  "setup__error_verify": "Could not verify the setup link. Please try again.",
+  "setup__error_min_length": "Password must be at least 8 characters.",
+  "setup__error_mismatch": "Passwords do not match.",
+  "setup__error_generic": "Something went wrong. Please try again.",
+  "setup__success_title": "Account ready",
+  "setup__success_desc": "Your password has been set. You are now ready to use Khun Phaen.",
+  "setup__value_prop_1": "Your password is stored securely and never shared",
+  "setup__value_prop_2": "Log in anywhere with your email and password",
+  "setup__footer_text": "© Khun Phaen. All rights reserved."
 }

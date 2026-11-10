@@ -2067,5 +2067,21 @@
   "tc__unknown_user": "ไม่ทราบผู้ใช้",
   "tcPicker__title": "เลือกโปรเจ็ค",
   "tcPicker__description": "เลขกรณีทดสอบนับแยกตามโปรเจ็ค เลือกโปรเจ็คเพื่อดู Suite และกรณีทดสอบของโปรเจ็คนั้น",
-  "tcPicker__view_all": "ดูทุกโปรเจ็ค"
+  "tcPicker__view_all": "ดูทุกโปรเจ็ค",
+  "setup__new_password_label": "รหัสผ่านใหม่",
+  "setup__confirm_password_label": "ยืนยันรหัสผ่าน",
+  "setup__setting_up_for": "ตั้งรหัสผ่านสำหรับ",
+  "setup__default_subtitle": "สร้างรหัสผ่านที่ปลอดภัยสำหรับบัญชีใหม่ของคุณ",
+  "setup__verifying_token": "กำลังตรวจสอบลิงก์...",
+  "setup__error_no_token": "ไม่พบลิงก์ตั้งรหัสผ่าน หรือลิงก์ไม่ถูกต้อง",
+  "setup__error_invalid_token": "ลิงก์ตั้งรหัสผ่านไม่ถูกต้องหรือหมดอายุแล้ว",
+  "setup__error_verify": "ตรวจสอบลิงก์ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง",
+  "setup__error_min_length": "รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร",
+  "setup__error_mismatch": "รหัสผ่านไม่ตรงกัน",
+  "setup__error_generic": "เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง",
+  "setup__success_title": "บัญชีของคุณพร้อมแล้ว",
+  "setup__success_desc": "ตั้งรหัสผ่านเรียบร้อยแล้ว ตอนนี้คุณพร้อมใช้งาน Khun Phaen",
+  "setup__value_prop_1": "รหัสผ่านของคุณถูกเก็บอย่างปลอดภัยและไม่ถูกแชร์ให้ใคร",
+  "setup__value_prop_2": "เข้าสู่ระบบได้ทุกที่ด้วยอีเมลและรหัสผ่านของคุณ",
+  "setup__footer_text": "© Khun Phaen สงวนลิขสิทธิ์"
 }
