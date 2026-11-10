@@ -467,8 +467,50 @@ export function createTaskActions(deps: TaskActionDeps) {
     }
   }
 
+  async function handleDuplicateTask(source: Task) {
+    const oldTasks = deps.getTasks();
+    const oldFiltered = deps.getFilteredTasks();
+    const tempId = `temp-${Date.now()}`;
+    const {
+      id: _id,
+      task_number: _taskNumber,
+      created_at: _createdAt,
+      updated_at: _updatedAt,
+      assignees: _assignees,
+      assignee: _assignee,
+      ...fields
+    } = source;
+    const copy = {
+      ...fields,
+      title: `${source.title} ${deps.t("taskMenu__copy_suffix")}`,
+      checklist: source.checklist?.map((item) => ({ ...item, id: crypto.randomUUID(), completed: false })),
+    };
+
+    deps.setTasks([...oldTasks, { ...copy, assignees: source.assignees, id: tempId, created_at: new Date().toISOString() }]);
+    deps.setFilteredTasks([
+      ...oldFiltered,
+      { ...copy, assignees: source.assignees, id: tempId, created_at: new Date().toISOString() },
+    ]);
+
+    try {
+      const enrichedTask = await enrichTaskWithAssignees(await addTask(copy));
+      const replaceTemp = (list: Task[]) =>
+        list.map((task) => (String(task.id) === tempId ? enrichedTask : task));
+      deps.setTasks(replaceTemp(deps.getTasks()));
+      deps.setFilteredTasks(replaceTemp(deps.getFilteredTasks()));
+      deps.notify(deps.t("taskMenu__duplicated"));
+      deps.trackRealtime("add-task");
+    } catch (e) {
+      console.error("handleDuplicateTask failed:", e);
+      deps.setTasks(oldTasks);
+      deps.setFilteredTasks(oldFiltered);
+      deps.notify(deps.t("page__add_task_error"), "error");
+    }
+  }
+
   return {
     handleAddTask,
+    handleDuplicateTask,
     handleChecklistUpdate,
     handleChecklistToggle,
     handleAddAssignee,

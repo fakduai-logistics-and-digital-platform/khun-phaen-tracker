@@ -175,6 +175,7 @@ export default function WorkspacePage() {
               onStatusChange={(detail) => void taskActions.handleStatusChange(ev(detail))}
               onPriorityChange={(detail) => void taskActions.handlePriorityChange(ev(detail))}
               onEdit={page.openTaskPage}
+              onDuplicate={(task) => void taskActions.handleDuplicateTask(task)}
               onDelete={(id) => void taskActions.handleDeleteTask(ev(id))}
               onPageChange={(next) => viewActions.handlePageChange(next, page.totalPages)}
               onPageSizeChange={viewActions.setPageSize}

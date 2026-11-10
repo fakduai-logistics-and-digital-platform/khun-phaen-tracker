@@ -2125,5 +2125,15 @@
   "apiKeys__actions_for": "จัดการ {name}",
   "apiKeys__created_warning": "คัดลอก key ตอนนี้",
   "apiKeys__name_hint": "ใช้หนึ่ง key ต่อหนึ่ง agent หรือหนึ่งเครื่อง จะได้เพิกถอนแยกกันได้",
-  "apiKeys__guide_antigravity": "เพิ่มเซิร์ฟเวอร์นี้ใน raw config ของ MCP ใน Antigravity แล้วรีเฟรชรายการ MCP server"
+  "apiKeys__guide_antigravity": "เพิ่มเซิร์ฟเวอร์นี้ใน raw config ของ MCP ใน Antigravity แล้วรีเฟรชรายการ MCP server",
+  "taskMenu__duplicate": "ทำสำเนา",
+  "taskMenu__copy_as": "คัดลอกเป็น",
+  "taskMenu__copy_id": "รหัสงาน",
+  "taskMenu__copy_name": "ชื่องาน",
+  "taskMenu__copy_id_name": "รหัสงานและชื่องาน",
+  "taskMenu__copy_link": "ลิงก์",
+  "taskMenu__copied": "คัดลอกแล้ว",
+  "taskMenu__copy_failed": "คัดลอกไม่สำเร็จ",
+  "taskMenu__copy_suffix": "(สำเนา)",
+  "taskMenu__duplicated": "ทำสำเนางานแล้ว"
 }

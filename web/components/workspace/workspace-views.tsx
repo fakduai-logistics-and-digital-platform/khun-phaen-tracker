@@ -31,6 +31,7 @@ export interface WorkspaceViewsProps {
   onPriorityChange?: (detail: { id: Id; priority: Task["priority"] }) => void;
   onEdit?: (task: Task) => void;
   onDelete?: (id: Id) => void;
+  onDuplicate?: (task: Task) => void;
   onDragState?: (detail: { dragging: boolean }) => void;
   onPageChange?: (page: number) => void;
   onPageSizeChange?: (size: number) => void;
@@ -59,6 +60,7 @@ export function WorkspaceViews({
   onPriorityChange,
   onEdit,
   onDelete,
+  onDuplicate,
   onDragState,
   onPageChange,
   onPageSizeChange,
@@ -108,6 +110,7 @@ export function WorkspaceViews({
             sprints={sprints}
             onEdit={onEdit}
             onDelete={onDelete}
+            onDuplicate={onDuplicate}
             onDeleteSelected={onDeleteSelected}
             onStatusChange={onStatusChange}
             onPriorityChange={onPriorityChange}

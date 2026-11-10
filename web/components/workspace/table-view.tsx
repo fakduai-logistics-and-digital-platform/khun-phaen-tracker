@@ -31,6 +31,7 @@ export interface TableViewProps {
   onTaskUpdate?: (detail: { id: Id; updates: Partial<Task> }) => void;
   onEdit?: (task: Task) => void;
   onDelete?: (id: Id) => void;
+  onDuplicate?: (task: Task) => void;
   onDeleteSelected?: (ids: Id[]) => void;
   onStatusChange?: (detail: { id: Id; status: Task["status"] }) => void;
   onPriorityChange?: (detail: { id: Id; priority: Task["priority"] }) => void;
@@ -56,6 +57,7 @@ export function TableView({
   onTaskUpdate,
   onEdit,
   onDelete,
+  onDuplicate,
   onDeleteSelected,
   onStatusChange,
   onPriorityChange,
@@ -283,6 +285,7 @@ export function TableView({
                     onToggleChecklist={(id) => setExpandedChecklists((prev) => toggleInSet(prev, id))}
                     onEdit={(item) => onEdit?.(item)}
                     onDelete={(id) => onDelete?.(id)}
+                    onDuplicate={(item) => onDuplicate?.(item)}
                     onPreview={(item) => setPreviewId(item.id ?? null)}
                     onChecklistToggle={(detail) => onChecklistToggle?.(detail)}
                     onOpenPriority={openPriority}
