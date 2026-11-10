@@ -7,7 +7,7 @@ const TASK_TYPES: [&str; 6] = ["feature", "bug", "optimize", "refactor", "docs",
 /// Agents may only file work under these two categories.
 const CATEGORIES: [&str; 2] = ["งานหลัก", "งานรอง"];
 const INSTRUCTIONS: &str = "Rules for tasks created or edited through this server: \
-1) Every task is assigned to the owner of the API key; assignee_ids is set by the server and cannot be changed. \
+1) A task is assigned to the owner of the API key by default. If the key belongs to the workspace owner or an admin, pass `assignees` (an array of assignee names or ids, see list_assignees) in the task to assign it to other people instead; other keys cannot assign to anyone else. \
 2) task_type is required on create and must be one of: feature, bug, optimize, refactor, docs, chore. \
 3) project is required on create: use the exact name of an existing project (call list_projects first). \
 4) category is required on create and must be \"งานหลัก\" (main work) or \"งานรอง\" (secondary work). \
@@ -44,13 +44,13 @@ fn tools() -> Vec<Value> {
         tool("get_task", "Get one task", json!({"workspace_id":ws,"task_id":{"type":"string"}}), &["workspace_id", "task_id"]),
         tool(
             "create_task",
-            "Create a task assigned to the API key owner and linked to the latest sprint (both set automatically). `task` needs: title, project (exact name from list_projects), task_type (feature|bug|optimize|refactor|docs|chore) and category (\"งานหลัก\" main work or \"งานรอง\" secondary work). Optional: notes, status, priority, project, due_date, checklist",
+            "Create a task linked to the latest sprint (set automatically). It is assigned to the API key owner unless the key belongs to the workspace owner or an admin and `assignees` (array of assignee names or ids from list_assignees) is given. `task` needs: title, project (exact name from list_projects), task_type (feature|bug|optimize|refactor|docs|chore) and category (\"งานหลัก\" main work or \"งานรอง\" secondary work). Optional: notes, status, priority, project, due_date, checklist",
             json!({"workspace_id":ws,"task":{"type":"object"}}),
             &["workspace_id", "task"],
         ),
         tool(
             "update_task",
-            "Update fields of a task. `updates` holds only the fields to change: title, notes (progress notes), status, priority, due_date (YYYY-MM-DD), project (exact name from list_projects), task_type (feature|bug|optimize|refactor|docs|chore), category (\"งานหลัก\"|\"งานรอง\"), checklist (full array of {id,text,completed}). Assignee and sprint cannot be changed",
+            "Update fields of a task. `updates` holds only the fields to change: title, notes (progress notes), status, priority, due_date (YYYY-MM-DD), project (exact name from list_projects), task_type (feature|bug|optimize|refactor|docs|chore), category (\"งานหลัก\"|\"งานรอง\"), checklist (full array of {id,text,completed}). Workspace owner and admin keys may also pass `assignees` (array of assignee names or ids) to reassign. The sprint cannot be changed",
             json!({"workspace_id":ws,"task_id":{"type":"string"},"updates":{"type":"object"}}),
             &["workspace_id", "task_id", "updates"],
         ),
@@ -249,7 +249,13 @@ fn one_of(task: &serde_json::Map<String, Value>, key: &str, allowed: &[&str]) ->
 }
 
 /// The assignee profile of the key owner and the workspace's latest sprint.
-async fn assignment(env: &Env, user: &User, workspace: &str) -> Result<std::result::Result<(String, String), String>> {
+struct Assignment {
+    owner_assignee: String,
+    sprint: String,
+    can_assign_others: bool,
+}
+
+async fn assignment(env: &Env, user: &User, workspace: &str) -> Result<std::result::Result<Assignment, String>> {
     let Some(w) = workspaces::access(env, user, workspace).await? else {
         return Ok(Err("Access denied to this workspace".into()));
     };
@@ -277,7 +283,44 @@ async fn assignment(env: &Env, user: &User, workspace: &str) -> Result<std::resu
             "This workspace needs a sprint and an assignee profile for the key owner before tasks can be filed".into(),
         ));
     };
-    Ok(Ok((assignee, sprint)))
+    Ok(Ok(Assignment {
+        owner_assignee: assignee,
+        sprint,
+        can_assign_others: w.managed_by(user),
+    }))
+}
+
+/// Turns assignee names or ids into assignee ids; the error lists the valid names so the agent can correct itself.
+async fn resolve_assignees(env: &Env, workspace: &str, wanted: &Value) -> std::result::Result<Vec<String>, String> {
+    let wanted: Vec<&str> = wanted
+        .as_array()
+        .map(|list| list.iter().filter_map(Value::as_str).map(str::trim).filter(|s| !s.is_empty()).collect())
+        .ok_or("assignees must be an array of assignee names or ids")?;
+    let known = crate::records::values(env, workspace, "assignees")
+        .await
+        .map_err(|_| "Could not load the workspace assignees".to_string())?;
+    let mut ids = Vec::new();
+    for want in wanted {
+        let found = known.iter().find(|a| {
+            a["id"].as_str() == Some(want)
+                || a["name"].as_str().is_some_and(|n| n.trim().to_lowercase() == want.to_lowercase())
+        });
+        match found.and_then(|a| a["id"].as_str()) {
+            Some(id) => {
+                if !ids.iter().any(|existing| existing == id) {
+                    ids.push(id.to_owned());
+                }
+            }
+            None => {
+                let names: Vec<&str> = known.iter().filter_map(|a| a["name"].as_str()).collect();
+                return Err(format!("Unknown assignee \"{want}\". Valid assignees: {}", names.join(", ")));
+            }
+        }
+    }
+    if ids.is_empty() {
+        return Err("assignees must name at least one assignee".into());
+    }
+    Ok(ids)
 }
 
 /// `project` must name an existing project of the workspace; the error lists the valid names for the agent.
@@ -306,18 +349,34 @@ async fn prepare(env: &Env, user: &User, name: &str, args: &Value) -> std::resul
             one_of(&task, "task_type", &TASK_TYPES)?;
             one_of(&task, "category", &CATEGORIES)?;
             let workspace = arg(&args, "workspace_id")?.to_owned();
-            let (assignee, sprint) = assignment(env, user, &workspace)
+            let slot = assignment(env, user, &workspace)
                 .await
                 .map_err(|_| "Could not resolve the assignee and sprint".to_string())??;
             check_project(env, &workspace, task.get("project").and_then(Value::as_str)).await?;
-            task.insert("assignee_ids".into(), json!([assignee]));
-            task.insert("sprint_id".into(), json!(sprint));
+            let assignee_ids = match task.remove("assignees") {
+                Some(wanted) if slot.can_assign_others => resolve_assignees(env, &workspace, &wanted).await?,
+                Some(_) => return Err("Only the workspace owner or an admin can assign tasks to other people".into()),
+                None => vec![slot.owner_assignee],
+            };
+            task.remove("assignee_id");
+            task.insert("assignee_ids".into(), json!(assignee_ids));
+            task.insert("sprint_id".into(), json!(slot.sprint));
             args["task"] = Value::Object(task);
         }
         "update_task" => {
             let mut updates = args["updates"].as_object().cloned().ok_or("updates must be an object")?;
-            for locked in ["assignee_ids", "assignee_id", "assignees", "sprint_id"] {
+            for locked in ["assignee_ids", "assignee_id", "sprint_id"] {
                 updates.remove(locked);
+            }
+            if let Some(wanted) = updates.remove("assignees") {
+                let workspace = arg(&args, "workspace_id")?.to_owned();
+                let slot = assignment(env, user, &workspace)
+                    .await
+                    .map_err(|_| "Could not resolve the assignee and sprint".to_string())??;
+                if !slot.can_assign_others {
+                    return Err("Only the workspace owner or an admin can assign tasks to other people".into());
+                }
+                updates.insert("assignee_ids".into(), json!(resolve_assignees(env, &workspace, &wanted).await?));
             }
             if updates.contains_key("project") {
                 let workspace = arg(&args, "workspace_id")?.to_owned();
