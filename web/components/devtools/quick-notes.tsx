@@ -1,54 +1,75 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { Check, Copy, FileText, Trash2 } from "lucide-react";
-import { EditorContent, useEditor } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
+import { useEffect, useMemo, useState } from "react";
+import { Check, Copy, FilePlus, FileText, Pin, PinOff, Search, SquarePlus, Trash2 } from "lucide-react";
 import { ConfirmModal } from "@/components/shared/confirm-modal";
 import { Button } from "@/components/ui/button";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
+import { Input } from "@/components/ui/input";
 import { useI18n } from "@/lib/i18n";
-import { get, useStore } from "@/lib/store";
-import { quickNotes } from "@/lib/stores/quickNotes";
+import { useStore } from "@/lib/store";
+import { noteText, quickNotes, type QuickNote } from "@/lib/stores/quickNotes";
+import { cn } from "@/lib/utils";
+import { QuickNoteEditor } from "./quick-note-editor";
 import { ToolModal } from "./tool-modal";
 
-const EDITOR_CLASS = [
-  "min-h-[40vh] px-3 py-2 text-sm outline-none",
-  "[&_p]:my-2 [&_h1]:mt-4 [&_h1]:text-xl [&_h1]:font-semibold [&_h2]:mt-4 [&_h2]:text-lg [&_h2]:font-semibold",
-  "[&_h3]:mt-3 [&_h3]:text-base [&_h3]:font-semibold [&_ul]:ml-5 [&_ul]:list-disc [&_ol]:ml-5 [&_ol]:list-decimal",
-  "[&_blockquote]:border-l-4 [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground",
-  "[&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_pre]:rounded-lg [&_pre]:bg-muted [&_pre]:p-3",
-  "[&_a]:text-primary [&_a]:underline",
-].join(" ");
+function shortTime(iso: string) {
+  const date = new Date(iso);
+  const today = new Date();
+  return date.toDateString() === today.toDateString()
+    ? date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
+    : date.toLocaleDateString(undefined, { day: "numeric", month: "short" });
+}
+
+function sortNotes(notes: QuickNote[]) {
+  return [...notes].sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.updated_at.localeCompare(a.updated_at));
+}
 
 export function QuickNotes({ onClose }: { onClose: () => void }) {
   const { t } = useI18n();
-  const content = useStore(quickNotes);
+  const notes = useStore(quickNotes);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
   const [copied, setCopied] = useState(false);
-  const [confirmClear, setConfirmClear] = useState(false);
-  const initialContent = useRef(get(quickNotes));
+  const [pendingDelete, setPendingDelete] = useState<QuickNote | null>(null);
 
-  const editor = useEditor({
-    extensions: [StarterKit],
-    content: initialContent.current,
-    immediatelyRender: false,
-    editorProps: { attributes: { class: EDITOR_CLASS, "aria-label": t("quickNotes__title") } },
-    onUpdate: ({ editor: e }) => quickNotes.set(e.getHTML()),
-  });
+  const sorted = useMemo(() => sortNotes(notes), [notes]);
+  const visible = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return needle ? sorted.filter((note) => noteText(note.content).toLowerCase().includes(needle)) : sorted;
+  }, [sorted, query]);
+  const selected = notes.find((note) => note.id === selectedId) ?? null;
 
-  function handleClear() {
-    quickNotes.clear();
-    editor?.commands.clearContent();
-    setConfirmClear(false);
+  // Like Notes on a Mac: there is always a note to type into.
+  useEffect(() => {
+    if (notes.length === 0) setSelectedId(quickNotes.add().id);
+    else if (!selected) setSelectedId(sorted[0].id);
+  }, [notes.length, selected, sorted]);
+
+  function createNote() {
+    setQuery("");
+    setSelectedId(quickNotes.add().id);
   }
 
-  async function handleCopy() {
+  async function copyNote(note: QuickNote) {
     try {
-      await navigator.clipboard.writeText(get(quickNotes));
+      await navigator.clipboard.writeText(noteText(note.content));
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error("Failed to copy text: ", err);
+    } catch (error) {
+      console.error("Failed to copy text: ", error);
     }
+  }
+
+  function confirmDelete() {
+    if (pendingDelete) quickNotes.remove(pendingDelete.id);
+    setPendingDelete(null);
   }
 
   return (
@@ -58,32 +79,132 @@ export function QuickNotes({ onClose }: { onClose: () => void }) {
         title={t("quickNotes__title")}
         subtitle={t("quickNotes__subtitle")}
         icon={FileText}
+        bodyClassName="overflow-hidden"
         headerActions={
           <>
-            <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => void handleCopy()}>
+            <Button type="button" variant="outline" size="sm" className="gap-2" onClick={createNote}>
+              <SquarePlus className="size-4" />
+              {t("quickNotes__new")}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              disabled={!selected}
+              onClick={() => selected && void copyNote(selected)}
+            >
               {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
               {t("quickNotes__copy")}
             </Button>
-            <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => setConfirmClear(true)}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              disabled={!selected}
+              onClick={() => selected && setPendingDelete(selected)}
+            >
               <Trash2 className="size-4" />
-              {t("quickNotes__clear")}
+              {t("quickNotes__delete")}
             </Button>
           </>
         }
         footer={
           <p className="me-auto text-sm text-muted-foreground tabular-nums">
-            {content.length} {t("quickNotes__characters")}
+            {selected ? noteText(selected.content).length : 0} {t("quickNotes__characters")}
           </p>
         }
       >
-        <EditorContent editor={editor} className="min-h-0 flex-1 rounded-md border" />
+        <div className="grid min-h-0 flex-1 overflow-hidden rounded-md border md:grid-cols-[17rem_1fr]">
+          <aside className="flex min-h-0 flex-col border-b md:border-e md:border-b-0">
+            <div className="relative p-2">
+              <Search className="pointer-events-none absolute start-5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder={t("quickNotes__search")}
+                aria-label={t("quickNotes__search")}
+                className="h-8 ps-8"
+              />
+            </div>
+            <ul className="min-h-0 flex-1 space-y-0.5 overflow-y-auto p-2 pt-0">
+              {visible.length === 0 && (
+                <li className="px-2 py-6 text-center text-sm text-muted-foreground">{t("quickNotes__no_results")}</li>
+              )}
+              {visible.map((note) => {
+                const lines = noteText(note.content).split("\n");
+                return (
+                  <li key={note.id}>
+                    <ContextMenu>
+                      <ContextMenuTrigger asChild>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedId(note.id)}
+                          aria-current={note.id === selectedId}
+                          className={cn(
+                            "w-full rounded-md px-3 py-2 text-start transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
+                            note.id === selectedId ? "bg-accent text-accent-foreground" : "hover:bg-accent/50",
+                          )}
+                        >
+                          <span className="flex items-center gap-1.5 text-sm font-semibold">
+                            {note.pinned && <Pin className="size-3 shrink-0 text-muted-foreground" />}
+                            <span className="truncate">{lines[0] || t("quickNotes__untitled")}</span>
+                          </span>
+                          <span className="flex items-baseline gap-2 text-xs text-muted-foreground">
+                            <span className="shrink-0 tabular-nums">{shortTime(note.updated_at)}</span>
+                            <span className="truncate">{lines[1] || t("quickNotes__no_text")}</span>
+                          </span>
+                        </button>
+                      </ContextMenuTrigger>
+                      <ContextMenuContent className="w-48">
+                        <ContextMenuItem onSelect={createNote}>
+                          <SquarePlus />
+                          {t("quickNotes__new")}
+                        </ContextMenuItem>
+                        <ContextMenuItem onSelect={() => setSelectedId(quickNotes.duplicate(note.id)?.id ?? note.id)}>
+                          <FilePlus />
+                          {t("quickNotes__duplicate")}
+                        </ContextMenuItem>
+                        <ContextMenuItem onSelect={() => quickNotes.togglePin(note.id)}>
+                          {note.pinned ? <PinOff /> : <Pin />}
+                          {note.pinned ? t("quickNotes__unpin") : t("quickNotes__pin")}
+                        </ContextMenuItem>
+                        <ContextMenuItem onSelect={() => void copyNote(note)}>
+                          <Copy />
+                          {t("quickNotes__copy")}
+                        </ContextMenuItem>
+                        <ContextMenuSeparator />
+                        <ContextMenuItem variant="destructive" onSelect={() => setPendingDelete(note)}>
+                          <Trash2 />
+                          {t("quickNotes__delete")}
+                        </ContextMenuItem>
+                      </ContextMenuContent>
+                    </ContextMenu>
+                  </li>
+                );
+              })}
+            </ul>
+          </aside>
+
+          <section className="flex min-h-0 flex-col">
+            {selected && (
+              <>
+                <p className="py-3 text-center text-xs text-muted-foreground">
+                  {new Date(selected.updated_at).toLocaleString(undefined, { dateStyle: "long", timeStyle: "short" })}
+                </p>
+                <QuickNoteEditor key={selected.id} id={selected.id} initialContent={selected.content} />
+              </>
+            )}
+          </section>
+        </div>
       </ToolModal>
       <ConfirmModal
-        show={confirmClear}
-        title={t("quickNotes__clear")}
-        message={t("quickNotes__clear_confirm")}
-        onConfirm={handleClear}
-        onClose={() => setConfirmClear(false)}
+        show={pendingDelete !== null}
+        title={t("quickNotes__delete")}
+        message={t("quickNotes__delete_confirm")}
+        onConfirm={confirmDelete}
+        onClose={() => setPendingDelete(null)}
       />
     </>
   );

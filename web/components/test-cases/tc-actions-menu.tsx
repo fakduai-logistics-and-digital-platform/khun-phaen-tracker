@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Download, ExternalLink, FileDown, FileUp, ListOrdered, MoreHorizontal } from "lucide-react";
+import { Download, ExternalLink, FileDown, FileUp, FolderInput, ListOrdered, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -34,6 +34,7 @@ type TcActionsMenuProps = {
   renumberTarget: string | null;
   renumberLabel: string;
   onRenumber: (target: string) => Promise<void>;
+  onMoveCases: () => void;
 };
 
 export function TcActionsMenu({
@@ -46,6 +47,7 @@ export function TcActionsMenu({
   renumberTarget,
   renumberLabel,
   onRenumber,
+  onMoveCases,
 }: TcActionsMenuProps) {
   const { t } = useI18n();
   const [confirmRenumber, setConfirmRenumber] = useState(false);
@@ -93,6 +95,12 @@ export function TcActionsMenu({
             <FileDown />
             {t("testCases__export")}
           </DropdownMenuItem>
+          {isAuthorized && (
+            <DropdownMenuItem onSelect={onMoveCases}>
+              <FolderInput />
+              {t("tcMove__action")}
+            </DropdownMenuItem>
+          )}
           {isAuthorized && (
             <DropdownMenuItem disabled={renumberTarget === null} onSelect={() => setConfirmRenumber(true)}>
               <ListOrdered />

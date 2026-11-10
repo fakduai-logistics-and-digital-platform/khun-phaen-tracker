@@ -8,6 +8,36 @@ import { downloadCsv, EXPORT_HEADERS, parseCSV, stepsToText, toCsv } from "./tc-
 import { notify } from "./tc-notify";
 import { mapBackendToFrontend, type ImportProgress, type ImportSummary, type Suite, type TestCase } from "./tc-types";
 
+const STATUSES = [
+  "draft",
+  "actual",
+  "deprecated",
+  "ready",
+  "passed",
+  "failed",
+  "blocked",
+  "skipped",
+  "pending",
+  "invalid",
+  "not-run",
+];
+const PRIORITIES = ["low", "medium", "high", "urgent"];
+
+/** Spreadsheets spell enum values freely ("Medium", "Not Run"); anything the server would reject falls back. */
+function pickEnum(value: string | undefined, allowed: string[], fallback: string) {
+  const normalized = (value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_]+/g, "-");
+  return allowed.includes(normalized) ? normalized : fallback;
+}
+
+/** First non-empty cell among several accepted header spellings. */
+function cell(row: Record<string, string>, ...names: string[]) {
+  for (const name of names) if (row[name]) return row[name];
+  return "";
+}
+
 type UseTcImportExportArgs = {
   workspaceId: string;
   projects: Project[];
@@ -57,6 +87,15 @@ export function useTcImportExport({
         });
       }
 
+      // Cases store assignee ids, so names must come from the assignees list rather than from user accounts.
+      const assigneesResp = await api.data.assignees.list(workspaceId);
+      if (assigneesResp.ok) {
+        for (const a of (await assigneesResp.json()).assignees ?? []) {
+          const id = String(a.id || a._id || "");
+          if (id && a.name) userNameMap.set(id, String(a.name));
+        }
+      }
+
       // Only what is on screen: a selected project exports just that project's cases.
       const casesResp = await api.data.testCases.all(workspaceId, {
         project_id: projectId === "all" ? undefined : projectId,
@@ -74,7 +113,18 @@ export function useTcImportExport({
 
       const nameOf = (id: string) => userNameMap.get(id) || (id === "unassigned" ? unassignedLabel() : id);
 
+      // Names come from a fresh list, so the Project column is filled even if the page's own list is stale.
       const projectNames = new Map(projects.map((p) => [String(p.id), p.name]));
+      try {
+        const projectsResp = await api.data.projects.list(workspaceId);
+        if (projectsResp.ok) {
+          for (const p of (await projectsResp.json()).projects ?? []) {
+            if (p.id && p.name) projectNames.set(String(p.id), String(p.name));
+          }
+        }
+      } catch {
+        /* The names already known from the page are used. */
+      }
       const rows = allCases.map((c) => {
         const testerId = c.assignee || "unassigned";
         const devId = c.assign_dev || "unassigned";
@@ -93,6 +143,8 @@ export function useTcImportExport({
           String(c.expected_result || ""),
           String(c.actual_result || ""),
           String(stepsToText(c) || ""),
+          String(c.test_note || ""),
+          String(c.dev_note || ""),
         ];
       });
 
@@ -208,11 +260,19 @@ export function useTcImportExport({
           input: row["input"] || "",
           expected_result: row["expected result"] || row["expected"] || "",
           actual_result: row["actual result"] || row["actual"] || "",
-          status: row["status"] || "actual",
-          priority: row["priority"] || "medium",
-          fixed: row["fixed"] || "no",
-          assign_dev: row["assign dev"] || row["developer"] || "unassigned",
-          assign_tester: row["assign tester"] || row["tester"] || "unassigned",
+          status: pickEnum(row["status"], STATUSES, "actual"),
+          priority: pickEnum(row["priority"], PRIORITIES, "medium"),
+          fixed: pickEnum(row["fixed"], ["no", "yes"], "no"),
+          test_note: cell(
+            row,
+            "tester note",
+            "test note",
+            "tester remark",
+            "หมายเหตุจาก tester",
+            "หมายเหตุจากผู้ทดสอบ",
+            "หมายเหตุ",
+          ),
+          dev_note: cell(row, "dev note", "developer note", "dev remark", "หมายเหตุจาก dev", "หมายเหตุจากนักพัฒนา"),
           step_format: "classic",
           classic_steps: classicSteps.length > 0 ? classicSteps : undefined,
           suite_id: suiteId,
@@ -247,8 +307,15 @@ export function useTcImportExport({
             successCount++;
           } else {
             failedCount++;
-            failedNames.push(tc.name);
-            console.error(`Failed "${tc.name}":`, await resp.text());
+            const detail = await resp.text();
+            let reason = "";
+            try {
+              reason = JSON.parse(detail).error ?? "";
+            } catch {
+              /* A non-JSON body carries no readable reason. */
+            }
+            failedNames.push(reason ? `${tc.name} (${reason})` : tc.name);
+            console.error(`Failed "${tc.name}":`, detail);
           }
         } catch (err) {
           failedCount++;

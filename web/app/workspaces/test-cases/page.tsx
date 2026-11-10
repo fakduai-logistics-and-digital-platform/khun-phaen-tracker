@@ -15,6 +15,7 @@ import { TcDetailPanel } from "@/components/test-cases/tc-detail-panel";
 import { TcDialogs } from "@/components/test-cases/tc-dialogs";
 import { TcLightboxView } from "@/components/test-cases/tc-lightbox-view";
 import { TcNewRunDialog } from "@/components/test-cases/tc-new-run-dialog";
+import { TcMoveDialog } from "@/components/test-cases/tc-move-dialog";
 import { TcProjectPicker } from "@/components/test-cases/tc-project-picker";
 import { TcRunView } from "@/components/test-cases/tc-run-view";
 import { TcSidebar } from "@/components/test-cases/tc-sidebar";
@@ -64,6 +65,7 @@ export default function TestCasesPage() {
   const resize = useTcResize();
   const lightbox = useTcLightbox();
   const [showDetail, setShowDetail] = useState(false);
+  const [showMove, setShowMove] = useState(false);
   const [view, setView] = useState<TcView>("table");
   useEffect(() => {
     const saved = localStorage.getItem("test-cases-view");
@@ -279,6 +281,7 @@ export default function TestCasesPage() {
                   renumberTarget={data.projectId === "all" ? (data.projects.length ? null : "none") : data.projectId}
                   renumberLabel={projectName || t("tcProject__none")}
                   onRenumber={imports.renumber}
+                  onMoveCases={() => setShowMove(true)}
                 />
                 <div
                   className="relative h-0.5 shrink-0 overflow-hidden bg-transparent"
@@ -360,6 +363,15 @@ export default function TestCasesPage() {
         suites={data.suites}
         assigneeOptions={testRunAssigneeOptions}
         onSubmit={() => void runs.createTestRun()}
+      />
+      <TcMoveDialog
+        open={showMove}
+        onOpenChange={setShowMove}
+        workspaceId={workspaceId}
+        projects={data.projects}
+        suites={data.suites}
+        currentProject={data.projectId}
+        onMoved={() => data.loadData(undefined, undefined, true)}
       />
       <TcDialogs
         suites={suites}

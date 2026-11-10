@@ -20,6 +20,8 @@ type ToolModalProps = {
   headerActions?: ReactNode;
   footer?: ReactNode;
   bodyClassName?: string;
+  /** Overrides the default size, e.g. to fill the screen. */
+  contentClassName?: string;
   onEscapeKeyDown?: (event: KeyboardEvent) => void;
   children: ReactNode;
 };
@@ -33,12 +35,16 @@ export function ToolModal({
   headerActions,
   footer,
   bodyClassName,
+  contentClassName,
   onEscapeKeyDown,
   children,
 }: ToolModalProps) {
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent onEscapeKeyDown={onEscapeKeyDown} className="flex h-[80vh] w-full flex-col gap-4 sm:max-w-5xl">
+      <DialogContent
+        onEscapeKeyDown={onEscapeKeyDown}
+        className={cn("flex h-[80vh] w-full flex-col gap-4 sm:max-w-5xl", contentClassName)}
+      >
         <DialogHeader className="pe-8">
           <div className="flex items-center justify-between gap-3">
             <DialogTitle className="flex items-center gap-2">

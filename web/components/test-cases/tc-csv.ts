@@ -6,13 +6,13 @@ export const TEMPLATE_HEADERS = [
   "Test Case No",
   "Test Name",
   "Status",
-  "Assign Tester",
-  "Assign Dev",
   "Precondition",
   "Input",
   "Expected Result",
   "Actual Result",
   "Test Step",
+  "Tester Note",
+  "Dev Note",
 ];
 
 const TEMPLATE_ROWS = [
@@ -22,13 +22,13 @@ const TEMPLATE_ROWS = [
     "1",
     "Sample Login",
     "draft",
-    "unassigned",
-    "unassigned",
     "User is on login page",
     "email@example.com, password123",
     "User redirected to dashboard",
     "User redirected to dashboard",
     "Enter email\nEnter password\nClick login",
+    "",
+    "",
   ],
 ];
 
@@ -47,6 +47,8 @@ export const EXPORT_HEADERS = [
   "Expected Result",
   "Actual Result",
   "Test Step",
+  "Tester Note",
+  "Dev Note",
 ];
 
 export function toCsv(headers: string[], rows: string[][]) {

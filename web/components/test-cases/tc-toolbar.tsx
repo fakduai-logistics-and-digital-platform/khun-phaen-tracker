@@ -33,6 +33,7 @@ type TcToolbarProps = {
   onDownloadTemplate: () => void;
   onImportFile: (file: File) => void;
   onExport: () => void;
+  onMoveCases: () => void;
   renumberTarget: string | null;
   renumberLabel: string;
   onRenumber: (target: string) => Promise<void>;
@@ -60,6 +61,7 @@ export function TcToolbar({
   onDownloadTemplate,
   onImportFile,
   onExport,
+  onMoveCases,
   renumberTarget,
   renumberLabel,
   onRenumber,
@@ -129,6 +131,7 @@ export function TcToolbar({
               renumberTarget={renumberTarget}
               renumberLabel={renumberLabel}
               onRenumber={onRenumber}
+              onMoveCases={onMoveCases}
             />
           </div>
         </div>
