@@ -310,7 +310,7 @@ pub async fn handle(req: &mut Request, env: &Env, user: &User, parts: &[&str]) -
     output[entity(kind)] = value;
     http::ok(output)
 }
-async fn ensure_owner_assignee(env: &Env, workspace: &str, user: &User) -> Result<()> {
+pub(crate) async fn ensure_owner_assignee(env: &Env, workspace: &str, user: &User) -> Result<()> {
     let db = env.d1("DB")?;
     let found: Option<Count> = db::first(
         &db,

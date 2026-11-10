@@ -1,8 +1,18 @@
-use crate::{auth, http};
+use crate::{auth, auth::User, db, http, workspaces};
 use serde_json::{json, Value};
 use worker::*;
 
 const MAX_BATCH: usize = 20;
+const TASK_TYPES: [&str; 6] = ["feature", "bug", "optimize", "refactor", "docs", "chore"];
+/// Agents may only file work under these two categories.
+const CATEGORIES: [&str; 2] = ["งานหลัก", "งานรอง"];
+const INSTRUCTIONS: &str = "Rules for tasks created or edited through this server: \
+1) Every task is assigned to the owner of the API key; assignee_ids is set by the server and cannot be changed. \
+2) task_type is required on create and must be one of: feature, bug, optimize, refactor, docs, chore. \
+3) project is required on create: use the exact name of an existing project (call list_projects first). \
+4) category is required on create and must be \"งานหลัก\" (main work) or \"งานรอง\" (secondary work). \
+5) Tasks are always linked to the workspace's latest sprint; sprint_id is set by the server and cannot be changed. \
+Pick task_type and category from what the work actually is; ask the user when unsure.";
 const PROTOCOL: &str = "2025-03-26";
 
 fn tool(name: &str, description: &str, properties: Value, required: &[&str]) -> Value {
@@ -34,13 +44,13 @@ fn tools() -> Vec<Value> {
         tool("get_task", "Get one task", json!({"workspace_id":ws,"task_id":{"type":"string"}}), &["workspace_id", "task_id"]),
         tool(
             "create_task",
-            "Create a task. `task` holds fields such as title, notes, status, priority, project, due_date, assignee_ids",
+            "Create a task assigned to the API key owner and linked to the latest sprint (both set automatically). `task` needs: title, project (exact name from list_projects), task_type (feature|bug|optimize|refactor|docs|chore) and category (\"งานหลัก\" main work or \"งานรอง\" secondary work). Optional: notes, status, priority, project, due_date, checklist",
             json!({"workspace_id":ws,"task":{"type":"object"}}),
             &["workspace_id", "task"],
         ),
         tool(
             "update_task",
-            "Update fields of a task. `updates` holds only the fields to change: title, notes (progress notes), status, priority, due_date (YYYY-MM-DD), project, assignee_ids, checklist (full array of {id,text,completed})",
+            "Update fields of a task. `updates` holds only the fields to change: title, notes (progress notes), status, priority, due_date (YYYY-MM-DD), project (exact name from list_projects), task_type (feature|bug|optimize|refactor|docs|chore), category (\"งานหลัก\"|\"งานรอง\"), checklist (full array of {id,text,completed}). Assignee and sprint cannot be changed",
             json!({"workspace_id":ws,"task_id":{"type":"string"},"updates":{"type":"object"}}),
             &["workspace_id", "task_id", "updates"],
         ),
@@ -231,7 +241,106 @@ fn plan(name: &str, args: &Value) -> std::result::Result<(Method, String, Option
     })
 }
 
-async fn call_tool(req: &Request, env: &Env, name: &str, args: &Value) -> Value {
+fn one_of(task: &serde_json::Map<String, Value>, key: &str, allowed: &[&str]) -> std::result::Result<(), String> {
+    match task.get(key).and_then(Value::as_str) {
+        Some(v) if allowed.contains(&v) => Ok(()),
+        _ => Err(format!("{key} must be one of: {}", allowed.join(", "))),
+    }
+}
+
+/// The assignee profile of the key owner and the workspace's latest sprint.
+async fn assignment(env: &Env, user: &User, workspace: &str) -> Result<std::result::Result<(String, String), String>> {
+    let Some(w) = workspaces::access(env, user, workspace).await? else {
+        return Ok(Err("Access denied to this workspace".into()));
+    };
+    if w.owner_id == user.id {
+        crate::documents::ensure_owner_assignee(env, &w.id, user).await?;
+    }
+    let db = env.d1("DB")?;
+    let assignee: Option<Value> = db::first(
+        &db,
+        "SELECT id FROM documents WHERE workspace_id=? AND kind='assignees' AND json_extract(payload,'$.user_id')=? LIMIT 1",
+        &[w.id.clone().into(), user.id.clone().into()],
+    )
+    .await?;
+    let sprint: Option<Value> = db::first(
+        &db,
+        "SELECT id FROM documents WHERE workspace_id=? AND kind='sprints' ORDER BY json_extract(payload,'$.start_date') DESC, created_at DESC LIMIT 1",
+        &[w.id.clone().into()],
+    )
+    .await?;
+    let (Some(assignee), Some(sprint)) = (
+        assignee.and_then(|v| v["id"].as_str().map(str::to_owned)),
+        sprint.and_then(|v| v["id"].as_str().map(str::to_owned)),
+    ) else {
+        return Ok(Err(
+            "This workspace needs a sprint and an assignee profile for the key owner before tasks can be filed".into(),
+        ));
+    };
+    Ok(Ok((assignee, sprint)))
+}
+
+/// `project` must name an existing project of the workspace; the error lists the valid names for the agent.
+async fn check_project(env: &Env, workspace: &str, project: Option<&str>) -> std::result::Result<(), String> {
+    let names: Vec<String> = crate::records::values(env, workspace, "projects")
+        .await
+        .map_err(|_| "Could not load the workspace projects".to_string())?
+        .iter()
+        .filter_map(|p| p["name"].as_str().map(str::to_owned))
+        .collect();
+    match project {
+        Some(p) if names.iter().any(|n| n == p) => Ok(()),
+        _ => Err(format!("project is required and must be one of: {}", names.join(", "))),
+    }
+}
+
+/// Applies the task rules on top of what the agent sent; the agent cannot override assignee or sprint.
+async fn prepare(env: &Env, user: &User, name: &str, args: &Value) -> std::result::Result<Value, String> {
+    let mut args = args.clone();
+    match name {
+        "create_task" => {
+            let mut task = args["task"].as_object().cloned().ok_or("task must be an object")?;
+            if task.get("title").and_then(Value::as_str).is_none_or(|t| t.trim().is_empty()) {
+                return Err("title is required".into());
+            }
+            one_of(&task, "task_type", &TASK_TYPES)?;
+            one_of(&task, "category", &CATEGORIES)?;
+            let workspace = arg(&args, "workspace_id")?.to_owned();
+            let (assignee, sprint) = assignment(env, user, &workspace)
+                .await
+                .map_err(|_| "Could not resolve the assignee and sprint".to_string())??;
+            check_project(env, &workspace, task.get("project").and_then(Value::as_str)).await?;
+            task.insert("assignee_ids".into(), json!([assignee]));
+            task.insert("sprint_id".into(), json!(sprint));
+            args["task"] = Value::Object(task);
+        }
+        "update_task" => {
+            let mut updates = args["updates"].as_object().cloned().ok_or("updates must be an object")?;
+            for locked in ["assignee_ids", "assignee_id", "assignees", "sprint_id"] {
+                updates.remove(locked);
+            }
+            if updates.contains_key("project") {
+                let workspace = arg(&args, "workspace_id")?.to_owned();
+                check_project(env, &workspace, updates.get("project").and_then(Value::as_str)).await?;
+            }
+            if updates.contains_key("task_type") {
+                one_of(&updates, "task_type", &TASK_TYPES)?;
+            }
+            if updates.contains_key("category") {
+                one_of(&updates, "category", &CATEGORIES)?;
+            }
+            args["updates"] = Value::Object(updates);
+        }
+        _ => {}
+    }
+    Ok(args)
+}
+
+async fn call_tool(req: &Request, env: &Env, user: &User, name: &str, args: &Value) -> Value {
+    let args = &match prepare(env, user, name, args).await {
+        Ok(args) => args,
+        Err(message) => return json!({"isError":true,"content":[{"type":"text","text":message}]}),
+    };
     let (method, path, body) = match plan(name, args) {
         Ok(p) => p,
         Err(message) => return json!({"isError":true,"content":[{"type":"text","text":message}]}),
@@ -266,7 +375,7 @@ fn rpc_error(id: &Value, code: i64, message: &str) -> Value {
     json!({"jsonrpc":"2.0","id":id,"error":{"code":code,"message":message}})
 }
 
-async fn dispatch(req: &Request, env: &Env, message: &Value) -> Option<Value> {
+async fn dispatch(req: &Request, env: &Env, user: &User, message: &Value) -> Option<Value> {
     let id = message.get("id").cloned()?;
     let params = &message["params"];
     let result = match message["method"].as_str().unwrap_or_default() {
@@ -274,10 +383,11 @@ async fn dispatch(req: &Request, env: &Env, message: &Value) -> Option<Value> {
             "protocolVersion": PROTOCOL,
             "capabilities": {"tools": {}},
             "serverInfo": {"name": "khun-phaen-tracker", "version": "1.0.0"},
+            "instructions": INSTRUCTIONS,
         }),
         "ping" => json!({}),
         "tools/list" => json!({"tools": tools()}),
-        "tools/call" => call_tool(req, env, http::text(params, "name"), &params["arguments"]).await,
+        "tools/call" => call_tool(req, env, user, http::text(params, "name"), &params["arguments"]).await,
         _ => return Some(rpc_error(&id, -32601, "Method not found")),
     };
     Some(json!({"jsonrpc":"2.0","id":id,"result":result}))
@@ -288,9 +398,9 @@ pub async fn handle(req: &mut Request, env: &Env) -> Result<Response> {
     if req.method() != Method::Post {
         return http::error(405, "Use POST with a JSON-RPC body");
     }
-    if auth::authenticate(req, env).await?.is_none() {
+    let Some(user) = auth::authenticate(req, env).await? else {
         return http::error(401, "Missing or invalid API key");
-    }
+    };
     if let Some(token) = auth::token(req).filter(|t| crate::api_keys::is_key(t)) {
         if let Some(wait) = crate::api_keys::throttle(env, &token).await? {
             let response = http::error(429, "API key rate limit exceeded; slow down")?;
@@ -305,7 +415,7 @@ pub async fn handle(req: &mut Request, env: &Env) -> Result<Response> {
         }
         let mut out = Vec::new();
         for message in batch {
-            if let Some(reply) = dispatch(req, env, message).await {
+            if let Some(reply) = dispatch(req, env, &user, message).await {
                 out.push(reply);
             }
         }
@@ -315,8 +425,34 @@ pub async fn handle(req: &mut Request, env: &Env) -> Result<Response> {
             http::ok(json!(out))
         };
     }
-    match dispatch(req, env, &body).await {
+    match dispatch(req, env, &user, &body).await {
         Some(reply) => http::ok(reply),
         None => Ok(Response::empty()?.with_status(202)),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn task_type_and_category_are_restricted() {
+        let task = json!({"task_type":"bug","category":"งานหลัก"});
+        let task = task.as_object().unwrap();
+        assert!(one_of(task, "task_type", &TASK_TYPES).is_ok());
+        assert!(one_of(task, "category", &CATEGORIES).is_ok());
+        let bad = json!({"task_type":"meeting","category":"ประชุม"});
+        let bad = bad.as_object().unwrap();
+        assert!(one_of(bad, "task_type", &TASK_TYPES).is_err());
+        assert!(one_of(bad, "category", &CATEGORIES).is_err());
+        assert!(one_of(&serde_json::Map::new(), "category", &CATEGORIES).is_err());
+    }
+
+    #[test]
+    fn locked_fields_are_not_exposed_to_agents() {
+        for tool in tools() {
+            let props = tool["inputSchema"]["properties"].as_object().unwrap();
+            assert!(!props.contains_key("assignee_ids") && !props.contains_key("sprint_id"));
+        }
     }
 }
