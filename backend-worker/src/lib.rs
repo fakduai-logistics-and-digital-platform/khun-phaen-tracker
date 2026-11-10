@@ -1,4 +1,5 @@
 mod ai;
+mod api_keys;
 mod auth;
 mod background;
 mod cache;
@@ -11,6 +12,7 @@ mod db;
 mod documents;
 mod file_urls;
 mod http;
+mod mcp;
 mod notifications;
 mod qa;
 mod qa_history;
@@ -56,7 +58,7 @@ pub async fn main(mut req: Request, env: Env, _ctx: Context) -> Result<Response>
     }
     http::cors(response, origin.as_deref(), &env)
 }
-async fn route(req: &mut Request, env: &Env) -> Result<Response> {
+pub(crate) async fn route(req: &mut Request, env: &Env) -> Result<Response> {
     let path = req.path();
     let parts: Vec<_> = path.trim_matches('/').split('/').collect();
     if req.method() == Method::Get && matches!(path.as_str(), "/" | "/health") {
@@ -72,6 +74,9 @@ async fn route(req: &mut Request, env: &Env) -> Result<Response> {
             410,
             "Peer sync has been retired; use backend APIs and realtime tickets",
         );
+    }
+    if path == "/mcp" {
+        return mcp::handle(req, env).await;
     }
     if parts.first() != Some(&"api") {
         return http::error(404, "Not found");
@@ -95,6 +100,9 @@ async fn route(req: &mut Request, env: &Env) -> Result<Response> {
                 && parts.len() == 4
                 && matches!(req.method(), Method::Put | Method::Delete))
         {
+            if auth::token(req).is_some_and(|t| api_keys::is_key(&t)) {
+                return http::error(403, "Account changes require a signed-in session");
+            }
             // Request headers are copied explicitly. Browser-controlled internal identity headers are ignored.
             let headers = Headers::new();
             headers.set("Content-Type", "application/json")?;
@@ -211,8 +219,21 @@ async fn route(req: &mut Request, env: &Env) -> Result<Response> {
     let Some(user) = auth::authenticate(req, env).await? else {
         return http::error(401, "Not logged in");
     };
+    // MCP tool calls replay through this router with host "internal"; only the outer request is counted.
+    if req.url()?.host_str() != Some("internal") {
+        if let Some(token) = auth::token(req).filter(|t| api_keys::is_key(t)) {
+            if let Some(wait) = api_keys::throttle(env, &token).await? {
+                let response = http::error(429, "API key rate limit exceeded; slow down")?;
+                response.headers().set("Retry-After", &wait.to_string())?;
+                return Ok(response);
+            }
+        }
+    }
     if parts.get(1) == Some(&"integrations") && parts.get(2) == Some(&"workzy") {
         return workzy::handle(req, env, &user, &parts).await;
+    }
+    if parts.get(1) == Some(&"auth") && parts.get(2) == Some(&"api-keys") {
+        return api_keys::handle(req, env, &user, &parts).await;
     }
     if path == "/api/auth/me" && req.method() == Method::Get {
         return http::ok(user.public());

@@ -122,8 +122,8 @@ pub async fn edit(req: &Request, env: &Env, input: &Value) -> Result<Response> {
             .unwrap_or(current.is_active)
     };
     let password = http::text(input, "password");
-    if !password.is_empty() && !(12..=72).contains(&password.len()) {
-        return http::error(400, "Password must be 12–72 bytes");
+    if !password.is_empty() && !(8..=72).contains(&password.len()) {
+        return http::error(400, "Password must be 8–72 bytes");
     }
     let hash = if password.is_empty() {
         current.password_hash

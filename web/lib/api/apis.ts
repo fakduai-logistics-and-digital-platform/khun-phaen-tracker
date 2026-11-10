@@ -1240,6 +1240,30 @@ export const api = {
         credentials: "include",
       }),
   },
+  apiKeys: {
+    list: (): Promise<Response> =>
+      fetch(`${API_BASE_URL}/auth/api-keys`, { headers: api.data._headers(), credentials: "include" }),
+    create: (name: string): Promise<Response> =>
+      fetch(`${API_BASE_URL}/auth/api-keys`, {
+        method: "POST",
+        headers: api.data._headers(true),
+        credentials: "include",
+        body: JSON.stringify({ name }),
+      }),
+    revoke: (id: string): Promise<Response> =>
+      fetch(`${API_BASE_URL}/auth/api-keys/${id}/revoke`, {
+        method: "POST",
+        headers: api.data._headers(true),
+        credentials: "include",
+        body: "{}",
+      }),
+    remove: (id: string): Promise<Response> =>
+      fetch(`${API_BASE_URL}/auth/api-keys/${id}`, {
+        method: "DELETE",
+        headers: api.data._headers(),
+        credentials: "include",
+      }),
+  },
   workzy: {
     status: (): Promise<Response> =>
       fetch(`${API_BASE_URL}/integrations/workzy`, { headers: api.data._headers(), credentials: "include" }),

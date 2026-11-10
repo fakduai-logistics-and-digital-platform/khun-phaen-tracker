@@ -9,6 +9,7 @@ import { ThemeSwitch } from "@/components/theme-switch";
 import { AuthenticatedLayout } from "@/components/layout/authenticated-layout";
 import { Header } from "@/components/layout/header";
 import { Main } from "@/components/layout/main";
+import { ProfileApiKeys } from "@/components/profile/profile-api-keys";
 import { ProfileIntegrations } from "@/components/profile/profile-integrations";
 import { ProfileForm, type ProfileFormValues } from "@/components/profile/profile-form";
 import { ProfileSummary } from "@/components/profile/profile-summary";
@@ -161,6 +162,8 @@ export default function ProfilePage() {
             />
 
             <ProfileIntegrations />
+
+            <ProfileApiKeys />
           </section>
         </div>
       </Main>

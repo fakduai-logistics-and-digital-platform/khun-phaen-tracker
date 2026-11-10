@@ -36,6 +36,9 @@ pub async fn authenticate(req: &Request, env: &Env) -> Result<Option<User>> {
     let Some(token) = token(req) else {
         return Ok(None);
     };
+    if crate::api_keys::is_key(&token) {
+        return crate::api_keys::authenticate(env, &token).await;
+    }
     db::first(&env.d1("DB")?, "SELECT u.* FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>? AND u.is_active=1", &[digest(&token).into(),db::now().into()]).await
 }
 /// Login is gated by Cloudflare Turnstile only when the TURNSTILE_SECRET_KEY secret is configured.
@@ -184,8 +187,8 @@ impl DurableObject for AuthService {
                     return http::error(409, "Email is already registered");
                 }
                 let password = http::text(&input, "password");
-                if !password.is_empty() && !(12..=72).contains(&password.len()) {
-                    return http::error(400, "Password must be 12–72 bytes");
+                if !password.is_empty() && !(8..=72).contains(&password.len()) {
+                    return http::error(400, "Password must be 8–72 bytes");
                 }
                 let setup = format!("{}{}", db::id(), db::id());
                 let hash = if password.is_empty() {
@@ -214,8 +217,8 @@ impl DurableObject for AuthService {
             }
             "/setup-password" => {
                 let password = http::text(&input, "password");
-                if !(12..=72).contains(&password.len()) {
-                    return http::error(400, "Password must be 12–72 bytes");
+                if !(8..=72).contains(&password.len()) {
+                    return http::error(400, "Password must be 8–72 bytes");
                 }
                 let hash = bcrypt::hash(password, bcrypt::DEFAULT_COST)
                     .map_err(|e| Error::RustError(e.to_string()))?;
