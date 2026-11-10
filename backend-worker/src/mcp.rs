@@ -11,7 +11,8 @@ const INSTRUCTIONS: &str = "Rules for tasks created or edited through this serve
 2) task_type is required on create and must be one of: feature, bug, optimize, refactor, docs, chore. \
 3) project is required on create: use the exact name of an existing project (call list_projects first). \
 4) category is required on create and must be \"งานหลัก\" (main work) or \"งานรอง\" (secondary work). \
-5) Tasks are always linked to the workspace's latest sprint; sprint_id is set by the server and cannot be changed. \
+5) Leave progress updates and questions as task comments with add_task_comment; they are written as the key owner. \
+6) Tasks are always linked to the workspace's latest sprint; sprint_id is set by the server and cannot be changed. \
 Pick task_type and category from what the work actually is; ask the user when unsure.";
 const PROTOCOL: &str = "2025-03-26";
 
@@ -40,6 +41,18 @@ fn tools() -> Vec<Value> {
             "Report progress by moving a task to a new status",
             json!({"workspace_id":ws,"task_id":{"type":"string"},"status":{"type":"string","enum":["pending","todo","in-progress","in-test","done"]}}),
             &["workspace_id", "task_id", "status"],
+        ),
+        tool(
+            "list_task_comments",
+            "List the comments on a task, oldest first. Optional: page, limit",
+            json!({"workspace_id":ws,"task_id":{"type":"string"},"page":{"type":"number"},"limit":{"type":"number"}}),
+            &["workspace_id", "task_id"],
+        ),
+        tool(
+            "add_task_comment",
+            "Post a comment on a task as the API key owner. Use it for progress updates, findings and questions",
+            json!({"workspace_id":ws,"task_id":{"type":"string"},"content":{"type":"string","description":"Comment text, up to 10000 characters"}}),
+            &["workspace_id", "task_id", "content"],
         ),
         tool("get_task", "Get one task", json!({"workspace_id":ws,"task_id":{"type":"string"}}), &["workspace_id", "task_id"]),
         tool(
@@ -187,6 +200,32 @@ fn plan(name: &str, args: &Value) -> std::result::Result<(Method, String, Option
                 Method::Patch,
                 format!("{}/tasks/{}", base(args)?, arg(args, "task_id")?),
                 Some(json!({"status": status})),
+            )
+        }
+        "list_task_comments" => (
+            Method::Get,
+            format!(
+                "{}/tasks/{}/comments{}",
+                base(args)?,
+                arg(args, "task_id")?,
+                query_of(args, &["page", "limit"])
+            ),
+            None,
+        ),
+        "add_task_comment" => {
+            let content = http::text(args, "content").trim();
+            if content.is_empty() || content.chars().count() > 10_000 {
+                return Err("content is required (max 10000 characters)".into());
+            }
+            // The comments endpoint reads multipart form data, so the text travels as one form field.
+            let boundary = format!("kp{}", db::id().replace('-', ""));
+            let form = format!(
+                "--{boundary}\r\nContent-Disposition: form-data; name=\"content\"\r\n\r\n{content}\r\n--{boundary}--\r\n"
+            );
+            (
+                Method::Post,
+                format!("{}/tasks/{}/comments", base(args)?, arg(args, "task_id")?),
+                Some(Value::String(form)),
             )
         }
         "get_task" => (Method::Get, format!("{}/tasks/{}", base(args)?, arg(args, "task_id")?), None),
@@ -408,14 +447,24 @@ async fn call_tool(req: &Request, env: &Env, user: &User, name: &str, args: &Val
     // permission check applies exactly as it does for the web app.
     let result: Result<(u16, String)> = async {
         let headers = Headers::new();
-        headers.set("Content-Type", "application/json")?;
+        let multipart = body.as_ref().and_then(Value::as_str).and_then(|form| {
+            form.lines()
+                .next()
+                .and_then(|line| line.strip_prefix("--"))
+                .map(|boundary| format!("multipart/form-data; boundary={boundary}"))
+        });
+        headers.set("Content-Type", multipart.as_deref().unwrap_or("application/json"))?;
         if let Some(v) = req.headers().get("Authorization")? {
             headers.set("Authorization", &v)?;
         }
         let mut init = RequestInit::new();
         init.with_method(method).with_headers(headers);
         if let Some(body) = body {
-            init.with_body(Some(body.to_string().into()));
+            let text = match (&multipart, body.as_str()) {
+                (Some(_), Some(form)) => form.to_owned(),
+                _ => body.to_string(),
+            };
+            init.with_body(Some(text.into()));
         }
         let mut inner = Request::new_with_init(&format!("https://internal{path}"), &init)?;
         let mut response = Box::pin(crate::route(&mut inner, env)).await?;

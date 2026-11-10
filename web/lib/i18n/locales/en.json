@@ -2132,5 +2132,7 @@
   "tcMove__renumber_hint": "Cases take the next free number in their new project.",
   "tcMove__confirm": "Move {count} cases",
   "tcMove__done": "Moved {count} test cases",
-  "tcMove__partial": "Moved {done}, failed {failed}"
+  "tcMove__partial": "Moved {done}, failed {failed}",
+  "tableView__comments_show_all": "Show all ({count})",
+  "tableView__comments_show_less": "Show less"
 }

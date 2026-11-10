@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Calendar, Clock, Eye, Folder, Maximize2, SignalHigh, User } from "lucide-react";
+import { TableViewQuickComments } from "./table-view-quick-comments";
 import { RichTextEditor } from "@/components/editor/rich-text-editor";
 import { AssigneeMultiSelect } from "@/components/shared/assignee-multi-select";
 import { DateField } from "@/components/task-detail/date-field";
@@ -143,6 +144,7 @@ function PreviewBody({
 
   return (
     <>
+      <TableViewQuickComments task={task} assignees={assignees} />
       <DialogHeader className="border-b px-6 py-4">
         <div className="flex items-center justify-between gap-2">
           <DialogTitle className="flex items-center gap-2 text-sm font-semibold">
@@ -253,7 +255,7 @@ function PreviewBody({
 export function TableViewQuickPreview({ task, onClose, ...rest }: TableViewQuickPreviewProps) {
   return (
     <Dialog open={task !== null} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent showCloseButton={false} className="z-[10000] gap-0 overflow-hidden p-0 sm:max-w-lg">
+      <DialogContent showCloseButton={false} className="z-[10000] gap-0 overflow-visible p-0 sm:max-w-lg">
         {task && <PreviewBody key={String(task.id)} task={task} onClose={onClose} {...rest} />}
       </DialogContent>
     </Dialog>
