@@ -15,6 +15,7 @@ import { TcDetailPanel } from "@/components/test-cases/tc-detail-panel";
 import { TcDialogs } from "@/components/test-cases/tc-dialogs";
 import { TcLightboxView } from "@/components/test-cases/tc-lightbox-view";
 import { TcNewRunDialog } from "@/components/test-cases/tc-new-run-dialog";
+import { TcProjectPicker } from "@/components/test-cases/tc-project-picker";
 import { TcRunView } from "@/components/test-cases/tc-run-view";
 import { TcSidebar } from "@/components/test-cases/tc-sidebar";
 import { TcSuiteSection, type TcCaseHandlers, type TcView } from "@/components/test-cases/tc-suite-section";
@@ -227,7 +228,9 @@ export default function TestCasesPage() {
           />
 
           <section className="flex min-w-0 flex-1 flex-col overflow-hidden">
-            {inRunView ? (
+            {data.needsProjectChoice ? (
+              <TcProjectPicker projects={data.projects} onSelect={data.changeProject} />
+            ) : inRunView ? (
               <TcRunView
                 detail={runs.selectedRunDetail}
                 loading={runs.isLoadingRunDetail}

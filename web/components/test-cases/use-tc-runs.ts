@@ -3,6 +3,7 @@
 import { useCallback, useState, type Dispatch, type SetStateAction } from "react";
 import { api } from "@/lib/api/apis";
 import type { User } from "@/lib/stores/auth";
+import { translate } from "@/lib/i18n";
 import { notify } from "./tc-notify";
 import type { AssigneeRecord, NewTestRunForm, Suite, TestCase, TestRun, TestRunDetail } from "./tc-types";
 
@@ -69,13 +70,15 @@ export function useTcRuns({ workspaceId, user, assignees, suites, setSuites, col
   const resolveCreator = useCallback(
     (userId: string) => {
       const match = assignees.find((a) => String(a.user_id) === String(userId));
+      const self = user && String(user.id) === String(userId) ? user : null;
+      const selfName = self?.profile?.nickname || self?.profile?.first_name || self?.email.split("@")[0];
       return {
-        name: match?.name ?? userId,
+        name: match?.name ?? selfName ?? translate("tc__unknown_user"),
         avatarUrl: match?.avatar_url || match?.avatarUrl || undefined,
         color: match?.color || "#6366f1",
       };
     },
-    [assignees],
+    [assignees, user],
   );
 
   const loadTestRuns = useCallback(async () => {

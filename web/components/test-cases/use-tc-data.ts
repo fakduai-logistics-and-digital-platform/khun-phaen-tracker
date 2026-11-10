@@ -46,6 +46,8 @@ export function useTcData({ workspaceId, roomCode }: UseTcDataArgs) {
   const [projects, setProjects] = useState<Project[]>([]);
   /** `all`, `none` (cases without a project) or a project id. */
   const [projectId, setProjectId] = useState(restored?.projectId ?? "all");
+  const [projectsLoaded, setProjectsLoaded] = useState(false);
+  const [projectChosen, setProjectChosen] = useState(true);
   const [fetchCount, setFetchCount] = useState(0);
   const [loaded, setLoaded] = useState(!!restored);
 
@@ -140,7 +142,10 @@ export function useTcData({ workspaceId, roomCode }: UseTcDataArgs) {
   const projectKey = `tc-project:${workspaceId}`;
   useEffect(() => {
     if (!workspaceId) return;
-    const saved = localStorage.getItem(projectKey) || "all";
+    const stored = localStorage.getItem(projectKey);
+    const saved = stored || "all";
+    setProjectChosen(stored !== null);
+    setProjectsLoaded(false);
     // Read by loadData through the ref in the same commit, before the first fetch.
     latest.current.projectId = saved;
     setProjectId(saved);
@@ -148,10 +153,12 @@ export function useTcData({ workspaceId, roomCode }: UseTcDataArgs) {
     void getProjectsList().then((list) => {
       if (cancelled) return;
       setProjects(list);
+      setProjectsLoaded(true);
       // A saved project that no longer exists falls back to every project.
       if (saved !== "all" && saved !== "none" && !list.some((p) => String(p.id) === saved)) {
         latest.current.projectId = "all";
         setProjectId("all");
+        setProjectChosen(false);
         void loadDataRef.current();
       }
     });
@@ -164,6 +171,7 @@ export function useTcData({ workspaceId, roomCode }: UseTcDataArgs) {
     (next: string) => {
       latest.current.projectId = next;
       setProjectId(next);
+      setProjectChosen(true);
       localStorage.setItem(projectKey, next);
       void loadDataRef.current();
     },
@@ -311,6 +319,7 @@ export function useTcData({ workspaceId, roomCode }: UseTcDataArgs) {
     assignees,
     projects,
     projectId,
+    needsProjectChoice: projectsLoaded && projects.length > 0 && !projectChosen,
     changeProject,
     query,
     setQuery,

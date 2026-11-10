@@ -2056,5 +2056,16 @@
   "help__video_start_title": "เริ่มต้นใช้งาน Khun Phaen",
   "help__video_start_desc": "พาทัวร์ตั้งแต่สร้างเวิร์กสเปซ จัดการงาน ไปจนถึงติดตามความคืบหน้า",
   "help__video_qa_title": "คู่มือทีมทดสอบ QA",
-  "help__video_qa_desc": "สร้าง Suite และเคสทดสอบ รัน Test Run บันทึกผล และส่งต่อบั๊กให้ทีมพัฒนา"
+  "help__video_qa_desc": "สร้าง Suite และเคสทดสอบ รัน Test Run บันทึกผล และส่งต่อบั๊กให้ทีมพัฒนา",
+  "tc__back_to_suites": "กลับไปหน้า Suite",
+  "tc__run_fallback_name": "Test run",
+  "tc__run_status_running": "กำลังทดสอบ",
+  "tc__run_status_completed": "เสร็จสิ้น",
+  "tc__run_status_aborted": "ยกเลิก",
+  "tc__stat_total": "ทั้งหมด {count}",
+  "tc__created_by": "สร้างโดย",
+  "tc__unknown_user": "ไม่ทราบผู้ใช้",
+  "tcPicker__title": "เลือกโปรเจ็ค",
+  "tcPicker__description": "เลขกรณีทดสอบนับแยกตามโปรเจ็ค เลือกโปรเจ็คเพื่อดู Suite และกรณีทดสอบของโปรเจ็คนั้น",
+  "tcPicker__view_all": "ดูทุกโปรเจ็ค"
 }

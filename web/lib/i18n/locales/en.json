@@ -2018,5 +2018,16 @@
   "help__video_start_title": "Getting started with Khun Phaen",
   "help__video_start_desc": "A tour from creating a workspace and managing tasks to tracking progress",
   "help__video_qa_title": "QA tester guide",
-  "help__video_qa_desc": "Create suites and test cases, run test runs, record results and hand bugs to developers"
+  "help__video_qa_desc": "Create suites and test cases, run test runs, record results and hand bugs to developers",
+  "tc__back_to_suites": "Back to suites",
+  "tc__run_fallback_name": "Test run",
+  "tc__run_status_running": "Running",
+  "tc__run_status_completed": "Completed",
+  "tc__run_status_aborted": "Aborted",
+  "tc__stat_total": "{count} total",
+  "tc__created_by": "Created by",
+  "tc__unknown_user": "Unknown user",
+  "tcPicker__title": "Choose a project",
+  "tcPicker__description": "Test case numbers are counted per project. Pick a project to see its suites and test cases.",
+  "tcPicker__view_all": "View all projects"
 }
