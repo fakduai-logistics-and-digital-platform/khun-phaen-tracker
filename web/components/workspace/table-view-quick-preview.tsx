@@ -2,11 +2,18 @@
 
 import { useMemo, useState } from "react";
 import { Calendar, Clock, Eye, Folder, SignalHigh, User } from "lucide-react";
-import { AssigneeSelector } from "@/components/shared/assignee-selector";
+import { AssigneeMultiSelect } from "@/components/shared/assignee-multi-select";
 import { DateField } from "@/components/task-detail/date-field";
 import { PropertySelect } from "@/components/task-detail/property-select";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useI18n } from "@/lib/i18n";
@@ -144,11 +151,11 @@ function PreviewBody({
           </PreviewRow>
 
           <PreviewRow icon={User} label={t("tableView__column_assignee")}>
-            <AssigneeSelector
+            <AssigneeMultiSelect
+              id="preview-assignee"
               assignees={assignees}
-              assignee_ids={assigneeIds}
-              onAssigneeIdsChange={(ids) => onUpdate(id, { assignee_ids: ids.map(String) })}
-              minimal
+              value={assigneeIds}
+              onChange={(ids) => onUpdate(id, { assignee_ids: ids })}
             />
           </PreviewRow>
 

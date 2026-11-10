@@ -2097,5 +2097,8 @@
   "taskMenu__copied": "Copied",
   "taskMenu__copy_failed": "Could not copy",
   "taskMenu__copy_suffix": "(copy)",
-  "taskMenu__duplicated": "Task duplicated"
+  "taskMenu__duplicated": "Task duplicated",
+  "assigneePicker__search": "Search people...",
+  "assigneePicker__empty": "No one found",
+  "assigneePicker__clear": "Clear assignees"
 }

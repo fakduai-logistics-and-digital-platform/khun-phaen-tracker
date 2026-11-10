@@ -2135,5 +2135,8 @@
   "taskMenu__copied": "คัดลอกแล้ว",
   "taskMenu__copy_failed": "คัดลอกไม่สำเร็จ",
   "taskMenu__copy_suffix": "(สำเนา)",
-  "taskMenu__duplicated": "ทำสำเนางานแล้ว"
+  "taskMenu__duplicated": "ทำสำเนางานแล้ว",
+  "assigneePicker__search": "ค้นหาคน...",
+  "assigneePicker__empty": "ไม่พบรายชื่อ",
+  "assigneePicker__clear": "ล้างผู้รับผิดชอบ"
 }

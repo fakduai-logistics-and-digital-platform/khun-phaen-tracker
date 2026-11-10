@@ -64,7 +64,7 @@ const STAT_ITEMS = [
   },
 ] as const;
 
-const ROW_GRID = "grid grid-cols-[60px_52px_1fr_140px] items-center gap-3";
+const ROW_GRID = "grid grid-cols-[60px_76px_1fr_140px] items-center gap-3";
 
 const PRIORITY_VARIANT = { high: "destructive", medium: "secondary" } as const;
 

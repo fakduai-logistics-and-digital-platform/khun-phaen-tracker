@@ -18,7 +18,7 @@ import {
   Tag,
   User,
 } from "lucide-react";
-import { AssigneeSelector } from "@/components/shared/assignee-selector";
+import { AssigneeMultiSelect } from "@/components/shared/assignee-multi-select";
 import { DateField } from "./date-field";
 import { PropertySelect } from "./property-select";
 import { Separator } from "@/components/ui/separator";
@@ -139,11 +139,11 @@ export function TaskPropertiesSidebar({ task, projects, assignees, sprints, onUp
           </PropertyRow>
 
           <PropertyRow icon={User} label={t("taskForm__assignee_label")}>
-            <AssigneeSelector
+            <AssigneeMultiSelect
+              id="task-assignee"
               assignees={assignees}
-              assignee_ids={task.assignee_ids?.length ? task.assignee_ids : task.assignee_id ? [task.assignee_id] : []}
-              onAssigneeIdsChange={(ids) => onUpdate({ assignee_ids: ids.map(String) })}
-              minimal
+              value={task.assignee_ids?.length ? task.assignee_ids : task.assignee_id ? [task.assignee_id] : []}
+              onChange={(ids) => onUpdate({ assignee_ids: ids })}
             />
           </PropertyRow>
 
