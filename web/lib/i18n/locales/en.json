@@ -2102,5 +2102,6 @@
   "assigneePicker__empty": "No one found",
   "assigneePicker__clear": "Clear assignees",
   "page__export_video_narrating": "Generating the voice-over...",
-  "page__export_video_voice_unavailable": "Voice-over is unavailable, so the video was made without narration."
+  "page__export_video_voice_unavailable": "Voice-over is unavailable, so the video was made without narration.",
+  "page__my_tasks_no_profile": "You are not linked to an assignee in this workspace yet, so there is nothing to filter. Ask the workspace owner to link your account to an assignee."
 }

@@ -328,9 +328,12 @@ export function useWorkspacePage() {
   }
 
   function toggleMyTasksFilter() {
-    if (myAssigneeId === undefined || myAssigneeId === null) return;
+    if (myAssigneeId === undefined || myAssigneeId === null) {
+      uiActions.showMessage(t("page__my_tasks_no_profile"), "error");
+      return;
+    }
     ws.filters.update((f) => {
-      const nextIsActive = f.assignee_id !== myAssigneeId;
+      const nextIsActive = String(f.assignee_id) !== String(myAssigneeId);
       const payload: SavedMyTasksFilter = nextIsActive
         ? { enabled: true, assignee_id: myAssigneeId }
         : { enabled: false, assignee_id: null };

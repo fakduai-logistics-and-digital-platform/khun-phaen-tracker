@@ -2140,5 +2140,6 @@
   "assigneePicker__empty": "ไม่พบรายชื่อ",
   "assigneePicker__clear": "ล้างผู้รับผิดชอบ",
   "page__export_video_narrating": "กำลังสร้างเสียงบรรยาย...",
-  "page__export_video_voice_unavailable": "ใช้เสียงบรรยายไม่ได้ จึงสร้างวิดีโอแบบไม่มีเสียงพูด"
+  "page__export_video_voice_unavailable": "ใช้เสียงบรรยายไม่ได้ จึงสร้างวิดีโอแบบไม่มีเสียงพูด",
+  "page__my_tasks_no_profile": "บัญชีของคุณยังไม่ได้ผูกกับผู้รับผิดชอบใน workspace นี้ จึงยังกรองงานของคุณไม่ได้ ให้เจ้าของ workspace ผูกบัญชีกับผู้รับผิดชอบก่อน"
 }
