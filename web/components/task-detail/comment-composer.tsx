@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { FileText, Maximize2, Paperclip, Send, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import type { Assignee } from "@/lib/types";
+import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 import { processFilesForPreview, revokePreview } from "@/lib/utils/file";
 
@@ -13,15 +15,22 @@ interface AttachedFile {
 
 interface CommentComposerProps {
   userInitial: string;
+  /** People that can be tagged with `@`. */
+  assignees: Assignee[];
   onSubmit: (content: string, files: File[]) => Promise<boolean>;
 }
 
-export function CommentComposer({ userInitial, onSubmit }: CommentComposerProps) {
+const MENTION_TRIGGER = /(^|\s)@([^\s@]*)$/;
+const MAX_SUGGESTIONS = 6;
+
+export function CommentComposer({ userInitial, assignees, onSubmit }: CommentComposerProps) {
   const { t } = useI18n();
   const [content, setContent] = useState("");
   const [attached, setAttached] = useState<AttachedFile[]>([]);
   const [rows, setRows] = useState(3);
   const [submitting, setSubmitting] = useState(false);
+  const [mention, setMention] = useState<{ query: string; start: number } | null>(null);
+  const [activeSuggestion, setActiveSuggestion] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const attachedRef = useRef(attached);
@@ -33,6 +42,33 @@ export function CommentComposer({ userInitial, onSubmit }: CommentComposerProps)
     },
     [],
   );
+
+  const suggestions = mention
+    ? assignees
+        .filter((a) => a.name && a.name.toLowerCase().includes(mention.query.toLowerCase()))
+        .slice(0, MAX_SUGGESTIONS)
+    : [];
+
+  function detectMention(value: string, caret: number) {
+    const match = MENTION_TRIGGER.exec(value.slice(0, caret));
+    setMention(match ? { query: match[2], start: caret - match[2].length - 1 } : null);
+    setActiveSuggestion(0);
+  }
+
+  function pickMention(assignee: Assignee) {
+    const area = textareaRef.current;
+    if (!mention || !area) return;
+    const before = content.slice(0, mention.start);
+    const after = content.slice(area.selectionStart);
+    const inserted = `@${assignee.name} `;
+    setContent(`${before}${inserted}${after}`);
+    setMention(null);
+    const caret = before.length + inserted.length;
+    requestAnimationFrame(() => {
+      area.focus();
+      area.setSelectionRange(caret, caret);
+    });
+  }
 
   const canSubmit = (content.trim().length > 0 || attached.length > 0) && !submitting;
 
@@ -81,7 +117,7 @@ export function CommentComposer({ userInitial, onSubmit }: CommentComposerProps)
         </div>
       </div>
       <div className="flex-1">
-        <div className="relative overflow-hidden rounded-lg border bg-transparent transition-colors focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/30">
+        <div className="relative rounded-lg border bg-transparent transition-colors focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/30">
           <input
             ref={fileInputRef}
             type="file"
@@ -123,19 +159,74 @@ export function CommentComposer({ userInitial, onSubmit }: CommentComposerProps)
           <textarea
             ref={textareaRef}
             value={content}
-            onChange={(e) => setContent(e.target.value)}
+            onChange={(e) => {
+              setContent(e.target.value);
+              detectMention(e.target.value, e.target.selectionStart);
+            }}
+            onClick={(e) => detectMention(content, e.currentTarget.selectionStart)}
+            onBlur={() => setMention(null)}
             placeholder={t("taskForm__comments_placeholder")}
             rows={rows}
             aria-label={t("taskForm__comments_placeholder")}
             className="w-full resize-none bg-transparent px-4 pt-3 pb-10 text-sm text-foreground outline-none [scrollbar-width:none] placeholder:text-muted-foreground [&::-webkit-scrollbar]:hidden"
             onPaste={handlePaste}
             onKeyDown={(e) => {
+              if (mention && suggestions.length > 0) {
+                if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                  e.preventDefault();
+                  const step = e.key === "ArrowDown" ? 1 : -1;
+                  setActiveSuggestion((i) => (i + step + suggestions.length) % suggestions.length);
+                  return;
+                }
+                if (e.key === "Enter" || e.key === "Tab") {
+                  e.preventDefault();
+                  pickMention(suggestions[activeSuggestion]);
+                  return;
+                }
+              }
+              if (mention && e.key === "Escape") {
+                e.preventDefault();
+                setMention(null);
+                return;
+              }
               if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
                 e.preventDefault();
                 void submit();
               }
             }}
           />
+          {mention && suggestions.length > 0 && (
+            <div
+              role="listbox"
+              aria-label={t("taskForm__comments_mention")}
+              className="absolute bottom-12 left-3 z-10 max-h-56 w-64 overflow-y-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
+            >
+              {suggestions.map((a, i) => (
+                <button
+                  key={a.id}
+                  type="button"
+                  role="option"
+                  aria-selected={i === activeSuggestion}
+                  aria-label={a.name}
+                  // Keep focus in the textarea; blur would close the list before the click lands.
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => pickMention(a)}
+                  className={cn(
+                    "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-start text-sm",
+                    i === activeSuggestion ? "bg-accent text-accent-foreground" : "hover:bg-accent/50",
+                  )}
+                >
+                  <span
+                    className="flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold text-white"
+                    style={{ backgroundColor: a.color || "#6366f1" }}
+                  >
+                    {a.name[0]?.toUpperCase()}
+                  </span>
+                  <span className="truncate">{a.name}</span>
+                </button>
+              ))}
+            </div>
+          )}
           <div className="absolute right-2 bottom-2 flex items-center gap-1">
             <Button
               type="button"
@@ -175,7 +266,9 @@ export function CommentComposer({ userInitial, onSubmit }: CommentComposerProps)
             </Button>
           </div>
         </div>
-        <p className="mt-1 pl-1 text-xs text-muted-foreground">⌘+Enter to send</p>
+        <p className="mt-1 pl-1 text-xs text-muted-foreground">
+          ⌘+Enter to send · @ {t("taskForm__comments_mention_hint")}
+        </p>
       </div>
     </div>
   );

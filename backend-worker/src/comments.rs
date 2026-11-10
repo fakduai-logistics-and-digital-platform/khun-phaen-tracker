@@ -8,9 +8,9 @@ pub async fn handle(req: &mut Request, env: &Env, user: &User, parts: &[&str]) -
     if workspaces::access(env, user, ws).await?.is_none() {
         return http::error(403, "Access denied");
     }
-    if documents::get(env, ws, "tasks", task).await?.is_none() {
+    let Some(task_doc) = documents::get(env, ws, "tasks", task).await? else {
         return http::error(404, "Task not found");
-    }
+    };
     let db = env.d1("DB")?;
     let id = parts.get(6).copied();
     if parts.len() == 6 && req.method() == Method::Get {
@@ -55,11 +55,14 @@ pub async fn handle(req: &mut Request, env: &Env, user: &User, parts: &[&str]) -
             Some(task),
         )?];
         statements.extend(uploads::registration(&db, ws, &id, &uploaded.files)?);
+        let mentions = crate::notifications::mention_plan(env, user, ws, &task_doc, &id, content).await?;
+        statements.extend(mentions.statements);
         if let Err(error) = db.batch(statements).await {
             uploads::cleanup(env, &uploaded.files).await;
             return Err(error);
         }
         realtime::publish(env, ws, "comment", "create", &id, value.clone()).await;
+        crate::notifications::deliver(env, &mentions.recipients).await;
         return http::ok(json!({"success":true,"comment":value}));
     }
     let id = id.unwrap_or_default();
@@ -97,14 +100,18 @@ pub async fn handle(req: &mut Request, env: &Env, user: &User, parts: &[&str]) -
         if content.trim().is_empty() && value["images"].as_array().is_none_or(|v| v.is_empty()) {
             return http::error(400, "A comment cannot be empty");
         }
-        db.batch(vec![records::patch_statement(
+        let mut statements = vec![records::patch_statement(
             &db,
             ws,
             "comments",
             id,
             &json!({"content":content.trim(),"updated_at":db::timestamp()}),
-        )?])
-        .await?;
+        )?];
+        // Tagging someone while editing notifies them too, but nobody is notified twice for one comment.
+        let mentions = crate::notifications::mention_plan(env, user, ws, &task_doc, id, content).await?;
+        statements.extend(mentions.statements);
+        db.batch(statements).await?;
+        crate::notifications::deliver(env, &mentions.recipients).await;
     } else if req.method() == Method::Post && parts.get(7) == Some(&"reactions") {
         let emoji = http::text(&input, "emoji");
         if !EMOJI.contains(&emoji) {

@@ -66,7 +66,7 @@ export function TaskMainContent({
         <div className="space-y-3">
           <CommentList comments={comments} loading={commentsLoading} assignees={assignees} onDelete={onDeleteComment} />
         </div>
-        <CommentComposer userInitial={userInitial} onSubmit={onSubmitComment} />
+        <CommentComposer userInitial={userInitial} assignees={assignees} onSubmit={onSubmitComment} />
       </section>
     </div>
   );

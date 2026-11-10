@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { ChevronDown, MoreHorizontal, Trash2 } from "lucide-react";
 import {
   DropdownMenu,
@@ -18,12 +18,40 @@ import { ImageLightbox, type LightboxImage } from "./image-lightbox";
 
 const URL_REGEX = /(https?:\/\/[^\s<>"']+)/g;
 
-function CommentText({ text }: { text: string }) {
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/** Matches `@Name` for any known assignee name, longest names first so "@Big Boss" wins over "@Big". */
+function mentionPattern(names: string[]) {
+  const sorted = names
+    .map((n) => n.trim())
+    .filter(Boolean)
+    .sort((a, b) => b.length - a.length);
+  return sorted.length ? new RegExp(`(@(?:${sorted.map(escapeRegExp).join("|")}))`, "gi") : null;
+}
+
+function MentionText({ text, pattern }: { text: string; pattern: RegExp | null }) {
+  if (!pattern) return <>{text}</>;
+  return (
+    <>
+      {text.split(pattern).map((part, i) =>
+        i % 2 === 1 ? (
+          <span key={i} className="rounded bg-primary/10 px-1 font-medium text-primary">
+            {part}
+          </span>
+        ) : (
+          <Fragment key={i}>{part}</Fragment>
+        ),
+      )}
+    </>
+  );
+}
+
+function CommentText({ text, pattern }: { text: string; pattern: RegExp | null }) {
   const parts = text.split(URL_REGEX);
   return (
     <p className="whitespace-pre-wrap">
       {parts.map((part, i) => {
-        if (i % 2 === 0) return <Fragment key={i}>{part}</Fragment>;
+        if (i % 2 === 0) return <MentionText key={i} text={part} pattern={pattern} />;
         const display = part.length > 60 ? `${part.slice(0, 57)}…` : part;
         return (
           <a
@@ -53,6 +81,7 @@ export function CommentList({ comments, loading, assignees, onDelete }: CommentL
   const { user } = useAuth();
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [lightbox, setLightbox] = useState<{ images: LightboxImage[]; index: number } | null>(null);
+  const pattern = useMemo(() => mentionPattern(assignees.map((a) => a.name)), [assignees]);
 
   function authorName(comment: TaskComment): string {
     if (comment.created_by_name) return comment.created_by_name;
@@ -147,7 +176,7 @@ export function CommentList({ comments, loading, assignees, onDelete }: CommentL
             </div>
             {!isCollapsed && (
               <div className="space-y-3 px-4 pb-3 text-sm leading-relaxed text-foreground/90">
-                {comment.content && <CommentText text={comment.content} />}
+                {comment.content && <CommentText text={comment.content} pattern={pattern} />}
                 {comment.images && comment.images.length > 0 && (
                   <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
                     {comment.images.map((img, imgIdx) => (
@@ -157,7 +186,12 @@ export function CommentList({ comments, loading, assignees, onDelete }: CommentL
                         onClick={() => openLightbox(comment.images, imgIdx)}
                         className="aspect-square overflow-hidden rounded-lg border transition-opacity hover:opacity-90"
                       >
-                        <StoredImage fileKey={img.file_key} thumb alt={img.filename} className="size-full object-cover" />
+                        <StoredImage
+                          fileKey={img.file_key}
+                          thumb
+                          alt={img.filename}
+                          className="size-full object-cover"
+                        />
                       </button>
                     ))}
                   </div>

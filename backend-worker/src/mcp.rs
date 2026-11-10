@@ -11,7 +11,7 @@ const INSTRUCTIONS: &str = "Rules for tasks created or edited through this serve
 2) task_type is required on create and must be one of: feature, bug, optimize, refactor, docs, chore. \
 3) project is required on create: use the exact name of an existing project (call list_projects first). \
 4) category is required on create and must be \"งานหลัก\" (main work) or \"งานรอง\" (secondary work). \
-5) Leave progress updates and questions as task comments with add_task_comment; they are written as the key owner. \
+5) Leave progress updates and questions as task comments with add_task_comment (fix them with edit_task_comment); they are written as the key owner. Write @Name to tag someone in a comment and they are notified. \
 6) Tasks are always linked to the workspace's latest sprint; sprint_id is set by the server and cannot be changed. \
 Pick task_type and category from what the work actually is; ask the user when unsure.";
 const PROTOCOL: &str = "2025-03-26";
@@ -50,9 +50,15 @@ fn tools() -> Vec<Value> {
         ),
         tool(
             "add_task_comment",
-            "Post a comment on a task as the API key owner. Use it for progress updates, findings and questions",
+            "Post a comment on a task as the API key owner. Use it for progress updates, findings and questions. Write @Name (an assignee name from list_assignees) to tag someone; tagged people get a notification",
             json!({"workspace_id":ws,"task_id":{"type":"string"},"content":{"type":"string","description":"Comment text, up to 10000 characters"}}),
             &["workspace_id", "task_id", "content"],
+        ),
+        tool(
+            "edit_task_comment",
+            "Replace the text of a comment. You can edit your own comments; the workspace owner and admins can edit any. Tag people with @Name (see list_assignees) and they are notified",
+            json!({"workspace_id":ws,"task_id":{"type":"string"},"comment_id":{"type":"string"},"content":{"type":"string","description":"The new comment text, up to 10000 characters"}}),
+            &["workspace_id", "task_id", "comment_id", "content"],
         ),
         tool("get_task", "Get one task", json!({"workspace_id":ws,"task_id":{"type":"string"}}), &["workspace_id", "task_id"]),
         tool(
@@ -212,6 +218,22 @@ fn plan(name: &str, args: &Value) -> std::result::Result<(Method, String, Option
             ),
             None,
         ),
+        "edit_task_comment" => {
+            let content = http::text(args, "content").trim();
+            if content.is_empty() || content.chars().count() > 10_000 {
+                return Err("content is required (max 10000 characters)".into());
+            }
+            (
+                Method::Put,
+                format!(
+                    "{}/tasks/{}/comments/{}",
+                    base(args)?,
+                    arg(args, "task_id")?,
+                    arg(args, "comment_id")?
+                ),
+                Some(json!({"content": content})),
+            )
+        }
         "add_task_comment" => {
             let content = http::text(args, "content").trim();
             if content.is_empty() || content.chars().count() > 10_000 {
@@ -401,6 +423,23 @@ async fn prepare(env: &Env, user: &User, name: &str, args: &Value) -> std::resul
             task.insert("assignee_ids".into(), json!(assignee_ids));
             task.insert("sprint_id".into(), json!(slot.sprint));
             args["task"] = Value::Object(task);
+        }
+        "edit_task_comment" => {
+            let workspace = arg(&args, "workspace_id")?.to_owned();
+            let id = arg(&args, "comment_id")?.to_owned();
+            let w = workspaces::access(env, user, &workspace)
+                .await
+                .map_err(|_| "Could not check access".to_string())?
+                .ok_or("Access denied to this workspace")?;
+            let comment = crate::records::locate(env, "comments", &id)
+                .await
+                .map_err(|_| "Could not load the comment".to_string())?
+                .ok_or("Comment not found")?
+                .value()
+                .map_err(|_| "Could not read the comment".to_string())?;
+            if comment["created_by"].as_str() != Some(user.id.as_str()) && !w.managed_by(user) {
+                return Err("You can only edit your own comments".into());
+            }
         }
         "update_task" => {
             let mut updates = args["updates"].as_object().cloned().ok_or("updates must be an object")?;

@@ -2134,5 +2134,8 @@
   "tcMove__done": "Moved {count} test cases",
   "tcMove__partial": "Moved {done}, failed {failed}",
   "tableView__comments_show_all": "Show all ({count})",
-  "tableView__comments_show_less": "Show less"
+  "tableView__comments_show_less": "Show less",
+  "taskForm__comments_mention": "Tag a person",
+  "taskForm__comments_mention_hint": "to tag someone",
+  "notification__mention": "{actor} tagged you in a comment on \"{title}\""
 }

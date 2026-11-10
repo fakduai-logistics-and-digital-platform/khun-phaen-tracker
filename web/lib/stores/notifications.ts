@@ -1,3 +1,4 @@
+import { translate } from "@/lib/i18n";
 import { taskPath, workspacePath } from "@/lib/routes";
 import { browser } from "@/lib/env";
 import { base } from "@/lib/env";
@@ -20,6 +21,9 @@ export type AssignmentNotificationMeta = {
   actor_user_id?: string;
   actor_name?: string;
   created_at: string;
+  /** Set to `mention` when the notification comes from an `@Name` tag in a comment. */
+  kind?: "assignment" | "mention";
+  excerpt?: string;
 };
 
 export type AppNotification = {
@@ -137,7 +141,10 @@ export function buildNotification(
     workspaceId: meta.workspace_id,
     suiteId: meta.suite_id,
     actorName,
-    message: `${actorName} เพิ่ม${sourceLabel} "${meta.source_title}" ให้คุณ`,
+    message:
+      meta.kind === "mention"
+        ? translate("notification__mention", { actor: actorName, title: meta.source_title })
+        : `${actorName} เพิ่ม${sourceLabel} "${meta.source_title}" ให้คุณ`,
     href: query ? `${href}&${query}` : href,
     createdAt: meta.created_at,
     readAt: readAt ?? null,
@@ -187,6 +194,8 @@ async function syncFromDb(): Promise<void> {
         actor_user_id: doc.actor_user_id,
         actor_name: doc.actor_name,
         created_at: doc.created_at,
+        kind: doc.kind,
+        excerpt: doc.excerpt,
       };
       const dbId = doc._id?.$oid || doc._id || doc.id || undefined;
       return buildNotification(meta, dbId, doc.read_at ?? null);

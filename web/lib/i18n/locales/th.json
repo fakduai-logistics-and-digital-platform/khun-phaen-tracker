@@ -2172,5 +2172,8 @@
   "tcMove__done": "ย้ายเคสทดสอบ {count} เคสแล้ว",
   "tcMove__partial": "ย้ายสำเร็จ {done} เคส ไม่สำเร็จ {failed} เคส",
   "tableView__comments_show_all": "ดูทั้งหมด ({count})",
-  "tableView__comments_show_less": "แสดงน้อยลง"
+  "tableView__comments_show_less": "แสดงน้อยลง",
+  "taskForm__comments_mention": "แท็กคน",
+  "taskForm__comments_mention_hint": "เพื่อแท็กคน",
+  "notification__mention": "{actor} แท็กคุณในความคิดเห็นของงาน \"{title}\""
 }
