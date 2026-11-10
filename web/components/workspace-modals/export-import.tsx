@@ -63,7 +63,6 @@ export function ExportImport({
   onExportPNG,
   onExportMarkdown,
   onExportVideo,
-  onExportVideoWithVoice,
   onExportSlide,
   onExportDatabase,
   onImportCSV,
@@ -75,7 +74,6 @@ export function ExportImport({
   onExportPNG?: () => void;
   onExportMarkdown?: () => void;
   onExportVideo?: () => void;
-  onExportVideoWithVoice?: () => void;
   onExportSlide?: () => void;
   onExportDatabase?: (target: DatabaseExportTarget) => void;
   onImportCSV?: (content: string) => void;
@@ -230,7 +228,6 @@ export function ExportImport({
               onSelect={() => onExportMarkdown?.()}
             />
             <FormatItem icon={Video} label={t("exportImport__export_video")} onSelect={() => onExportVideo?.()} />
-            <FormatItem icon={Video} label="Video + Voice (AI)" onSelect={() => onExportVideoWithVoice?.()} />
             <FormatItem
               icon={Presentation}
               label={t("exportImport__export_slide")}

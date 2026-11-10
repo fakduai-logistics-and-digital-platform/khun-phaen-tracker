@@ -8,6 +8,11 @@ export interface VideoSlide {
   accent: string;
   lines: string[];
   celebrate?: boolean;
+  /** Spoken text for this slide; the slide lasts as long as its narration. */
+  narration?: string;
+  stats?: { label: string; value: string; color: string }[];
+  bars?: { label: string; pct: number; detail: string }[];
+  hero?: { value: string; caption: string };
 }
 
 export type ExportAudioBed = {
@@ -116,95 +121,249 @@ export function drawCelebrationFireworks(
   ctx.restore();
 }
 
+const VIDEO_FONT = '"Noto Sans Thai", "Sarabun", system-ui, sans-serif';
+
+const easeOut = (t: number) => 1 - Math.pow(1 - Math.min(Math.max(t, 0), 1), 3);
+const span = (progress: number, from: number, to: number) => Math.min(Math.max((progress - from) / (to - from), 0), 1);
+
+/** Wraps on spaces, then on characters, so unspaced Thai text never runs past `maxWidth`. */
+function fitLines(ctx: CanvasRenderingContext2D, text: string, maxWidth: number, maxLines: number): string[] {
+  const lines: string[] = [];
+  let current = "";
+  for (const char of text) {
+    const next = current + char;
+    if (ctx.measureText(next).width > maxWidth && current) {
+      lines.push(current.trimEnd());
+      current = char === " " ? "" : char;
+    } else {
+      current = next;
+    }
+  }
+  if (current) lines.push(current);
+  if (lines.length > maxLines) {
+    const kept = lines.slice(0, maxLines);
+    kept[maxLines - 1] = `${kept[maxLines - 1].replace(/.{1}$/, "")}…`;
+    return kept;
+  }
+  return lines;
+}
+
+function drawBackground(ctx: CanvasRenderingContext2D, width: number, height: number, accent: string, t: number) {
+  const bg = ctx.createLinearGradient(0, 0, width, height);
+  bg.addColorStop(0, "#070b18");
+  bg.addColorStop(1, "#101830");
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, width, height);
+
+  const blobs = [
+    { x: 0.82 + Math.sin(t * Math.PI * 2) * 0.03, y: 0.12, r: 460, color: accent, alpha: 0.35 },
+    { x: 0.1, y: 0.95 + Math.cos(t * Math.PI * 2) * 0.03, r: 420, color: "#6366f1", alpha: 0.22 },
+  ];
+  for (const blob of blobs) {
+    const g = ctx.createRadialGradient(blob.x * width, blob.y * height, 20, blob.x * width, blob.y * height, blob.r);
+    g.addColorStop(
+      0,
+      `${blob.color}${Math.round(blob.alpha * 255)
+        .toString(16)
+        .padStart(2, "0")}`,
+    );
+    g.addColorStop(1, "#00000000");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, width, height);
+  }
+
+  ctx.fillStyle = "#ffffff14";
+  for (let x = 40; x < width; x += 48) {
+    for (let y = 40; y < height; y += 48) ctx.fillRect(x, y, 1.5, 1.5);
+  }
+}
+
+export interface VideoSlideMeta {
+  index: number;
+  total: number;
+  /** Position of the whole video, 0 to 1, drawn as a thin progress bar. */
+  overall: number;
+}
+
 export function renderVideoSlide(
   ctx: CanvasRenderingContext2D,
   width: number,
   height: number,
   slide: VideoSlide,
   progress: number,
+  meta?: VideoSlideMeta,
 ): void {
-  const reveal = Math.min(Math.max(progress / 0.6, 0), 1);
-  const sway = Math.sin(progress * Math.PI * 2) * 6;
-  const bg = ctx.createLinearGradient(0, 0, width, height);
-  bg.addColorStop(0, "#041228");
-  bg.addColorStop(0.6, "#0f2347");
-  bg.addColorStop(1, "#091735");
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, width, height);
+  drawBackground(ctx, width, height, slide.accent, progress);
 
-  const orb = ctx.createRadialGradient(width * 0.8, height * 0.15, 40, width * 0.8, height * 0.15, 380);
-  orb.addColorStop(0, `${slide.accent}AA`);
-  orb.addColorStop(1, "#00000000");
-  ctx.fillStyle = orb;
-  ctx.fillRect(0, 0, width, height);
-
-  ctx.globalAlpha = 0.1;
-  for (let i = 0; i < 36; i++) {
-    const x = width * seededValue(slide.title, i * 2 + 1);
-    const y = height * seededValue(slide.title, i * 2 + 2);
-    const twinkle = 1.3 + Math.sin(progress * Math.PI * 6 + i) * 0.9;
-    ctx.fillStyle = "#dbeafe";
-    ctx.fillRect(x, y, twinkle, twinkle);
-  }
-
-  ctx.globalAlpha = 0.3;
-  ctx.strokeStyle = "#ffffff22";
-  for (let i = 0; i < 10; i++) {
-    const y = 80 + i * 64 + sway;
-    ctx.beginPath();
-    ctx.moveTo(0, y);
-    ctx.lineTo(width, y);
-    ctx.stroke();
-  }
-  ctx.globalAlpha = 1;
-
-  const cardX = 84;
-  const cardY = 92;
-  const cardW = width - 168;
-  const cardH = height - 184;
-  drawRoundedRect(ctx, cardX, cardY, cardW, cardH, 28);
-  ctx.fillStyle = "#0b1f3ecc";
+  const cardX = 72;
+  const cardY = 64;
+  const cardW = width - 144;
+  const cardH = height - 128;
+  const pad = 52;
+  drawRoundedRect(ctx, cardX, cardY, cardW, cardH, 32);
+  ctx.fillStyle = "#ffffff0d";
   ctx.fill();
-  ctx.strokeStyle = "#ffffff2a";
-  ctx.lineWidth = 1.2;
+  ctx.strokeStyle = "#ffffff1f";
+  ctx.lineWidth = 1.5;
   ctx.stroke();
 
   if (slide.celebrate) {
     drawCelebrationFireworks(ctx, width, height, progress, slide.accent, `${slide.kicker}-${slide.title}`);
   }
 
+  const head = easeOut(span(progress, 0, 0.18));
+  ctx.save();
+  ctx.globalAlpha = head;
+  ctx.translate(0, (1 - head) * 14);
+
+  ctx.font = `600 20px ${VIDEO_FONT}`;
+  const pillW = ctx.measureText(slide.kicker).width + 52;
+  drawRoundedRect(ctx, cardX + pad, cardY + 40, pillW, 38, 19);
+  ctx.fillStyle = `${slide.accent}26`;
+  ctx.fill();
   ctx.fillStyle = slide.accent;
-  ctx.font = '700 24px "Trebuchet MS", "Noto Sans Thai", sans-serif';
-  ctx.fillText(slide.kicker, cardX + 46, cardY + 54);
+  ctx.beginPath();
+  ctx.arc(cardX + pad + 20, cardY + 59, 5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillText(slide.kicker, cardX + pad + 36, cardY + 66);
+
+  ctx.textAlign = "right";
+  ctx.fillStyle = "#ffffff99";
+  ctx.font = `600 22px ${VIDEO_FONT}`;
+  ctx.fillText("Khun Phaen", cardX + cardW - pad, cardY + 66);
+  ctx.textAlign = "left";
 
   ctx.fillStyle = "#ffffff";
-  ctx.font = '700 58px "Trebuchet MS", "Noto Sans Thai", sans-serif';
-  ctx.globalAlpha = reveal;
-  ctx.fillText(slide.title, cardX + 46, cardY + 132);
-  ctx.globalAlpha = 0.92 * reveal;
-  ctx.font = '400 27px "Trebuchet MS", "Noto Sans Thai", sans-serif';
-  ctx.fillStyle = "#d8e7ff";
-  ctx.fillText(slide.subtitle, cardX + 46, cardY + 174);
+  ctx.font = `700 54px ${VIDEO_FONT}`;
+  ctx.fillText(fitLines(ctx, slide.title, cardW - pad * 2, 1)[0], cardX + pad, cardY + 150);
+  ctx.fillStyle = "#ffffffa6";
+  ctx.font = `400 26px ${VIDEO_FONT}`;
+  ctx.fillText(fitLines(ctx, slide.subtitle, cardW - pad * 2, 1)[0], cardX + pad, cardY + 196);
+  ctx.restore();
 
-  ctx.globalAlpha = reveal;
-  ctx.font = '500 30px "Trebuchet MS", "Noto Sans Thai", sans-serif';
-  ctx.fillStyle = "#ecf2ff";
-  let y = cardY + 250;
-  for (const line of slide.lines.slice(0, 8)) {
-    ctx.fillStyle = "#8cc8ff";
-    ctx.font = '700 20px "Trebuchet MS", "Noto Sans Thai", sans-serif';
-    ctx.fillText("*", cardX + 52, y);
-    ctx.fillStyle = "#ecf2ff";
-    ctx.font = '500 30px "Trebuchet MS", "Noto Sans Thai", sans-serif';
-    const wrapped = wrapText(ctx, line, cardW - 96);
-    for (const part of wrapped.slice(0, 2)) {
-      ctx.fillText(part, cardX + 88, y);
-      y += 40;
+  const bodyX = cardX + pad;
+  const bodyY = cardY + 250;
+  const bodyW = cardW - pad * 2;
+  const bodyBottom = cardY + cardH - 72;
+
+  if (slide.stats?.length) {
+    const gap = 20;
+    const tileW = (bodyW - gap * (slide.stats.length - 1)) / slide.stats.length;
+    slide.stats.forEach((stat, i) => {
+      const enter = easeOut(span(progress, 0.12 + i * 0.07, 0.4 + i * 0.07));
+      const x = bodyX + i * (tileW + gap);
+      const y = bodyY + (1 - enter) * 24;
+      ctx.save();
+      ctx.globalAlpha = enter;
+      drawRoundedRect(ctx, x, y, tileW, 190, 22);
+      ctx.fillStyle = "#ffffff0f";
+      ctx.fill();
+      ctx.strokeStyle = `${stat.color}55`;
+      ctx.stroke();
+      const numeric = Number(stat.value);
+      const shown = Number.isFinite(numeric) ? String(Math.round(numeric * enter)) : stat.value;
+      ctx.fillStyle = stat.color;
+      ctx.font = `700 76px ${VIDEO_FONT}`;
+      ctx.fillText(shown, x + 28, y + 108);
+      ctx.fillStyle = "#ffffffb3";
+      ctx.font = `500 24px ${VIDEO_FONT}`;
+      ctx.fillText(stat.label, x + 28, y + 154);
+      ctx.restore();
+    });
+  } else if (slide.hero) {
+    const enter = easeOut(span(progress, 0.1, 0.5));
+    ctx.save();
+    ctx.globalAlpha = enter;
+    const numeric = Number.parseFloat(slide.hero.value);
+    const shown = Number.isFinite(numeric) ? `${Math.round(numeric * enter)}%` : slide.hero.value;
+    ctx.fillStyle = slide.accent;
+    ctx.font = `700 150px ${VIDEO_FONT}`;
+    ctx.fillText(shown, bodyX, bodyY + 130);
+    ctx.fillStyle = "#ffffffb3";
+    ctx.font = `500 30px ${VIDEO_FONT}`;
+    ctx.fillText(slide.hero.caption, bodyX, bodyY + 190);
+    drawRoundedRect(ctx, bodyX, bodyY + 230, bodyW, 14, 7);
+    ctx.fillStyle = "#ffffff1a";
+    ctx.fill();
+    drawRoundedRect(
+      ctx,
+      bodyX,
+      bodyY + 230,
+      Math.max(14, bodyW * ((Number.isFinite(numeric) ? numeric : 0) / 100) * enter),
+      14,
+      7,
+    );
+    ctx.fillStyle = slide.accent;
+    ctx.fill();
+    ctx.restore();
+  } else if (slide.bars?.length) {
+    const rowH = Math.min(78, (bodyBottom - bodyY) / slide.bars.length);
+    slide.bars.forEach((bar, i) => {
+      const enter = easeOut(span(progress, 0.1 + i * 0.06, 0.5 + i * 0.06));
+      const y = bodyY + i * rowH;
+      ctx.save();
+      ctx.globalAlpha = enter;
+      ctx.fillStyle = "#ffffff";
+      ctx.font = `600 28px ${VIDEO_FONT}`;
+      ctx.fillText(fitLines(ctx, bar.label, 300, 1)[0], bodyX, y + 30);
+      ctx.fillStyle = "#ffffff8c";
+      ctx.font = `400 21px ${VIDEO_FONT}`;
+      ctx.fillText(bar.detail, bodyX, y + 58);
+      const trackX = bodyX + 340;
+      const trackW = bodyW - 340 - 110;
+      drawRoundedRect(ctx, trackX, y + 14, trackW, 16, 8);
+      ctx.fillStyle = "#ffffff1a";
+      ctx.fill();
+      drawRoundedRect(ctx, trackX, y + 14, Math.max(16, trackW * (bar.pct / 100) * enter), 16, 8);
+      ctx.fillStyle = slide.accent;
+      ctx.fill();
+      ctx.fillStyle = "#ffffff";
+      ctx.font = `700 28px ${VIDEO_FONT}`;
+      ctx.textAlign = "right";
+      ctx.fillText(`${Math.round(bar.pct * enter)}%`, bodyX + bodyW, y + 32);
+      ctx.textAlign = "left";
+      ctx.restore();
+    });
+  } else {
+    let y = bodyY;
+    const count = Math.min(slide.lines.length, 8);
+    for (let i = 0; i < count; i++) {
+      const enter = easeOut(span(progress, 0.1 + i * 0.05, 0.4 + i * 0.05));
+      ctx.save();
+      ctx.globalAlpha = enter;
+      ctx.translate((1 - enter) * 28, 0);
+      ctx.font = `500 30px ${VIDEO_FONT}`;
+      const lines = fitLines(ctx, slide.lines[i].replace(/^•\s*/, ""), bodyW - 40, 2);
+      ctx.fillStyle = slide.accent;
+      ctx.beginPath();
+      ctx.arc(bodyX + 8, y - 10, 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#ffffffeb";
+      for (const line of lines) {
+        ctx.fillText(line, bodyX + 40, y);
+        y += 40;
+      }
+      ctx.restore();
+      y += 10;
+      if (y > bodyBottom) break;
     }
-    y += 8;
-    if (y > cardY + cardH - 40) break;
   }
-  ctx.globalAlpha = 1;
+
+  if (meta) {
+    ctx.fillStyle = "#ffffff80";
+    ctx.font = `500 20px ${VIDEO_FONT}`;
+    ctx.textAlign = "right";
+    ctx.fillText(
+      `${String(meta.index + 1).padStart(2, "0")} / ${String(meta.total).padStart(2, "0")}`,
+      cardX + cardW - pad,
+      cardY + cardH - 30,
+    );
+    ctx.textAlign = "left";
+    ctx.fillStyle = "#ffffff1a";
+    ctx.fillRect(cardX + pad, cardY + cardH - 14, cardW - pad * 2, 4);
+    ctx.fillStyle = slide.accent;
+    ctx.fillRect(cardX + pad, cardY + cardH - 14, (cardW - pad * 2) * Math.min(Math.max(meta.overall, 0), 1), 4);
+  }
 }
 
 export function loadImage(dataUrl: string): Promise<HTMLImageElement> {

@@ -91,7 +91,6 @@ export default function WorkspacePage() {
               onExportPDF={() => exportActions.handleExportPDF()}
               onExportMarkdown={(detail) => void exportActions.handleExportMarkdown(ev(detail))}
               onExportVideo={(detail) => void exportActions.handleExportVideo(ev(detail))}
-              onExportVideoWithVoice={(detail) => void exportActions.handleExportVideoWithVoice(ev(detail))}
               onExportSlide={(detail) => void exportActions.handleExportSlide(ev(detail))}
               onExportDatabase={(detail) => void exportActions.handleExportDatabase(ev(detail))}
               onImportCSV={(content) => void exportActions.handleImportCSV(ev(content))}

@@ -12,6 +12,9 @@ export type TaskActionDeps = {
   setTasks: (tasks: Task[]) => void;
   getFilteredTasks: () => Task[];
   setFilteredTasks: (tasks: Task[]) => void;
+  /** The table and quick preview read this list, not `tasks`, so edits must patch it too. */
+  getAllTasks: () => Task[];
+  setAllTasks: (tasks: Task[]) => void;
   getEditingTask: () => Task | null;
   setEditingTask: (task: Task | null) => void;
   setShowForm: (show: boolean) => void;
@@ -442,11 +445,13 @@ export function createTaskActions(deps: TaskActionDeps) {
     const { id, updates } = event.detail;
     const oldTasks = deps.getTasks();
     const oldFiltered = deps.getFilteredTasks();
+    const oldAll = deps.getAllTasks();
     const editingTask = deps.getEditingTask();
     const isTarget = (task: Task) => String(task.id) === String(id);
 
     deps.setTasks(oldTasks.map((task) => (isTarget(task) ? { ...task, ...updates } : task)));
     deps.setFilteredTasks(oldFiltered.map((task) => (isTarget(task) ? { ...task, ...updates } : task)));
+    deps.setAllTasks(oldAll.map((task) => (isTarget(task) ? { ...task, ...updates } : task)));
     if (editingTask && isTarget(editingTask)) deps.setEditingTask({ ...editingTask, ...updates });
 
     try {
@@ -456,12 +461,15 @@ export function createTaskActions(deps: TaskActionDeps) {
         const enrichedTask = await enrichTaskWithAssignees(serverTask);
         deps.setTasks(deps.getTasks().map((task) => (isTarget(task) ? enrichedTask : task)));
         deps.setFilteredTasks(deps.getFilteredTasks().map((task) => (isTarget(task) ? enrichedTask : task)));
+        deps.setAllTasks(deps.getAllTasks().map((task) => (isTarget(task) ? enrichedTask : task)));
         if (editingTask && isTarget(editingTask)) deps.setEditingTask(enrichedTask);
       }
+      deps.notify(deps.t("page__update_task_success"));
       deps.trackRealtime("update-task");
     } catch {
       deps.setTasks(oldTasks);
       deps.setFilteredTasks(oldFiltered);
+      deps.setAllTasks(oldAll);
       if (editingTask) deps.setEditingTask(editingTask);
       deps.notify("เกิดข้อผิดพลาด", "error");
     }
@@ -470,6 +478,7 @@ export function createTaskActions(deps: TaskActionDeps) {
   async function handleDuplicateTask(source: Task) {
     const oldTasks = deps.getTasks();
     const oldFiltered = deps.getFilteredTasks();
+    const oldAll = deps.getAllTasks();
     const tempId = `temp-${Date.now()}`;
     const {
       id: _id,
@@ -486,24 +495,33 @@ export function createTaskActions(deps: TaskActionDeps) {
       checklist: source.checklist?.map((item) => ({ ...item, id: crypto.randomUUID(), completed: false })),
     };
 
-    deps.setTasks([...oldTasks, { ...copy, assignees: source.assignees, id: tempId, created_at: new Date().toISOString() }]);
+    deps.setTasks([
+      ...oldTasks,
+      { ...copy, assignees: source.assignees, id: tempId, created_at: new Date().toISOString() },
+    ]);
     deps.setFilteredTasks([
       ...oldFiltered,
       { ...copy, assignees: source.assignees, id: tempId, created_at: new Date().toISOString() },
     ]);
 
+    deps.setAllTasks([
+      ...oldAll,
+      { ...copy, assignees: source.assignees, id: tempId, created_at: new Date().toISOString() },
+    ]);
+
     try {
       const enrichedTask = await enrichTaskWithAssignees(await addTask(copy));
-      const replaceTemp = (list: Task[]) =>
-        list.map((task) => (String(task.id) === tempId ? enrichedTask : task));
+      const replaceTemp = (list: Task[]) => list.map((task) => (String(task.id) === tempId ? enrichedTask : task));
       deps.setTasks(replaceTemp(deps.getTasks()));
       deps.setFilteredTasks(replaceTemp(deps.getFilteredTasks()));
+      deps.setAllTasks(replaceTemp(deps.getAllTasks()));
       deps.notify(deps.t("taskMenu__duplicated"));
       deps.trackRealtime("add-task");
     } catch (e) {
       console.error("handleDuplicateTask failed:", e);
       deps.setTasks(oldTasks);
       deps.setFilteredTasks(oldFiltered);
+      deps.setAllTasks(oldAll);
       deps.notify(deps.t("page__add_task_error"), "error");
     }
   }

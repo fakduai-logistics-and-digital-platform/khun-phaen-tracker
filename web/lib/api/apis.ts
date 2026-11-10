@@ -585,6 +585,14 @@ export const api = {
           body: JSON.stringify(payload),
         });
       },
+      textToSpeech: (wsId: string, text: string): Promise<Response> => {
+        return fetch(`${API_BASE_URL}/workspaces/${wsId}/ai/text-to-speech`, {
+          method: "POST",
+          headers: api.data._headers(true),
+          credentials: "include",
+          body: JSON.stringify({ text }),
+        });
+      },
       generateTask: (wsId: string, payload: Record<string, any>): Promise<Response> => {
         return fetch(`${API_BASE_URL}/workspaces/${wsId}/ai/tasks/generate`, {
           method: "POST",

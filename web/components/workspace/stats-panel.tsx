@@ -77,7 +77,6 @@ export interface StatsPanelProps {
   onExportPNG?: () => void;
   onExportMarkdown?: (detail?: any) => void;
   onExportVideo?: (detail?: any) => void;
-  onExportVideoWithVoice?: (detail?: any) => void;
   onExportSlide?: (detail?: any) => void;
   onExportDatabase?: (detail: any) => void;
   onImportCSV?: (content: string) => void;
@@ -102,7 +101,6 @@ export function StatsPanel({
   onExportPNG,
   onExportMarkdown,
   onExportVideo,
-  onExportVideoWithVoice,
   onExportSlide,
   onExportDatabase,
   onImportCSV,
@@ -136,7 +134,6 @@ export function StatsPanel({
           onExportPNG={onExportPNG}
           onExportMarkdown={onExportMarkdown}
           onExportVideo={onExportVideo}
-          onExportVideoWithVoice={onExportVideoWithVoice}
           onExportSlide={onExportSlide}
           onExportDatabase={onExportDatabase}
           onImportCSV={onImportCSV}

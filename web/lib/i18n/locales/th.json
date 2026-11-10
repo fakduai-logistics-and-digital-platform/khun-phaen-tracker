@@ -2138,5 +2138,7 @@
   "taskMenu__duplicated": "ทำสำเนางานแล้ว",
   "assigneePicker__search": "ค้นหาคน...",
   "assigneePicker__empty": "ไม่พบรายชื่อ",
-  "assigneePicker__clear": "ล้างผู้รับผิดชอบ"
+  "assigneePicker__clear": "ล้างผู้รับผิดชอบ",
+  "page__export_video_narrating": "กำลังสร้างเสียงบรรยาย...",
+  "page__export_video_voice_unavailable": "ใช้เสียงบรรยายไม่ได้ จึงสร้างวิดีโอแบบไม่มีเสียงพูด"
 }

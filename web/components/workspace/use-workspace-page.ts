@@ -181,14 +181,18 @@ export function useWorkspacePage() {
     const stale = () => run !== runId.current;
 
     async function initialize(id: string, room: string | null) {
-      ws.checkingAccess.set(true);
-      ws.hasAccess.set(false);
+      // A workspace seen before paints its last lists at once; access is still re-checked below.
+      const restored = ws.restoreSnapshot(id);
+      ws.checkingAccess.set(!restored);
+      ws.hasAccess.set(restored);
       setMilestones([]);
       setEditingMilestone(null);
       setAssigneeGroups([]);
       ws.editingTask.set(null);
-      ws.tasks.set([]);
-      ws.filteredTasks.set([]);
+      if (!restored) {
+        ws.tasks.set([]);
+        ws.filteredTasks.set([]);
+      }
       disconnectRealtime();
 
       if (id === MY_TASKS_WORKSPACE_ID) {

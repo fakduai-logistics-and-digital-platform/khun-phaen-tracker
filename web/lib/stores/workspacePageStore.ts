@@ -1,7 +1,7 @@
 import { writable, get } from "@/lib/store";
 import { translate } from "@/lib/i18n";
 import type { Task, Project, Assignee, FilterOptions } from "@/lib/types";
-import { loadWorkspaceData as loadDBData } from "./workspace";
+import { currentWorkspaceId, loadWorkspaceData as loadDBData } from "./workspace";
 import { createViewActions } from "./viewActions";
 import { createUIActions } from "./uiActions";
 import { createSearchActions } from "./search";
@@ -12,6 +12,24 @@ import { createExportActions } from "./exportActions";
 import { DEFAULT_FILTERS } from "./filterActions";
 import { sprints } from "./sprintStore";
 import { buildMonthlySummary } from "@/lib/utils/monthly-summary";
+
+type PageSnapshot = {
+  tasks: Task[];
+  allTasks: Task[];
+  monthlySummaryTasks: Task[];
+  totalTasks: number;
+  totalPages: number;
+  categories: string[];
+  projects: string[];
+  projectList: Project[];
+  assignees: Assignee[];
+  workerStats: any[];
+  projectStats: any[];
+  stats: any;
+};
+
+/** Last loaded lists per workspace. Coming back from a task page paints them at once while the refresh runs. */
+const pageSnapshots = new Map<string, PageSnapshot>();
 
 export function createWorkspacePageStore() {
   const loadingData = writable(false);
@@ -67,6 +85,25 @@ export function createWorkspacePageStore() {
     uiActions.showMessage(msg, type);
   };
 
+  function restoreSnapshot(id: string) {
+    const snapshot = pageSnapshots.get(id);
+    if (!snapshot) return false;
+    tasks.set(snapshot.tasks);
+    filteredTasks.set(snapshot.tasks);
+    allTasksIncludingArchived.set(snapshot.allTasks);
+    monthlySummaryTasks.set(snapshot.monthlySummaryTasks);
+    totalTasks.set(snapshot.totalTasks);
+    totalPages.set(snapshot.totalPages);
+    categories.set(snapshot.categories);
+    projects.set(snapshot.projects);
+    projectList.set(snapshot.projectList);
+    assignees.set(snapshot.assignees);
+    workerStats.set(snapshot.workerStats);
+    projectStats.set(snapshot.projectStats);
+    stats.set(snapshot.stats);
+    return true;
+  }
+
   const workspaceActions = createWorkspaceActions({
     loadData: () => loadData(),
     debouncedLoadData: () => debouncedLoadData(),
@@ -99,6 +136,8 @@ export function createWorkspacePageStore() {
     setTasks: (v) => tasks.set(v),
     getFilteredTasks: () => get(filteredTasks),
     setFilteredTasks: (v) => filteredTasks.set(v),
+    getAllTasks: () => get(allTasksIncludingArchived),
+    setAllTasks: (v) => allTasksIncludingArchived.set(v),
     getEditingTask: () => get(editingTask),
     setEditingTask: (v) => editingTask.set(v),
     setShowForm: (v) => uiActions.setModalState("form", v),
@@ -168,6 +207,23 @@ export function createWorkspacePageStore() {
       if (result.projectStats) projectStats.set(result.projectStats);
       if (result.stats) stats.set(result.stats);
       filteredTasks.set(get(tasks));
+      const workspaceId = get(currentWorkspaceId);
+      if (workspaceId) {
+        pageSnapshots.set(workspaceId, {
+          tasks: get(tasks),
+          allTasks: get(allTasksIncludingArchived),
+          monthlySummaryTasks: get(monthlySummaryTasks),
+          totalTasks: get(totalTasks),
+          totalPages: get(totalPages),
+          categories: get(categories),
+          projects: get(projects),
+          projectList: get(projectList),
+          assignees: get(assignees),
+          workerStats: get(workerStats),
+          projectStats: get(projectStats),
+          stats: get(stats),
+        });
+      }
     } catch (e) {
       console.error("❌ loadData failed:", e);
     } finally {
@@ -180,6 +236,7 @@ export function createWorkspacePageStore() {
   }
 
   return {
+    restoreSnapshot,
     loadingData,
     tasks,
     allTasksIncludingArchived,
