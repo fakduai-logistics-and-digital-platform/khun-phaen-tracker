@@ -18,6 +18,7 @@ import {
   Tag,
   User,
 } from "lucide-react";
+import { AssigneeSelector } from "@/components/shared/assignee-selector";
 import { DateField } from "./date-field";
 import { PropertySelect } from "./property-select";
 import { Separator } from "@/components/ui/separator";
@@ -92,10 +93,6 @@ export function TaskPropertiesSidebar({ task, projects, assignees, sprints, onUp
     () => TASK_TYPES.map((type) => ({ value: type, label: t(`taskForm__task_type_${type}`) })),
     [t],
   );
-  const assigneeOptions = useMemo(
-    () => [{ value: "all", label: "Unassigned" }, ...assignees.map((a) => ({ value: a.id || "", label: a.name }))],
-    [assignees],
-  );
   const projectOptions = useMemo(
     () => [{ value: "", label: "No Project" }, ...projects.map((p) => ({ value: p.name, label: p.name }))],
     [projects],
@@ -142,13 +139,11 @@ export function TaskPropertiesSidebar({ task, projects, assignees, sprints, onUp
           </PropertyRow>
 
           <PropertyRow icon={User} label={t("taskForm__assignee_label")}>
-            <PropertySelect
-              id="task-assignee"
-              value={task.assignee_id || task.assignee_ids?.[0] || "all"}
-              options={assigneeOptions}
-              onSelect={(value: string | number | null) =>
-                onUpdate({ assignee_ids: value === "all" || value == null ? [] : [value] })
-              }
+            <AssigneeSelector
+              assignees={assignees}
+              assignee_ids={task.assignee_ids?.length ? task.assignee_ids : task.assignee_id ? [task.assignee_id] : []}
+              onAssigneeIdsChange={(ids) => onUpdate({ assignee_ids: ids.map(String) })}
+              minimal
             />
           </PropertyRow>
 

@@ -170,6 +170,8 @@ export default function WorkspacePage() {
               allTasks={allTasks}
               sprintManagerTasks={page.filteredTasks}
               assignees={assignees}
+              projects={projectList}
+              onTaskUpdate={(detail) => void taskActions.handleTaskUpdate(ev(detail))}
               onStatusChange={(detail) => void taskActions.handleStatusChange(ev(detail))}
               onPriorityChange={(detail) => void taskActions.handlePriorityChange(ev(detail))}
               onEdit={page.openTaskPage}

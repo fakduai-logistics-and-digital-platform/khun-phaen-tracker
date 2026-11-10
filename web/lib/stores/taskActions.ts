@@ -438,6 +438,35 @@ export function createTaskActions(deps: TaskActionDeps) {
     }
   }
 
+  async function handleTaskUpdate(event: CustomEvent<{ id: string | number; updates: Partial<Task> }>) {
+    const { id, updates } = event.detail;
+    const oldTasks = deps.getTasks();
+    const oldFiltered = deps.getFilteredTasks();
+    const editingTask = deps.getEditingTask();
+    const isTarget = (task: Task) => String(task.id) === String(id);
+
+    deps.setTasks(oldTasks.map((task) => (isTarget(task) ? { ...task, ...updates } : task)));
+    deps.setFilteredTasks(oldFiltered.map((task) => (isTarget(task) ? { ...task, ...updates } : task)));
+    if (editingTask && isTarget(editingTask)) deps.setEditingTask({ ...editingTask, ...updates });
+
+    try {
+      const currentTask = oldTasks.find(isTarget);
+      const serverTask = await updateTask(id, { ...updates, workspace_id: currentTask?.workspace_id });
+      if (serverTask) {
+        const enrichedTask = await enrichTaskWithAssignees(serverTask);
+        deps.setTasks(deps.getTasks().map((task) => (isTarget(task) ? enrichedTask : task)));
+        deps.setFilteredTasks(deps.getFilteredTasks().map((task) => (isTarget(task) ? enrichedTask : task)));
+        if (editingTask && isTarget(editingTask)) deps.setEditingTask(enrichedTask);
+      }
+      deps.trackRealtime("update-task");
+    } catch {
+      deps.setTasks(oldTasks);
+      deps.setFilteredTasks(oldFiltered);
+      if (editingTask) deps.setEditingTask(editingTask);
+      deps.notify("เกิดข้อผิดพลาด", "error");
+    }
+  }
+
   return {
     handleAddTask,
     handleChecklistUpdate,
@@ -447,6 +476,7 @@ export function createTaskActions(deps: TaskActionDeps) {
     handleDeleteSelectedTasks,
     handleStatusChange,
     handlePriorityChange,
+    handleTaskUpdate,
     handleKanbanMove,
     startTimerFromCommandPalette,
   };

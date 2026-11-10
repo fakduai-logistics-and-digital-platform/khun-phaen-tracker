@@ -1,201 +1,214 @@
 "use client";
 
-import { Calendar, Edit2, Eye, Folder } from "lucide-react";
-import { PriorityBadge } from "@/components/shared/priority-badge";
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { useMemo, useState } from "react";
+import { Calendar, Clock, Eye, Folder, SignalHigh, User } from "lucide-react";
+import { AssigneeSelector } from "@/components/shared/assignee-selector";
+import { DateField } from "@/components/task-detail/date-field";
+import { PropertySelect } from "@/components/task-detail/property-select";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { useI18n } from "@/lib/i18n";
 import { useStore } from "@/lib/store";
 import { currentWorkspaceShortName } from "@/lib/stores/workspace";
-import type { Task } from "@/lib/types";
+import type { Assignee, Project, Task } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { tOr } from "./t-or";
-import {
-  dueDateOf,
-  formatDateFull,
-  getStatusClass,
-  getStatusIcon,
-  getStatusLabel,
-  isOverdue,
-} from "./table-view-config";
+import { dueDateOf, getStatusLabel, PRIORITY_OPTIONS, STATUS_OPTIONS } from "./table-view-config";
 
-const FIELD_LABEL = "w-20 shrink-0 text-xs font-medium text-muted-foreground ";
+type Id = string | number;
 
-export function TableViewQuickPreview({
-  task,
-  onClose,
-  onOpenFull,
-}: {
+interface TableViewQuickPreviewProps {
   task: Task | null;
+  assignees: Assignee[];
+  projects: Project[];
+  onUpdate: (id: Id, updates: Partial<Task>) => void;
   onClose: () => void;
   onOpenFull: (task: Task) => void;
+}
+
+function PreviewRow({
+  icon: Icon,
+  label,
+  children,
+  className,
+}: {
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  label: string;
+  children: React.ReactNode;
+  className?: string;
 }) {
+  return (
+    <div className={cn("grid min-h-9 grid-cols-[112px_1fr] items-center gap-2", className)}>
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Icon size={16} />
+        <span>{label}</span>
+      </div>
+      <div className="flex min-w-0 items-center">{children}</div>
+    </div>
+  );
+}
+
+function PreviewBody({
+  task,
+  assignees,
+  projects,
+  onUpdate,
+  onClose,
+  onOpenFull,
+}: Omit<TableViewQuickPreviewProps, "task"> & { task: Task }) {
   const { t } = useI18n();
   const shortName = useStore(currentWorkspaceShortName);
-  const previewLabel = tOr(t, "tableView__quick_preview", "Quick preview");
+  const id = task.id as Id;
+  const [title, setTitle] = useState(task.title);
+  const [notes, setNotes] = useState(task.notes ?? "");
 
-  const due = task ? dueDateOf(task) : "";
-  const checklist = task?.checklist ?? [];
-  const completed = checklist.filter((i) => i.completed).length;
-  const StatusIcon = task ? getStatusIcon(task.status) : null;
+  const statusOptions = useMemo(
+    () =>
+      STATUS_OPTIONS.map((o) => ({
+        value: o.value,
+        label: getStatusLabel(o.value, t),
+        icon: o.icon,
+      })),
+    [t],
+  );
+  const priorityOptions = useMemo(
+    () => PRIORITY_OPTIONS.map((o) => ({ value: o.value, label: o.label, icon: o.icon })),
+    [],
+  );
+  const projectOptions = useMemo(
+    () => [
+      { value: "", label: t("taskForm__unassigned_project") },
+      ...projects.map((p) => ({ value: p.name, label: p.name })),
+    ],
+    [projects, t],
+  );
+
+  function saveTitle() {
+    const next = title.trim();
+    if (!next) return setTitle(task.title);
+    if (next !== task.title) onUpdate(id, { title: next });
+  }
+
+  function saveNotes() {
+    if (notes !== (task.notes ?? "")) onUpdate(id, { notes });
+  }
+
+  const assigneeIds = task.assignee_ids?.length ? task.assignee_ids : task.assignee_id ? [task.assignee_id] : [];
 
   return (
+    <>
+      <DialogHeader className="border-b px-6 py-4">
+        <DialogTitle className="flex items-center gap-2 text-sm font-semibold">
+          <Eye size={16} className="text-muted-foreground" />
+          {tOr(t, "tableView__quick_preview", "Quick preview")}
+        </DialogTitle>
+        <DialogDescription className="sr-only">{task.title}</DialogDescription>
+      </DialogHeader>
+
+      <div className="max-h-[70vh] space-y-4 overflow-y-auto px-6 py-4">
+        <div className="space-y-1">
+          {task.task_number ? (
+            <span className="text-xs font-medium text-muted-foreground">
+              {task.workspace_short_name || shortName || "TASK"}-{task.task_number}
+            </span>
+          ) : null}
+          <Input
+            aria-label={t("tableView__column_title")}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            onBlur={saveTitle}
+            onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+            className="h-auto border-transparent px-2 py-1 text-lg font-medium shadow-none hover:bg-accent/50 md:text-lg"
+          />
+        </div>
+
+        <div className="space-y-1">
+          <PreviewRow icon={SignalHigh} label={t("tableView__column_priority")}>
+            <PropertySelect
+              id="preview-priority"
+              value={task.priority || "none"}
+              options={priorityOptions}
+              onSelect={(value) => onUpdate(id, { priority: value as Task["priority"] })}
+            />
+          </PreviewRow>
+
+          <PreviewRow icon={Clock} label={t("tableView__column_status")}>
+            <PropertySelect
+              id="preview-status"
+              value={task.status}
+              options={statusOptions}
+              onSelect={(value) => onUpdate(id, { status: value as Task["status"] })}
+            />
+          </PreviewRow>
+
+          <PreviewRow icon={User} label={t("tableView__column_assignee")}>
+            <AssigneeSelector
+              assignees={assignees}
+              assignee_ids={assigneeIds}
+              onAssigneeIdsChange={(ids) => onUpdate(id, { assignee_ids: ids.map(String) })}
+              minimal
+            />
+          </PreviewRow>
+
+          <PreviewRow icon={Calendar} label={t("tableView__column_due_date")}>
+            <DateField
+              id="preview-due-date"
+              value={dueDateOf(task)}
+              placeholder={t("taskForm__due_date_placeholder")}
+              onSelect={(value) => onUpdate(id, { due_date: value })}
+            />
+          </PreviewRow>
+
+          <PreviewRow icon={Folder} label={t("tableView__column_project")}>
+            <PropertySelect
+              id="preview-project"
+              value={task.project || ""}
+              options={projectOptions}
+              onSelect={(value) => onUpdate(id, { project: String(value ?? "") })}
+            />
+          </PreviewRow>
+        </div>
+
+        <div className="space-y-2">
+          <label htmlFor="preview-notes" className="text-sm font-medium">
+            {tOr(t, "tableView__notes_label", "Notes")}
+          </label>
+          <Textarea
+            id="preview-notes"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            onBlur={saveNotes}
+            placeholder={tOr(t, "tableView__no_notes", "No notes")}
+            className="max-h-64 min-h-32"
+          />
+        </div>
+      </div>
+
+      <DialogFooter className="border-t px-6 py-4">
+        <Button type="button" variant="outline" onClick={onClose}>
+          {tOr(t, "tableView__close", "Close")}
+        </Button>
+        <Button
+          type="button"
+          onClick={() => {
+            onClose();
+            onOpenFull(task);
+          }}
+        >
+          {tOr(t, "tableView__open_full", "Open full")}
+        </Button>
+      </DialogFooter>
+    </>
+  );
+}
+
+export function TableViewQuickPreview({ task, onClose, ...rest }: TableViewQuickPreviewProps) {
+  return (
     <Dialog open={task !== null} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent showCloseButton className="z-[10000] max-w-md gap-0 overflow-hidden rounded-lg p-0 sm:max-w-md">
-        {task && StatusIcon && (
-          <>
-            <div className="flex items-center gap-2 border-b bg-muted/50 px-5 py-3">
-              <Eye size={16} className="text-indigo-500" />
-              <DialogTitle className="text-sm font-semibold">{previewLabel}</DialogTitle>
-              <DialogDescription className="sr-only">{task.title}</DialogDescription>
-            </div>
-
-            <div className="max-h-[70vh] space-y-4 overflow-y-auto px-5 py-4">
-              <div>
-                {task.task_number && (
-                  <span className="text-xs font-medium text-muted-foreground">
-                    {task.workspace_short_name || shortName || "TASK"}-{task.task_number}
-                  </span>
-                )}
-                <h2 className="mt-0.5 text-lg leading-snug font-medium">{task.title}</h2>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className={FIELD_LABEL}>{t("tableView__column_priority")}</span>
-                <PriorityBadge priority={task.priority} />
-                {(!task.priority || task.priority === "none") && (
-                  <span className="text-xs text-muted-foreground">—</span>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className={FIELD_LABEL}>{t("tableView__column_status")}</span>
-                <span
-                  className={cn(
-                    "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
-                    getStatusClass(task.status, task.is_archived),
-                  )}
-                >
-                  <StatusIcon size={12} />
-                  {getStatusLabel(task.status, t, task.is_archived)}
-                </span>
-              </div>
-
-              <div className="flex items-start gap-2">
-                <span className={cn(FIELD_LABEL, "pt-1")}>{t("tableView__column_assignee")}</span>
-                <div className="flex flex-wrap gap-2">
-                  {task.assignees && task.assignees.length > 0 ? (
-                    task.assignees.map((assignee, i) => (
-                      <div
-                        key={`${assignee.id ?? i}`}
-                        className="flex items-center gap-1.5 rounded-full bg-muted py-0.5 pr-2.5 pl-0.5"
-                      >
-                        <div
-                          className="flex size-5 shrink-0 items-center justify-center rounded-full text-xs font-medium text-white"
-                          style={{ backgroundColor: assignee.color || "#6366f1" }}
-                        >
-                          {assignee.avatar_url ? (
-                            <img
-                              src={assignee.avatar_url}
-                              alt={assignee.name}
-                              className="size-full rounded-full object-cover"
-                            />
-                          ) : (
-                            assignee.name?.[0]?.toUpperCase() || "?"
-                          )}
-                        </div>
-                        <span className="text-xs">{assignee.name}</span>
-                      </div>
-                    ))
-                  ) : (
-                    <span className="text-xs text-muted-foreground">—</span>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <span className="mb-1 block text-xs font-medium text-muted-foreground">
-                  {tOr(t, "tableView__notes_label", "Notes")}
-                </span>
-                {task.notes ? (
-                  <div className="max-h-48 overflow-y-auto rounded-lg border bg-muted/30 px-3 py-2 text-sm whitespace-pre-wrap">
-                    {task.notes}
-                  </div>
-                ) : (
-                  <span className="text-sm text-muted-foreground">{tOr(t, "tableView__no_notes", "No notes")}</span>
-                )}
-              </div>
-
-              {due && (
-                <div className="flex items-center gap-2">
-                  <span className={FIELD_LABEL}>{t("tableView__column_due_date")}</span>
-                  <span className="flex items-center gap-1 text-xs">
-                    <Calendar size={12} />
-                    {formatDateFull(due)}
-                    {isOverdue(due, task.status, task.is_archived) && (
-                      <span className="ml-1 font-medium text-destructive">{t("tableView__overdue_label")}</span>
-                    )}
-                  </span>
-                </div>
-              )}
-
-              {task.project && (
-                <div className="flex items-center gap-2">
-                  <span className={FIELD_LABEL}>{t("tableView__column_project")}</span>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">
-                    <Folder size={10} />
-                    {task.project}
-                  </span>
-                </div>
-              )}
-
-              {checklist.length > 0 && (
-                <div className="flex items-center gap-2">
-                  <span className={FIELD_LABEL}>Checklist</span>
-                  <div className="flex items-center gap-2">
-                    <div className="h-1.5 w-20 overflow-hidden rounded-full bg-muted">
-                      <div
-                        className={cn(
-                          "h-full transition-colors",
-                          completed === checklist.length ? "bg-success" : "bg-blue-500",
-                        )}
-                        style={{ width: `${(completed / checklist.length) * 100}%` }}
-                      />
-                    </div>
-                    <span
-                      className={cn(
-                        "text-xs font-medium",
-                        completed === checklist.length ? "text-success" : "text-muted-foreground",
-                      )}
-                    >
-                      {completed}/{checklist.length}
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="flex justify-end gap-2 border-t bg-muted/50 px-5 py-3">
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded-lg px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent"
-              >
-                {tOr(t, "tableView__close", "Close")}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  onClose();
-                  onOpenFull(task);
-                }}
-                className="flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-              >
-                <Edit2 size={12} />
-                {tOr(t, "tableView__open_full", "Open full")}
-              </button>
-            </div>
-          </>
-        )}
+      <DialogContent showCloseButton className="z-[10000] gap-0 overflow-hidden p-0 sm:max-w-lg">
+        {task && <PreviewBody key={String(task.id)} task={task} onClose={onClose} {...rest} />}
       </DialogContent>
     </Dialog>
   );

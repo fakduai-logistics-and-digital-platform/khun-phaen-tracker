@@ -6,7 +6,7 @@ import { useI18n } from "@/lib/i18n";
 import { useStore } from "@/lib/store";
 import { columnSettings } from "@/lib/stores/columnSettings";
 import { currentWorkspaceShortName } from "@/lib/stores/workspace";
-import type { Sprint, Task } from "@/lib/types";
+import type { Assignee, Project, Sprint, Task } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { PriorityDropdown, StatusDropdown, type DropdownAnchor } from "./table-view-dropdowns";
 import { TableViewToolbar } from "./table-view-toolbar";
@@ -26,6 +26,9 @@ type Id = string | number;
 export interface TableViewProps {
   tasks?: Task[];
   sprints?: Sprint[];
+  assignees?: Assignee[];
+  projects?: Project[];
+  onTaskUpdate?: (detail: { id: Id; updates: Partial<Task> }) => void;
   onEdit?: (task: Task) => void;
   onDelete?: (id: Id) => void;
   onDeleteSelected?: (ids: Id[]) => void;
@@ -48,6 +51,9 @@ function toggleInSet(set: Set<Id>, id: Id) {
 export function TableView({
   tasks = [],
   sprints = [],
+  assignees = [],
+  projects = [],
+  onTaskUpdate,
   onEdit,
   onDelete,
   onDeleteSelected,
@@ -331,6 +337,9 @@ export function TableView({
 
       <TableViewQuickPreview
         task={previewTask}
+        assignees={assignees}
+        projects={projects}
+        onUpdate={(id, updates) => onTaskUpdate?.({ id, updates })}
         onClose={() => setPreviewId(null)}
         onOpenFull={(task) => onEdit?.(task)}
       />

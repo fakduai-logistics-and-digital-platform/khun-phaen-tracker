@@ -1,6 +1,6 @@
 "use client";
 
-import type { Assignee, Sprint, Task } from "@/lib/types";
+import type { Assignee, Project, Sprint, Task } from "@/lib/types";
 import { CalendarView } from "./calendar-view";
 import { GanttView } from "./gantt-view";
 import { KanbanBoard } from "./kanban-board";
@@ -25,6 +25,8 @@ export interface WorkspaceViewsProps {
   allTasks: Task[];
   sprintManagerTasks: Task[];
   assignees: Assignee[];
+  projects?: Project[];
+  onTaskUpdate?: (detail: { id: Id; updates: Partial<Task> }) => void;
   onStatusChange?: (detail: { id: Id; status: Task["status"] }) => void;
   onPriorityChange?: (detail: { id: Id; priority: Task["priority"] }) => void;
   onEdit?: (task: Task) => void;
@@ -51,6 +53,8 @@ export function WorkspaceViews({
   allTasks,
   sprintManagerTasks,
   assignees,
+  projects,
+  onTaskUpdate,
   onStatusChange,
   onPriorityChange,
   onEdit,
@@ -107,6 +111,9 @@ export function WorkspaceViews({
             onDeleteSelected={onDeleteSelected}
             onStatusChange={onStatusChange}
             onPriorityChange={onPriorityChange}
+            assignees={assignees}
+            projects={projects}
+            onTaskUpdate={onTaskUpdate}
             onChecklistToggle={onChecklistToggle}
             onExportQR={onExportQR}
           />

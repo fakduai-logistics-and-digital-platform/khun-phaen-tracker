@@ -105,6 +105,9 @@ pub async fn handle(req: &mut Request, env: &Env, user: &User, parts: &[&str]) -
         return crate::task_query::list(req, env, Some(&w.id), user).await;
     }
     if method == Method::Get && item.is_none() {
+        if kind == "assignees" && w.owner_id == user.id {
+            ensure_owner_assignee(env, &w.id, user).await?;
+        }
         return list(env, &w.id, kind).await;
     }
     if method == Method::Get {
@@ -306,6 +309,33 @@ pub async fn handle(req: &mut Request, env: &Env, user: &User, parts: &[&str]) -
     }
     output[entity(kind)] = value;
     http::ok(output)
+}
+async fn ensure_owner_assignee(env: &Env, workspace: &str, user: &User) -> Result<()> {
+    let db = env.d1("DB")?;
+    let found: Option<Count> = db::first(
+        &db,
+        "SELECT COUNT(*) AS total FROM documents WHERE workspace_id=? AND kind='assignees' AND json_extract(payload,'$.user_id')=?",
+        &[workspace.into(), user.id.clone().into()],
+    )
+    .await?;
+    if found.is_some_and(|v| v.total > 0) {
+        return Ok(());
+    }
+    let profile = serde_json::from_str::<Value>(&user.profile).unwrap_or(json!({}));
+    let name = ["nickname", "first_name"]
+        .iter()
+        .filter_map(|k| profile[*k].as_str().map(str::trim))
+        .find(|s| !s.is_empty())
+        .map(str::to_owned)
+        .unwrap_or_else(|| user.email.split('@').next().unwrap_or("Owner").to_owned());
+    let mut value = json!({"name":name,"color":"#6366F1","user_id":user.id});
+    crate::records::identity(&mut value, workspace, &db::id());
+    let id = http::text(&value, "id");
+    value["id"] = json!(id);
+    crate::records::insert_statement(&db, "assignees", &value, None)?
+        .run()
+        .await?;
+    Ok(())
 }
 async fn list(env: &Env, workspace: &str, kind: &str) -> Result<Response> {
     let values = crate::records::values(env, workspace, kind).await?;
