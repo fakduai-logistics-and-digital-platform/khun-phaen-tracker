@@ -86,6 +86,8 @@ export function getStatusLabel(t: Translate, status: Task["status"]): string {
       return t("taskList__status_in_progress");
     case "in-test":
       return t("taskList__status_in_test");
+    case "tested":
+      return t("taskList__status_tested");
     case "done":
       return t("taskList__status_done");
   }

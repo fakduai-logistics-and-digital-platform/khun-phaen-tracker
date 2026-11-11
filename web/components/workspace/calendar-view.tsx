@@ -260,7 +260,9 @@ export function CalendarView({ tasks = [], onSelectTask }: CalendarViewProps) {
                               ? "bg-primary"
                               : task.status === "in-test"
                                 ? "bg-warning"
-                                : "bg-muted-foreground",
+                                : task.status === "tested"
+                                  ? "bg-teal-500"
+                                  : "bg-muted-foreground",
                         )}
                         title={`${task.priority && task.priority !== "none" ? `${task.priority} ` : ""}${task.workspace_short_name || shortName || "TASK"}-${task.task_number} ${task.title}`}
                       />

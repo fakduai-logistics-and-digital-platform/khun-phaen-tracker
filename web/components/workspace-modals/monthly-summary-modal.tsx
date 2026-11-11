@@ -26,6 +26,7 @@ const STATUS_LABEL_KEY: Record<string, string> = {
   done: "page__filter_status_done",
   "in-progress": "page__filter_status_in_progress",
   "in-test": "page__filter_status_in_test",
+  tested: "page__filter_status_tested",
 };
 const DEFAULT_STATUS_LABEL_KEY = "page__filter_status_todo";
 

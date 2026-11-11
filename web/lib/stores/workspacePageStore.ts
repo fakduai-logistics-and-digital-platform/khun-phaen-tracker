@@ -48,6 +48,7 @@ export function createWorkspacePageStore() {
     todo: 0,
     in_progress: 0,
     in_test: 0,
+    tested: 0,
     done: 0,
     total_minutes: 0,
   });

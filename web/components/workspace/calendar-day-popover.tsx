@@ -59,6 +59,8 @@ export const CalendarDayPopover = forwardRef<HTMLDivElement, CalendarDayPopoverP
         return t("page__filter_status_in_progress");
       case "in-test":
         return t("page__filter_status_in_test");
+      case "tested":
+        return t("page__filter_status_tested");
       case "done":
         return t("page__filter_status_done");
       default:

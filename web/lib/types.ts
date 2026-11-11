@@ -58,7 +58,7 @@ export interface Task {
   duration_minutes: number;
   start_date?: string; // YYYY-MM-DD
   date: string; // YYYY-MM-DD
-  status: "pending" | "todo" | "in-progress" | "in-test" | "done";
+  status: "pending" | "todo" | "in-progress" | "in-test" | "tested" | "done";
   priority?: "urgent" | "high" | "medium" | "low" | "none";
   task_type?: TaskType;
   category: string;

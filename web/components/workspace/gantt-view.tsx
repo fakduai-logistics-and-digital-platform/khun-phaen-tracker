@@ -279,7 +279,9 @@ export function GanttView({ tasks = [], sprints = [], onEdit }: GanttViewProps) 
                                 ? "bg-blue-500"
                                 : task.status === "in-test"
                                   ? "bg-purple-500"
-                                  : "bg-gray-400",
+                                  : task.status === "tested"
+                                    ? "bg-teal-500"
+                                    : "bg-gray-400",
                           )}
                           style={{
                             left: getX(task._start),

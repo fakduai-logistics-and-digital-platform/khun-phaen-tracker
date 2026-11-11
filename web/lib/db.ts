@@ -954,10 +954,11 @@ export function getStatsFromTasks(tasks: Task[]) {
   const todo = tasks.filter((t: Task) => t.status === "todo").length;
   const in_progress = tasks.filter((t: Task) => t.status === "in-progress").length;
   const in_test = tasks.filter((t: Task) => t.status === "in-test").length;
+  const tested = tasks.filter((t: Task) => t.status === "tested").length;
   const done = tasks.filter((t: Task) => t.status === "done").length;
   const total_minutes = tasks.reduce((sum, t) => sum + (t.duration_minutes || 0), 0);
 
-  return { total, pending, todo, in_progress, in_test, done, total_minutes };
+  return { total, pending, todo, in_progress, in_test, tested, done, total_minutes };
 }
 
 export async function getStats() {

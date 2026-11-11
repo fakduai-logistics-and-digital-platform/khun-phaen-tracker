@@ -65,6 +65,12 @@ export function getCommandStatusInfo(status: string, t: Translate) {
         className:
           "bg-blue-50 text-blue-600 border-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20",
       };
+    case "tested":
+      return {
+        label: t("page__filter_status_tested"),
+        className:
+          "bg-teal-50 text-teal-600 border-teal-100 dark:bg-teal-500/10 dark:text-teal-400 dark:border-teal-500/20",
+      };
     case "in-test":
       return {
         label: t("page__filter_status_in_test"),

@@ -158,9 +158,9 @@ pub async fn list(
     .await?;
     let total = count.map(|v| v.total).unwrap_or(0);
     if req.path().ends_with("/stats") {
-        let stats:Option<Value>=db::first(&db,&format!("SELECT COUNT(*) total,SUM(json_extract(d.payload,'$.status')='pending') pending,SUM(json_extract(d.payload,'$.status')='todo') todo,SUM(json_extract(d.payload,'$.status')='in-progress') in_progress,SUM(json_extract(d.payload,'$.status')='in-test') in_test,SUM(json_extract(d.payload,'$.status')='done') done,COALESCE(SUM(json_extract(d.payload,'$.duration_minutes')),0) total_minutes FROM documents d WHERE {sql}"),&args).await?;
+        let stats:Option<Value>=db::first(&db,&format!("SELECT COUNT(*) total,SUM(json_extract(d.payload,'$.status')='pending') pending,SUM(json_extract(d.payload,'$.status')='todo') todo,SUM(json_extract(d.payload,'$.status')='in-progress') in_progress,SUM(json_extract(d.payload,'$.status')='in-test') in_test,SUM(json_extract(d.payload,'$.status')='tested') tested,SUM(json_extract(d.payload,'$.status')='done') done,COALESCE(SUM(json_extract(d.payload,'$.duration_minutes')),0) total_minutes FROM documents d WHERE {sql}"),&args).await?;
         let mut stats = stats.unwrap_or(json!({}));
-        for k in ["pending", "todo", "in_progress", "in_test", "done"] {
+        for k in ["pending", "todo", "in_progress", "in_test", "tested", "done"] {
             if stats[k].is_null() {
                 stats[k] = json!(0)
             }

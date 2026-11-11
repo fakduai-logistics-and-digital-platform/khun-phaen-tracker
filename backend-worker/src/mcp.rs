@@ -41,7 +41,7 @@ fn tools() -> Vec<Value> {
         tool(
             "update_task_status",
             "Report progress by moving a task to a new status",
-            json!({"workspace_id":ws,"task_id":{"type":"string"},"status":{"type":"string","enum":["pending","todo","in-progress","in-test","done"]}}),
+            json!({"workspace_id":ws,"task_id":{"type":"string"},"status":{"type":"string","enum":["pending","todo","in-progress","in-test","tested","done"]}}),
             &["workspace_id", "task_id", "status"],
         ),
         tool(
@@ -201,7 +201,7 @@ fn plan(name: &str, args: &Value) -> std::result::Result<(Method, String, Option
         }
         "update_task_status" => {
             let status = arg(args, "status")?;
-            if !["pending", "todo", "in-progress", "in-test", "done"].contains(&status) {
+            if !["pending", "todo", "in-progress", "in-test", "tested", "done"].contains(&status) {
                 return Err("Invalid status".into());
             }
             (

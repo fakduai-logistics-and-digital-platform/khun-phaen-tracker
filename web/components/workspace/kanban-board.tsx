@@ -27,15 +27,16 @@ import { cn } from "@/lib/utils";
 import { KanbanCard, KanbanCardView } from "./kanban-card";
 import { useFlipLayout } from "./use-flip-layout";
 
-type ColumnStatus = "todo" | "in-progress" | "in-test" | "done";
+type ColumnStatus = "todo" | "in-progress" | "in-test" | "tested" | "done";
 type Columns = Record<ColumnStatus, Task[]>;
 
-const COLUMN_ORDER: ColumnStatus[] = ["todo", "in-progress", "in-test", "done"];
+const COLUMN_ORDER: ColumnStatus[] = ["todo", "in-progress", "in-test", "tested", "done"];
 
 const COLUMN_STYLE: Record<ColumnStatus, { labelKey: string; dotClass: string }> = {
   todo: { labelKey: "kanbanBoard__column_todo", dotClass: "border-2 border-muted-foreground/60" },
   "in-progress": { labelKey: "kanbanBoard__column_in_progress", dotClass: "bg-primary" },
   "in-test": { labelKey: "kanbanBoard__column_in_test", dotClass: "bg-warning" },
+  tested: { labelKey: "kanbanBoard__column_tested", dotClass: "bg-teal-500" },
   done: { labelKey: "kanbanBoard__column_done", dotClass: "bg-success" },
 };
 
@@ -45,6 +46,7 @@ function groupTasks(tasks: Task[]): Columns {
     todo: tasks.filter((t) => (t.status === "todo" || t.status === "pending") && hasId(t)),
     "in-progress": tasks.filter((t) => t.status === "in-progress" && hasId(t)),
     "in-test": tasks.filter((t) => t.status === "in-test" && hasId(t)),
+    tested: tasks.filter((t) => t.status === "tested" && hasId(t)),
     done: tasks.filter((t) => t.status === "done" && hasId(t)),
   };
 }

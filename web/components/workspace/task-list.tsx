@@ -95,6 +95,8 @@ export function TaskList({
         return t("taskList__status_done");
       case "in-test":
         return t("taskList__status_in_test");
+      case "tested":
+        return t("taskList__status_tested");
     }
   };
 

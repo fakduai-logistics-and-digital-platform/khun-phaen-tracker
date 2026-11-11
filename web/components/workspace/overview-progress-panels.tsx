@@ -16,6 +16,7 @@ export function OverviewProgressCard({ stats, completionRate }: { stats: Workspa
   const items = [
     { label: t("statsPanel__in_progress"), value: stats.in_progress },
     { label: t("statsPanel__in_test"), value: stats.in_test },
+    { label: t("statsPanel__tested"), value: stats.tested },
     { label: t("overview__overdue"), value: 0 },
     { label: t("statsPanel__done"), value: stats.done },
   ];

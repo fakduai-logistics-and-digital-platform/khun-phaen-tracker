@@ -9,6 +9,7 @@ import {
   SignalLow,
   SignalMedium,
   type LucideIcon,
+  BadgeCheck,
 } from "lucide-react";
 import type { Task } from "@/lib/types";
 
@@ -28,6 +29,7 @@ export const STATUS_OPTIONS: { value: Task["status"]; labelKey: string; icon: Lu
   { value: "pending", labelKey: "page__filter_status_pending", icon: Circle, colorClass: "text-slate-500" },
   { value: "in-progress", labelKey: "page__filter_status_in_progress", icon: PlayCircle, colorClass: "text-blue-500" },
   { value: "in-test", labelKey: "page__filter_status_in_test", icon: FlaskConical, colorClass: "text-purple-500" },
+  { value: "tested", labelKey: "page__filter_status_tested", icon: BadgeCheck, colorClass: "text-teal-500" },
   { value: "done", labelKey: "page__filter_status_done", icon: CheckCircle2, colorClass: "text-green-500" },
 ];
 
@@ -96,6 +98,8 @@ export function getStatusIcon(status: Task["status"]): LucideIcon {
       return PlayCircle;
     case "in-test":
       return FlaskConical;
+    case "tested":
+      return BadgeCheck;
     default:
       return Circle;
   }
@@ -112,6 +116,8 @@ export function getStatusClass(status: Task["status"], isArchived = false) {
       return "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20";
     case "in-test":
       return "text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20";
+    case "tested":
+      return "text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-900/20";
     default:
       return "text-muted-foreground bg-muted/50";
   }
@@ -126,6 +132,8 @@ export function getStatusLabel(status: Task["status"], t: Translate, isArchived 
       return t("page__filter_status_in_progress");
     case "in-test":
       return t("page__filter_status_in_test");
+    case "tested":
+      return t("page__filter_status_tested");
     case "done":
       return t("page__filter_status_done");
     default:
@@ -141,6 +149,8 @@ export function getStatusShort(status: Task["status"], t: Translate) {
       return t("tableView__status_short_in_progress");
     case "in-test":
       return t("tableView__status_short_in_test");
+    case "tested":
+      return t("tableView__status_short_tested");
     case "done":
       return t("tableView__status_short_done");
     default:

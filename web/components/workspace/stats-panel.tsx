@@ -21,6 +21,7 @@ import {
   Target,
   Zap,
   type LucideIcon,
+  BadgeCheck,
 } from "lucide-react";
 import { ExportImport } from "@/components/workspace-modals/export-import";
 import { useI18n } from "@/lib/i18n";
@@ -45,7 +46,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   Smile,
 };
 
-export type StatusFilter = "all" | "pending" | "todo" | "in-progress" | "in-test" | "done";
+export type StatusFilter = "all" | "pending" | "todo" | "in-progress" | "in-test" | "tested" | "done";
 
 export interface WorkspaceStats {
   total: number;
@@ -53,6 +54,7 @@ export interface WorkspaceStats {
   todo: number;
   in_progress: number;
   in_test: number;
+  tested: number;
   done: number;
   total_minutes: number;
 }
@@ -63,6 +65,7 @@ const EMPTY_STATS: WorkspaceStats = {
   todo: 0,
   in_progress: 0,
   in_test: 0,
+  tested: 0,
   done: 0,
   total_minutes: 0,
 };
@@ -88,6 +91,7 @@ const CARDS: { status: StatusFilter; labelKey: string; valueKey: keyof Workspace
   { status: "todo", labelKey: "statsPanel__todo", valueKey: "todo", Icon: Circle },
   { status: "in-progress", labelKey: "statsPanel__in_progress", valueKey: "in_progress", Icon: Loader2 },
   { status: "in-test", labelKey: "statsPanel__in_test", valueKey: "in_test", Icon: FlaskConical },
+  { status: "tested", labelKey: "statsPanel__tested", valueKey: "tested", Icon: BadgeCheck },
   { status: "done", labelKey: "statsPanel__done", valueKey: "done", Icon: CheckCircle2 },
 ];
 

@@ -14,6 +14,7 @@ const STATUS_ICONS: Record<string, string> = {
   todo: "📝",
   "in-progress": "🔄",
   "in-test": "🧪",
+  tested: "🧫",
 };
 const OTHER_CATEGORIES = ["อื่นๆ", "Other", "อื่นๆ (Other)"];
 

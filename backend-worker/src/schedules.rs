@@ -92,7 +92,7 @@ pub async fn configure(req: &mut Request, env: &Env, workspace: &Workspace) -> R
         .is_some_and(|a| {
             a.iter().all(|v| {
                 v.as_str().is_some_and(|s| {
-                    ["pending", "todo", "in-progress", "in-test", "done"].contains(&s)
+                    ["pending", "todo", "in-progress", "in-test", "tested", "done"].contains(&s)
                 })
             })
         })

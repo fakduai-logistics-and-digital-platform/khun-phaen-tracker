@@ -18,6 +18,7 @@ import {
   User,
   Zap,
   type LucideIcon,
+  BadgeCheck,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import type { Assignee, FilterOptions, Sprint, Task } from "@/lib/types";
@@ -145,6 +146,13 @@ export function FilterPanel({
         count: live("in-test"),
         icon: CircleDot,
         iconClass: "text-success",
+      },
+      {
+        value: "tested",
+        label: t("page__filter_status_tested"),
+        count: live("tested"),
+        icon: BadgeCheck,
+        iconClass: "text-teal-500",
       },
       {
         value: "done",

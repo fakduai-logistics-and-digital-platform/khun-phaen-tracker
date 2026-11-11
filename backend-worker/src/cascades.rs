@@ -58,7 +58,7 @@ pub async fn validate_task(
     }
     if !value["status"]
         .as_str()
-        .is_some_and(|s| ["pending", "todo", "in-progress", "in-test", "done"].contains(&s))
+        .is_some_and(|s| ["pending", "todo", "in-progress", "in-test", "tested", "done"].contains(&s))
     {
         return Ok(Some("Invalid task status"));
     }

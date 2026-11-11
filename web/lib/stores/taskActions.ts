@@ -292,12 +292,14 @@ export function createTaskActions(deps: TaskActionDeps) {
     const { id, status } = event.detail;
     const oldTasks = deps.getTasks();
     const oldFiltered = deps.getFilteredTasks();
+    const oldAll = deps.getAllTasks();
     const editingTask = deps.getEditingTask();
     const oldEditingTask = editingTask;
 
     // Optimistic update
     deps.setTasks(oldTasks.map((task) => (String(task.id) === String(id) ? { ...task, status } : task)));
     deps.setFilteredTasks(oldFiltered.map((task) => (String(task.id) === String(id) ? { ...task, status } : task)));
+    deps.setAllTasks(oldAll.map((task) => (String(task.id) === String(id) ? { ...task, status } : task)));
     if (editingTask && String(editingTask.id) === String(id)) {
       deps.setEditingTask({ ...editingTask, status });
     }
@@ -314,6 +316,7 @@ export function createTaskActions(deps: TaskActionDeps) {
         deps.setFilteredTasks(
           deps.getFilteredTasks().map((task) => (String(task.id) === String(id) ? enrichedTask : task)),
         );
+        deps.setAllTasks(deps.getAllTasks().map((task) => (String(task.id) === String(id) ? enrichedTask : task)));
         if (oldEditingTask && String(oldEditingTask.id) === String(id)) {
           deps.setEditingTask(enrichedTask);
         }
@@ -323,6 +326,7 @@ export function createTaskActions(deps: TaskActionDeps) {
     } catch {
       deps.setTasks(oldTasks);
       deps.setFilteredTasks(oldFiltered);
+      deps.setAllTasks(oldAll);
       if (oldEditingTask) {
         deps.setEditingTask(oldEditingTask);
       }
@@ -404,12 +408,14 @@ export function createTaskActions(deps: TaskActionDeps) {
     const { id, priority } = event.detail;
     const oldTasks = deps.getTasks();
     const oldFiltered = deps.getFilteredTasks();
+    const oldAll = deps.getAllTasks();
     const editingTask = deps.getEditingTask();
     const oldEditingTask = editingTask;
 
     // Optimistic update
     deps.setTasks(oldTasks.map((task) => (String(task.id) === String(id) ? { ...task, priority } : task)));
     deps.setFilteredTasks(oldFiltered.map((task) => (String(task.id) === String(id) ? { ...task, priority } : task)));
+    deps.setAllTasks(oldAll.map((task) => (String(task.id) === String(id) ? { ...task, priority } : task)));
     if (editingTask && String(editingTask.id) === String(id)) {
       deps.setEditingTask({ ...editingTask, priority });
     }
@@ -425,6 +431,7 @@ export function createTaskActions(deps: TaskActionDeps) {
         deps.setFilteredTasks(
           deps.getFilteredTasks().map((task) => (String(task.id) === String(id) ? enrichedTask : task)),
         );
+        deps.setAllTasks(deps.getAllTasks().map((task) => (String(task.id) === String(id) ? enrichedTask : task)));
         if (oldEditingTask && String(oldEditingTask.id) === String(id)) {
           deps.setEditingTask(enrichedTask);
         }
@@ -434,6 +441,7 @@ export function createTaskActions(deps: TaskActionDeps) {
     } catch {
       deps.setTasks(oldTasks);
       deps.setFilteredTasks(oldFiltered);
+      deps.setAllTasks(oldAll);
       if (oldEditingTask) {
         deps.setEditingTask(oldEditingTask);
       }

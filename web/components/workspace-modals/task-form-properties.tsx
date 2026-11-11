@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, Circle, CircleDashed, CircleDot, Folder } from "lucide-react";
+import { CheckCircle2, Circle, CircleDashed, CircleDot, Folder, BadgeCheck } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { AssigneeSelector } from "@/components/shared/assignee-selector";
 import { CustomDatePicker } from "@/components/shared/custom-date-picker";
@@ -38,6 +38,7 @@ export function TaskFormProperties({
     { value: "todo", label: t("taskForm__status_todo"), icon: Circle, iconClass: "text-muted-foreground" },
     { value: "in-progress", label: t("taskForm__status_in_progress"), icon: CircleDot, iconClass: "text-yellow-500" },
     { value: "in-test", label: t("taskForm__status_in_test"), icon: CircleDot, iconClass: "text-success" },
+    { value: "tested", label: t("taskForm__status_tested"), icon: BadgeCheck, iconClass: "text-teal-500" },
     { value: "done", label: t("taskForm__status_done"), icon: CheckCircle2, iconClass: "text-blue-500" },
   ];
 

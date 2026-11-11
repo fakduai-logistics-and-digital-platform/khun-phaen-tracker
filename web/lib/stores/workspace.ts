@@ -143,6 +143,7 @@ export type WorkspaceDataLoadResult = {
     todo: number;
     in_progress: number;
     in_test: number;
+    tested: number;
     done: number;
     total_minutes: number;
   };
