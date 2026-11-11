@@ -3,7 +3,11 @@
 import { Fragment, type ReactNode } from "react";
 import { marked, type Token, type Tokens } from "marked";
 import type { Assignee } from "@/lib/types";
-import { findMentioned, MentionHoverCard } from "./mentions";
+import { cn } from "@/lib/utils";
+import {
+  findMentioned,
+  MentionHoverCard,
+} from "@/components/task-detail/mentions";
 
 const SAFE_HREF = /^(https?:|mailto:)/i;
 const ENTITIES: Record<string, string> = {
@@ -154,15 +158,26 @@ function blocks(tokens: Token[], ctx: Context): ReactNode[] {
   });
 }
 
-/** Comments are stored as markdown. Rendered through React nodes only, so nothing typed can inject HTML. */
-export function CommentMarkdown({
+/** Markdown is rendered through React nodes only, so nothing typed can inject HTML. Mentions are optional. */
+export function MarkdownText({
   text,
-  pattern,
-  assignees,
-}: { text: string } & Context) {
+  pattern = null,
+  assignees = [],
+  className,
+}: {
+  text: string;
+  pattern?: RegExp | null;
+  assignees?: Assignee[];
+  className?: string;
+}) {
   const tokens = marked.lexer(text, { gfm: true, breaks: true });
   return (
-    <div className="flex flex-col gap-2 break-words [&_li>p]:inline">
+    <div
+      className={cn(
+        "flex flex-col gap-2 break-words [&_li>p]:inline",
+        className,
+      )}
+    >
       {blocks(tokens, { pattern, assignees })}
     </div>
   );

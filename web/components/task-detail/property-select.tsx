@@ -9,6 +9,7 @@ export interface PropertyOption {
   value: string | number;
   label: string;
   icon?: React.ComponentType<{ size?: string | number; className?: string }>;
+  iconClass?: string;
 }
 
 interface PropertySelectProps {
@@ -35,7 +36,7 @@ export function PropertySelect({ id, value, options, onSelect, disabled, classNa
       <SelectContent>
         {options.map((option) => (
           <SelectItem key={toKey(option.value)} value={toKey(option.value)}>
-            {option.icon && <option.icon />}
+            {option.icon && <option.icon className={option.iconClass} />}
             {option.label}
           </SelectItem>
         ))}

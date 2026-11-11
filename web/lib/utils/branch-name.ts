@@ -1,8 +1,27 @@
-export type GitFlowType = "feature" | "bugfix" | "hotfix" | "release" | "perf" | "refactor" | "docs" | "chore";
+export type GitFlowType =
+  | "feature"
+  | "bugfix"
+  | "hotfix"
+  | "release"
+  | "perf"
+  | "refactor"
+  | "docs"
+  | "chore"
+  | "test"
+  | "ui";
 
-export type TaskType = "feature" | "bug" | "optimize" | "refactor" | "docs" | "chore";
+export type TaskType = "feature" | "bug" | "optimize" | "refactor" | "docs" | "chore" | "test" | "ui";
 
-export const TASK_TYPES: readonly TaskType[] = ["feature", "bug", "optimize", "refactor", "docs", "chore"] as const;
+export const TASK_TYPES: readonly TaskType[] = [
+  "feature",
+  "bug",
+  "optimize",
+  "refactor",
+  "docs",
+  "chore",
+  "test",
+  "ui",
+] as const;
 
 export const TASK_TYPE_BRANCH_PREFIX: Record<TaskType, GitFlowType> = {
   feature: "feature",
@@ -11,6 +30,8 @@ export const TASK_TYPE_BRANCH_PREFIX: Record<TaskType, GitFlowType> = {
   refactor: "refactor",
   docs: "docs",
   chore: "chore",
+  test: "test",
+  ui: "ui",
 };
 
 export function getBranchPrefixForTaskType(taskType: TaskType | null | undefined): GitFlowType {

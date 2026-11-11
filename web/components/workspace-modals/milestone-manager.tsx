@@ -240,6 +240,7 @@ export function MilestoneManager({
                       rows={2}
                       className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                     />
+                    <p className="text-xs text-muted-foreground">{t("milestone.description_hint")}</p>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">

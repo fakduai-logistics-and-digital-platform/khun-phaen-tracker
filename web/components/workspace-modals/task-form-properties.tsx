@@ -9,16 +9,8 @@ import { SearchableSelect, type SelectOption } from "@/components/shared/searcha
 import { useI18n } from "@/lib/i18n";
 import type { Assignee, AssigneeGroup, Project, Task } from "@/lib/types";
 import { TASK_TYPES, type TaskType } from "@/lib/utils/branch-name";
+import { TASK_TYPE_ICON_CLASS } from "@/lib/utils/task-type-style";
 import type { TaskFormValues } from "./use-task-form-values";
-
-const TYPE_ICON_CLASS: Record<TaskType, string> = {
-  feature: "text-indigo-400",
-  bug: "text-destructive",
-  optimize: "text-yellow-400",
-  refactor: "text-blue-400",
-  docs: "text-success",
-  chore: "text-muted-foreground",
-};
 
 export interface TaskFormPropertiesProps {
   values: TaskFormValues;
@@ -53,7 +45,7 @@ export function TaskFormProperties({
     value: type,
     label: t(`taskForm__task_type_${type}`),
     icon: CircleDot,
-    iconClass: TYPE_ICON_CLASS[type],
+    iconClass: TASK_TYPE_ICON_CLASS[type],
   }));
 
   const projectOptions: SelectOption[] = [

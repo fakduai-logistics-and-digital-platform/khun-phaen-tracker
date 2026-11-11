@@ -11,21 +11,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { Task } from "@/lib/types";
-import type { TaskType } from "@/lib/utils/branch-name";
 
 type Translate = (key: string, vars?: Record<string, string | number>) => string;
-
-export const TASK_TYPE_BADGE: Record<TaskType, { label: string; className: string }> = {
-  feature: { label: "feat", className: "bg-indigo-500/15 text-indigo-700 dark:bg-indigo-400/15 dark:text-indigo-300" },
-  bug: { label: "bug", className: "bg-red-500/15 text-red-700 dark:bg-red-400/15 dark:text-red-300" },
-  optimize: { label: "perf", className: "bg-amber-500/15 text-amber-700 dark:bg-amber-400/15 dark:text-amber-300" },
-  refactor: {
-    label: "refactor",
-    className: "bg-purple-500/15 text-purple-700 dark:bg-purple-400/15 dark:text-purple-300",
-  },
-  docs: { label: "docs", className: "bg-sky-500/15 text-sky-700 dark:bg-sky-400/15 dark:text-sky-300" },
-  chore: { label: "chore", className: "bg-gray-500/15 text-gray-700 dark:bg-gray-400/15 dark:text-gray-300" },
-};
 
 export type PriorityValue = "urgent" | "high" | "medium" | "low" | "none";
 

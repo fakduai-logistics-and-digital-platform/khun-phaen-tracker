@@ -3,12 +3,14 @@ use serde_json::{json, Value};
 use worker::*;
 
 const MAX_BATCH: usize = 20;
-const TASK_TYPES: [&str; 6] = ["feature", "bug", "optimize", "refactor", "docs", "chore"];
+const TASK_TYPES: [&str; 8] = [
+    "feature", "bug", "optimize", "refactor", "docs", "chore", "test", "ui",
+];
 /// Agents may only file work under these two categories.
 const CATEGORIES: [&str; 2] = ["งานหลัก", "งานรอง"];
 const INSTRUCTIONS: &str = "Rules for tasks created or edited through this server: \
 1) A task is assigned to the owner of the API key by default. If the key belongs to the workspace owner or an admin, pass `assignees` (an array of assignee names or ids, see list_assignees) in the task to assign it to other people instead; other keys cannot assign to anyone else. \
-2) task_type is required on create and must be one of: feature, bug, optimize, refactor, docs, chore. \
+2) task_type is required on create and must be one of: feature, bug, optimize, refactor, docs, chore, test, ui. \
 3) project is required on create: use the exact name of an existing project (call list_projects first). \
 4) category is required on create and must be \"งานหลัก\" (main work) or \"งานรอง\" (secondary work). \
 5) Leave progress updates and questions as task comments with add_task_comment (fix them with edit_task_comment); they are written as the key owner. Write @Name to tag someone in a comment and they are notified. \
@@ -63,13 +65,13 @@ fn tools() -> Vec<Value> {
         tool("get_task", "Get one task", json!({"workspace_id":ws,"task_id":{"type":"string"}}), &["workspace_id", "task_id"]),
         tool(
             "create_task",
-            "Create a task linked to the latest sprint (set automatically). It is assigned to the API key owner unless the key belongs to the workspace owner or an admin and `assignees` (array of assignee names or ids from list_assignees) is given. `task` needs: title, project (exact name from list_projects), task_type (feature|bug|optimize|refactor|docs|chore) and category (\"งานหลัก\" main work or \"งานรอง\" secondary work). Optional: notes, status, priority, project, due_date, checklist",
+            "Create a task linked to the latest sprint (set automatically). It is assigned to the API key owner unless the key belongs to the workspace owner or an admin and `assignees` (array of assignee names or ids from list_assignees) is given. `task` needs: title, project (exact name from list_projects), task_type (feature|bug|optimize|refactor|docs|chore|test|ui) and category (\"งานหลัก\" main work or \"งานรอง\" secondary work). Optional: notes, status, priority, project, due_date, checklist",
             json!({"workspace_id":ws,"task":{"type":"object"}}),
             &["workspace_id", "task"],
         ),
         tool(
             "update_task",
-            "Update fields of a task. `updates` holds only the fields to change: title, notes (progress notes), status, priority, due_date (YYYY-MM-DD), project (exact name from list_projects), task_type (feature|bug|optimize|refactor|docs|chore), category (\"งานหลัก\"|\"งานรอง\"), checklist (full array of {id,text,completed}). Workspace owner and admin keys may also pass `assignees` (array of assignee names or ids) to reassign. The sprint cannot be changed",
+            "Update fields of a task. `updates` holds only the fields to change: title, notes (progress notes), status, priority, due_date (YYYY-MM-DD), project (exact name from list_projects), task_type (feature|bug|optimize|refactor|docs|chore|test|ui), category (\"งานหลัก\"|\"งานรอง\"), checklist (full array of {id,text,completed}). Workspace owner and admin keys may also pass `assignees` (array of assignee names or ids) to reassign. The sprint cannot be changed",
             json!({"workspace_id":ws,"task_id":{"type":"string"},"updates":{"type":"object"}}),
             &["workspace_id", "task_id", "updates"],
         ),
@@ -588,6 +590,10 @@ mod tests {
         let task = task.as_object().unwrap();
         assert!(one_of(task, "task_type", &TASK_TYPES).is_ok());
         assert!(one_of(task, "category", &CATEGORIES).is_ok());
+        for allowed in ["test", "ui"] {
+            let task = json!({"task_type":allowed});
+            assert!(one_of(task.as_object().unwrap(), "task_type", &TASK_TYPES).is_ok());
+        }
         let bad = json!({"task_type":"meeting","category":"ประชุม"});
         let bad = bad.as_object().unwrap();
         assert!(one_of(bad, "task_type", &TASK_TYPES).is_err());

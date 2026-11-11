@@ -25,6 +25,7 @@ import { Separator } from "@/components/ui/separator";
 import { useI18n } from "@/lib/i18n";
 import type { Assignee, Project, Sprint, Task } from "@/lib/types";
 import { TASK_TYPES, type TaskType } from "@/lib/utils/branch-name";
+import { TASK_TYPE_ICON_CLASS } from "@/lib/utils/task-type-style";
 
 const SECTION_TITLE = "flex items-center justify-between text-sm font-medium";
 const ROW = "col-span-2 grid min-h-9 grid-cols-subgrid items-center";
@@ -90,7 +91,13 @@ export function TaskPropertiesSidebar({ task, projects, assignees, sprints, onUp
   ];
 
   const typeOptions = useMemo(
-    () => TASK_TYPES.map((type) => ({ value: type, label: t(`taskForm__task_type_${type}`) })),
+    () =>
+      TASK_TYPES.map((type) => ({
+        value: type,
+        label: t(`taskForm__task_type_${type}`),
+        icon: CircleDot,
+        iconClass: TASK_TYPE_ICON_CLASS[type],
+      })),
     [t],
   );
   const projectOptions = useMemo(

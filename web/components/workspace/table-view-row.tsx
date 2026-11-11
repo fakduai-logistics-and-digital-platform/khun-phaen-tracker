@@ -12,12 +12,12 @@ import { Tooltip } from "@/components/shared/tooltip";
 import { useI18n } from "@/lib/i18n";
 import type { Task } from "@/lib/types";
 import type { TaskType } from "@/lib/utils/branch-name";
+import { TASK_TYPE_BADGE } from "@/lib/utils/task-type-style";
 import { cn } from "@/lib/utils";
 import { tOr } from "./t-or";
 import { TaskContextContent, TaskDropdownContent, type TaskRowMenuHandlers } from "./task-row-menu";
 import type { RowPhase } from "./use-row-transitions";
 import {
-  TASK_TYPE_BADGE,
   dueDateOf,
   formatDate,
   getStatusClass,

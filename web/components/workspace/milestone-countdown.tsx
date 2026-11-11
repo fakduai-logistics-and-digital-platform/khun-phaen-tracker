@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { CheckCircle, EyeOff, Pencil, Rocket, Trophy } from "lucide-react";
 import { ConfirmModal } from "@/components/shared/confirm-modal";
+import { MarkdownText } from "@/components/shared/markdown-text";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -121,9 +122,13 @@ export function MilestoneCountdown({ milestone, isOwner = false, onEdit, onHide 
             <p className="text-sm text-muted-foreground">{formatThaiDate(milestone.target_date)}</p>
           </div>
         </div>
-        <p className="line-clamp-2 max-w-xl text-sm text-muted-foreground">
-          {milestone.description || t("milestone.no_description")}
-        </p>
+        <div className="max-h-14 max-w-xl overflow-hidden text-sm text-muted-foreground">
+          {milestone.description ? (
+            <MarkdownText text={milestone.description} className="gap-1" />
+          ) : (
+            t("milestone.no_description")
+          )}
+        </div>
 
         {isOwner && (
           <div className="flex items-center gap-2 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">

@@ -92,7 +92,7 @@ export function RichTextEditor({
     immediatelyRender: false,
     shouldRerenderOnTransaction: false,
     extensions: [
-      StarterKit.configure({ link: false }),
+      StarterKit.configure({ link: false, trailingNode: false }),
       Markdown,
       Link,
       Image.configure({
@@ -107,7 +107,7 @@ export function RichTextEditor({
     contentType: "markdown",
     editorProps: {
       attributes: {
-        class: `outline-none min-h-[150px] ${className}`,
+        class: `max-h-72 min-h-24! overflow-y-auto outline-none ${className}`,
       },
       handlePaste: (view, event) => handlePaste(view, event),
       handleDrop: (view, event) => handleDrop(view, event),
@@ -126,7 +126,7 @@ export function RichTextEditor({
   }, [editor, value]);
 
   return (
-    <EditorUI editor={editor}>
+    <EditorUI editor={editor} variant="compact">
       <EditorUI.Toolbar>
         <EditorUI.ControlsGroup>
           <EditorUI.Bold />
@@ -135,19 +135,16 @@ export function RichTextEditor({
           <EditorUI.Code />
         </EditorUI.ControlsGroup>
         <EditorUI.ControlsGroup>
-          <EditorUI.H1 />
-          <EditorUI.H2 />
-          <EditorUI.H3 />
+          <EditorUI.H5 />
+          <EditorUI.H6 />
         </EditorUI.ControlsGroup>
         <EditorUI.ControlsGroup>
           <EditorUI.BulletList />
           <EditorUI.OrderedList />
           <EditorUI.Blockquote />
-          <EditorUI.Hr />
         </EditorUI.ControlsGroup>
         <EditorUI.ControlsGroup>
           <EditorUI.Link />
-          <EditorUI.Unlink />
         </EditorUI.ControlsGroup>
         <EditorUI.ControlsGroup>
           <EditorUI.Undo />

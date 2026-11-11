@@ -1091,14 +1091,14 @@ button.rte-control-button:active {
 .rte-bubble-overlay {
   position: fixed;
   inset: 0;
-  z-index: 999;
+  z-index: 10001;
 }
 
 .rte-bubble-dropdown {
   position: absolute;
   top: 100%;
   left: 0;
-  z-index: 1000;
+  z-index: 10002;
   min-width: 150px;
   background: var(--popover);
   border: 1px solid var(--border);

@@ -99,6 +99,7 @@ export function CommentComposer({
   const [attached, setAttached] = useState<AttachedFile[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [isEmpty, setIsEmpty] = useState(true);
+  const [focused, setFocused] = useState(false);
   const [mention, setMention] = useState<MentionState | null>(null);
   const [activeSuggestion, setActiveSuggestion] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -142,7 +143,7 @@ export function CommentComposer({
     immediatelyRender: false,
     shouldRerenderOnTransaction: false,
     extensions: [
-      StarterKit.configure({ link: false, heading: false }),
+      StarterKit.configure({ link: false, heading: false, trailingNode: false }),
       Markdown,
       Link,
       Placeholder.configure({
@@ -210,6 +211,7 @@ export function CommentComposer({
     onBlur: () => setMention(null),
   });
 
+  const expanded = focused || !isEmpty || attached.length > 0;
   const canSubmit = (!isEmpty || attached.length > 0) && !submitting;
 
   actions.current.addFiles = (files) => {
@@ -260,136 +262,154 @@ export function CommentComposer({
         </div>
       </div>
       <div className="min-w-0 flex-1">
-        <EditorUI editor={editor}>
-          <EditorUI.Toolbar>
-            <EditorUI.ControlsGroup>
-              <EditorUI.Bold />
-              <EditorUI.Italic />
-              <EditorUI.Strikethrough />
-              <EditorUI.Code />
-            </EditorUI.ControlsGroup>
-            <EditorUI.ControlsGroup>
-              <EditorUI.BulletList />
-              <EditorUI.OrderedList />
-              <EditorUI.Blockquote />
-            </EditorUI.ControlsGroup>
-            <EditorUI.ControlsGroup>
-              <EditorUI.Link />
-            </EditorUI.ControlsGroup>
-          </EditorUI.Toolbar>
-          <div className="relative">
-            <EditorContent
-              editor={editor}
-              className="rte-content w-full"
-              spellCheck={false}
-            />
-            {mention && suggestions.length > 0 && (
-              <div
-                role="listbox"
-                aria-label={t("taskForm__comments_mention")}
-                className="absolute bottom-full left-3 z-10 mb-1 max-h-56 w-64 overflow-y-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
-              >
-                {suggestions.map((a, i) => (
-                  <button
-                    key={a.id}
-                    type="button"
-                    role="option"
-                    aria-selected={i === activeSuggestion}
-                    aria-label={a.name}
-                    // Keep focus in the editor; blur would close the list before the click lands.
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => actions.current.pick(a)}
-                    className={cn(
-                      "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-start text-sm",
-                      i === activeSuggestion
-                        ? "bg-accent text-accent-foreground"
-                        : "hover:bg-accent/50",
-                    )}
-                  >
-                    <span
-                      className="flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold text-white"
-                      style={{ backgroundColor: a.color || "#6366f1" }}
+        <div
+          role="presentation"
+          data-expanded={expanded}
+          className="[&_.ProseMirror]:min-h-9! [&_.ProseMirror]:max-h-48 [&_.ProseMirror]:overflow-y-auto data-[expanded=true]:[&_.ProseMirror]:min-h-16!"
+          onFocus={() => setFocused(true)}
+          onBlur={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget)) setFocused(false);
+          }}
+          // Buttons must not take focus from the editor, or the bar would collapse before the click lands.
+          onMouseDown={(e) => {
+            if ((e.target as HTMLElement).closest("button")) e.preventDefault();
+          }}
+        >
+          <EditorUI editor={editor} variant="compact">
+            {expanded && (
+              <EditorUI.Toolbar>
+                <EditorUI.ControlsGroup>
+                  <EditorUI.Bold />
+                  <EditorUI.Italic />
+                  <EditorUI.Strikethrough />
+                </EditorUI.ControlsGroup>
+                <EditorUI.ControlsGroup>
+                  <EditorUI.BulletList />
+                  <EditorUI.OrderedList />
+                </EditorUI.ControlsGroup>
+                <EditorUI.ControlsGroup>
+                  <EditorUI.Link />
+                </EditorUI.ControlsGroup>
+              </EditorUI.Toolbar>
+            )}
+            <div className="relative">
+              <EditorContent
+                editor={editor}
+                className="rte-content w-full"
+                spellCheck={false}
+              />
+              {mention && suggestions.length > 0 && (
+                <div
+                  role="listbox"
+                  aria-label={t("taskForm__comments_mention")}
+                  className="absolute bottom-full left-3 z-10 mb-1 max-h-56 w-64 overflow-y-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
+                >
+                  {suggestions.map((a, i) => (
+                    <button
+                      key={a.id}
+                      type="button"
+                      role="option"
+                      aria-selected={i === activeSuggestion}
+                      aria-label={a.name}
+                      // Keep focus in the editor; blur would close the list before the click lands.
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => actions.current.pick(a)}
+                      className={cn(
+                        "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-start text-sm",
+                        i === activeSuggestion
+                          ? "bg-accent text-accent-foreground"
+                          : "hover:bg-accent/50",
+                      )}
                     >
-                      {a.name[0]?.toUpperCase()}
+                      <span
+                        className="flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold text-white"
+                        style={{ backgroundColor: a.color || "#6366f1" }}
+                      >
+                        {a.name[0]?.toUpperCase()}
+                      </span>
+                      <span className="truncate">{a.name}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            {attached.length > 0 && (
+              <div className="flex flex-wrap gap-2 border-t px-3 py-2">
+                {attached.map((af, i) => (
+                  <div
+                    key={`${af.file.name}-${i}`}
+                    className="group relative flex items-center gap-2 rounded-lg border bg-muted p-1 text-xs text-muted-foreground"
+                  >
+                    {af.preview ? (
+                      <img
+                        src={af.preview}
+                        alt="preview"
+                        className="size-8 rounded border object-cover shadow-sm"
+                      />
+                    ) : (
+                      <div className="flex size-8 items-center justify-center rounded bg-accent text-muted-foreground">
+                        <FileText size={12} />
+                      </div>
+                    )}
+                    <span className="max-w-[100px] truncate px-1">
+                      {af.file.name}
                     </span>
-                    <span className="truncate">{a.name}</span>
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => removeFile(i)}
+                      className="p-1 text-muted-foreground transition-colors hover:text-destructive"
+                      aria-label="Remove file"
+                    >
+                      <X size={10} />
+                    </button>
+                  </div>
                 ))}
               </div>
             )}
-          </div>
-          {attached.length > 0 && (
-            <div className="flex flex-wrap gap-2 border-t px-3 py-2">
-              {attached.map((af, i) => (
-                <div
-                  key={`${af.file.name}-${i}`}
-                  className="group relative flex items-center gap-2 rounded-lg border bg-muted p-1 text-xs text-muted-foreground"
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept="image/*,.pdf,.doc,.docx,.txt"
+              className="hidden"
+              onChange={(e) => {
+                actions.current.addFiles(
+                  Array.from(e.currentTarget.files || []),
+                );
+                e.currentTarget.value = "";
+              }}
+            />
+            {expanded && (
+              <div className="flex items-center gap-1 border-t px-2 py-1.5">
+                <span className="me-auto ps-1 text-xs text-muted-foreground">
+                  ⌘+Enter · @ {t("taskForm__comments_mention_hint")}
+                </span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="size-8"
+                  title="Attach file"
+                  aria-label="Attach file"
+                  onClick={() => fileInputRef.current?.click()}
                 >
-                  {af.preview ? (
-                    <img
-                      src={af.preview}
-                      alt="preview"
-                      className="size-8 rounded border object-cover shadow-sm"
-                    />
-                  ) : (
-                    <div className="flex size-8 items-center justify-center rounded bg-accent text-muted-foreground">
-                      <FileText size={12} />
-                    </div>
-                  )}
-                  <span className="max-w-[100px] truncate px-1">
-                    {af.file.name}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => removeFile(i)}
-                    className="p-1 text-muted-foreground transition-colors hover:text-destructive"
-                    aria-label="Remove file"
-                  >
-                    <X size={10} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            accept="image/*,.pdf,.doc,.docx,.txt"
-            className="hidden"
-            onChange={(e) => {
-              actions.current.addFiles(Array.from(e.currentTarget.files || []));
-              e.currentTarget.value = "";
-            }}
-          />
-          <div className="flex items-center justify-end gap-1 border-t px-2 py-1.5">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="size-8"
-              title="Attach file"
-              aria-label="Attach file"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <Paperclip />
-            </Button>
-            <Button
-              type="button"
-              size="icon"
-              className="size-8"
-              onClick={() => void actions.current.submit()}
-              disabled={!canSubmit}
-              title="Send (⌘+Enter)"
-              aria-label="Send (⌘+Enter)"
-            >
-              <Send />
-            </Button>
-          </div>
-        </EditorUI>
-        <p className="mt-1 pl-1 text-xs text-muted-foreground">
-          ⌘+Enter to send · @ {t("taskForm__comments_mention_hint")}
-        </p>
+                  <Paperclip />
+                </Button>
+                <Button
+                  type="button"
+                  size="icon"
+                  className="size-8"
+                  onClick={() => void actions.current.submit()}
+                  disabled={!canSubmit}
+                  title="Send (⌘+Enter)"
+                  aria-label="Send (⌘+Enter)"
+                >
+                  <Send />
+                </Button>
+              </div>
+            )}
+          </EditorUI>
+        </div>
       </div>
     </div>
   );

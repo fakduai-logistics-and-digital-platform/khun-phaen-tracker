@@ -30,6 +30,8 @@ const GIT_FLOW_TYPES: readonly GitFlowType[] = [
   "refactor",
   "docs",
   "chore",
+  "test",
+  "ui",
 ];
 
 type MessageType = "info" | "success" | "error";

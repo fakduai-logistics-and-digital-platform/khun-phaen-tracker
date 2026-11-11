@@ -1,7 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { AlignLeft, Maximize2, MessageSquare, X } from "lucide-react";
+import {
+  AlignLeft,
+  CircleDot,
+  Maximize2,
+  MessageSquare,
+  X,
+} from "lucide-react";
 import { RichTextEditor } from "@/components/editor/rich-text-editor";
 import { AssigneeMultiSelect } from "@/components/shared/assignee-multi-select";
 import { CommentComposer } from "@/components/task-detail/comment-composer";
@@ -31,6 +37,8 @@ import { useI18n } from "@/lib/i18n";
 import { useStore } from "@/lib/store";
 import { currentWorkspaceShortName } from "@/lib/stores/workspace";
 import type { Assignee, Project, Task } from "@/lib/types";
+import { TASK_TYPES, type TaskType } from "@/lib/utils/branch-name";
+import { TASK_TYPE_ICON_CLASS } from "@/lib/utils/task-type-style";
 import { tOr } from "./t-or";
 import {
   dueDateOf,
@@ -54,6 +62,7 @@ type Draft = {
   title: string;
   notes: string;
   priority: NonNullable<Task["priority"]>;
+  task_type: TaskType;
   status: Task["status"];
   assignee_ids: string[];
   due_date: string;
@@ -70,6 +79,7 @@ function draftOf(task: Task): Draft {
     title: task.title,
     notes: task.notes ?? "",
     priority: task.priority || "none",
+    task_type: task.task_type || "feature",
     status: task.status,
     assignee_ids: ids.map(String),
     due_date: dueDateOf(task),
@@ -107,6 +117,8 @@ function PreviewBody({
     if (title && title !== original.title) next.title = title;
     if (draft.notes !== original.notes) next.notes = draft.notes;
     if (draft.priority !== original.priority) next.priority = draft.priority;
+    if (draft.task_type !== original.task_type)
+      next.task_type = draft.task_type;
     if (draft.status !== original.status) next.status = draft.status;
     if (draft.due_date !== original.due_date) next.due_date = draft.due_date;
     if (draft.project !== original.project) next.project = draft.project;
@@ -126,6 +138,16 @@ function PreviewBody({
         value: o.value,
         label: getStatusLabel(o.value, t),
         icon: o.icon,
+      })),
+    [t],
+  );
+  const typeOptions = useMemo(
+    () =>
+      TASK_TYPES.map((type) => ({
+        value: type,
+        label: t(`taskForm__task_type_${type}`),
+        icon: CircleDot,
+        iconClass: TASK_TYPE_ICON_CLASS[type],
       })),
     [t],
   );
@@ -238,6 +260,21 @@ function PreviewBody({
                   value={draft.status}
                   options={statusOptions}
                   onSelect={(value) => set("status", value as Task["status"])}
+                />
+              </Field>
+
+              <Field>
+                <FieldLabel
+                  htmlFor="preview-type"
+                  className="text-xs text-muted-foreground"
+                >
+                  {t("taskForm__task_type_label")}
+                </FieldLabel>
+                <PropertySelect
+                  id="preview-type"
+                  value={draft.task_type}
+                  options={typeOptions}
+                  onSelect={(value) => set("task_type", value as TaskType)}
                 />
               </Field>
 
