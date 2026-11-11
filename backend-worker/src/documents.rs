@@ -1,4 +1,4 @@
-use crate::{auth::User, db, http, realtime, workspaces};
+use crate::{auth::User, db, http, realtime, task_history, workspaces};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use worker::*;
@@ -101,6 +101,13 @@ pub async fn handle(req: &mut Request, env: &Env, user: &User, parts: &[&str]) -
             json!({"success":true,"next_task_number":count.map(|v|v.total).unwrap_or(1)}),
         );
     }
+    if method == Method::Get && kind == "tasks" && parts.get(5) == Some(&"history") {
+        let task_id = item.unwrap_or_default();
+        if get(env, &w.id, kind, task_id).await?.is_none() {
+            return http::error(404, "Record not found");
+        }
+        return http::ok(json!(task_history::list(env, &w.id, task_id).await?));
+    }
     if method == Method::Get && kind == "tasks" && (item.is_none() || item == Some("stats")) {
         return crate::task_query::list(req, env, Some(&w.id), user).await;
     }
@@ -163,6 +170,7 @@ pub async fn handle(req: &mut Request, env: &Env, user: &User, parts: &[&str]) -
         };
         value
     };
+    let before = value.clone();
     let old_status = http::text(&value, "status").to_owned();
     let old_user = http::text(&value, "user_id").to_owned();
     let old_name = value
@@ -269,6 +277,23 @@ pub async fn handle(req: &mut Request, env: &Env, user: &User, parts: &[&str]) -
         crate::records::patch_statement(&db, &w.id, kind, &id, &patch)?
     };
     let mut writes = vec![write];
+    if kind == "tasks" {
+        let changed = if creating {
+            Vec::new()
+        } else {
+            task_history::changes(env, &w.id, &before, &value).await
+        };
+        if creating || !changed.is_empty() {
+            writes.push(task_history::entry_statement(
+                &db,
+                &w.id,
+                &id,
+                user,
+                if creating { "create" } else { "update" },
+                changed,
+            )?);
+        }
+    }
     if kind == "projects"
         && !creating
         && input.get("name").is_some()

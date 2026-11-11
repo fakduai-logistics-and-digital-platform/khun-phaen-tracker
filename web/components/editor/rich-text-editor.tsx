@@ -1,16 +1,15 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { EditorContent, useEditor } from "@tiptap/react";
+import { useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Markdown } from "@tiptap/markdown";
-import Link from "@tiptap/extension-link";
 import Image from "@tiptap/extension-image";
 import Placeholder from "@tiptap/extension-placeholder";
 import type { EditorView } from "@tiptap/pm/view";
 import { useBindable } from "@/components/shared/use-bindable";
-import { BubbleMenu } from "./bubble-menu";
-import "./rich-text-editor.css";
+import { RichTextEditor as EditorUI, Link } from "./index";
+import "./style.css";
 
 type RichTextEditorProps = {
   value?: string;
@@ -37,7 +36,11 @@ function handlePaste(view: EditorView, event: ClipboardEvent) {
     const file = item.getAsFile();
     if (!file) continue;
     readAsDataUrl(file, (dataUrl) => {
-      view.dispatch(view.state.tr.replaceSelectionWith(view.state.schema.nodes.image.create({ src: dataUrl })));
+      view.dispatch(
+        view.state.tr.replaceSelectionWith(
+          view.state.schema.nodes.image.create({ src: dataUrl }),
+        ),
+      );
     });
     return true;
   }
@@ -50,15 +53,24 @@ function handleDrop(view: EditorView, event: DragEvent) {
   for (const file of Array.from(files)) {
     if (!file.type.startsWith("image/")) continue;
     readAsDataUrl(file, (dataUrl) => {
-      const coordinates = view.posAtCoords({ left: event.clientX, top: event.clientY });
+      const coordinates = view.posAtCoords({
+        left: event.clientX,
+        top: event.clientY,
+      });
       if (!coordinates) return;
-      view.dispatch(view.state.tr.insert(coordinates.pos, view.state.schema.nodes.image.create({ src: dataUrl })));
+      view.dispatch(
+        view.state.tr.insert(
+          coordinates.pos,
+          view.state.schema.nodes.image.create({ src: dataUrl }),
+        ),
+      );
     });
     return true;
   }
   return false;
 }
 
+/** Markdown in, markdown out. The toolbar only offers formatting that markdown can store. */
 export function RichTextEditor({
   value: valueProp = "",
   onValueChange,
@@ -78,23 +90,24 @@ export function RichTextEditor({
 
   const editor = useEditor({
     immediatelyRender: false,
+    shouldRerenderOnTransaction: false,
     extensions: [
       StarterKit.configure({ link: false }),
       Markdown,
-      Link.configure({
-        openOnClick: false,
-        HTMLAttributes: { class: "text-primary underline cursor-pointer" },
-      }),
+      Link,
       Image.configure({
         HTMLAttributes: { class: "rounded-lg max-w-full my-4 cursor-zoom-in" },
       }),
-      Placeholder.configure({ placeholder, emptyEditorClass: "is-editor-empty" }),
+      Placeholder.configure({
+        placeholder,
+        emptyEditorClass: "is-editor-empty",
+      }),
     ],
     content: value,
     contentType: "markdown",
     editorProps: {
       attributes: {
-        class: `rich-text-editor outline-none min-h-[150px] py-2 ${className}`,
+        class: `outline-none min-h-[150px] ${className}`,
       },
       handlePaste: (view, event) => handlePaste(view, event),
       handleDrop: (view, event) => handleDrop(view, event),
@@ -105,14 +118,44 @@ export function RichTextEditor({
   useEffect(() => {
     if (!editor || editor.isDestroyed) return;
     if (editor.getMarkdown() !== value) {
-      editor.commands.setContent(value, { emitUpdate: false, contentType: "markdown" });
+      editor.commands.setContent(value, {
+        emitUpdate: false,
+        contentType: "markdown",
+      });
     }
   }, [editor, value]);
 
   return (
-    <div className="relative w-full">
-      <EditorContent editor={editor} className="max-w-none text-sm" />
-      {editor && <BubbleMenu editor={editor} />}
-    </div>
+    <EditorUI editor={editor}>
+      <EditorUI.Toolbar>
+        <EditorUI.ControlsGroup>
+          <EditorUI.Bold />
+          <EditorUI.Italic />
+          <EditorUI.Strikethrough />
+          <EditorUI.Code />
+        </EditorUI.ControlsGroup>
+        <EditorUI.ControlsGroup>
+          <EditorUI.H1 />
+          <EditorUI.H2 />
+          <EditorUI.H3 />
+        </EditorUI.ControlsGroup>
+        <EditorUI.ControlsGroup>
+          <EditorUI.BulletList />
+          <EditorUI.OrderedList />
+          <EditorUI.Blockquote />
+          <EditorUI.Hr />
+        </EditorUI.ControlsGroup>
+        <EditorUI.ControlsGroup>
+          <EditorUI.Link />
+          <EditorUI.Unlink />
+        </EditorUI.ControlsGroup>
+        <EditorUI.ControlsGroup>
+          <EditorUI.Undo />
+          <EditorUI.Redo />
+        </EditorUI.ControlsGroup>
+      </EditorUI.Toolbar>
+      <EditorUI.BubbleMenu editor={editor} />
+      <EditorUI.Content />
+    </EditorUI>
   );
 }

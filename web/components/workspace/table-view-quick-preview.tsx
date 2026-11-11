@@ -6,6 +6,11 @@ import { RichTextEditor } from "@/components/editor/rich-text-editor";
 import { AssigneeMultiSelect } from "@/components/shared/assignee-multi-select";
 import { CommentComposer } from "@/components/task-detail/comment-composer";
 import { CommentList } from "@/components/task-detail/comment-list";
+import {
+  ActivityDetailsToggle,
+  TaskActivityList,
+} from "@/components/task-detail/task-activity";
+import { useTaskActivity } from "@/components/task-detail/use-task-activity";
 import { DateField } from "@/components/task-detail/date-field";
 import { PropertySelect } from "@/components/task-detail/property-select";
 import { useTaskComments } from "@/components/task-detail/use-task-comments";
@@ -90,6 +95,8 @@ function PreviewBody({
     "?"
   ).toUpperCase();
   const comments = useTaskComments({ taskDbId: task.id, loadVersion: 0 });
+  const activity = useTaskActivity(task.id, task.updated_at);
+  const [showDetails, setShowDetails] = useState(true);
   const id = task.id as Id;
   const original = useMemo(() => draftOf(task), [task]);
   const [draft, setDraft] = useState<Draft>(original);
@@ -291,13 +298,11 @@ function PreviewBody({
                 <AlignLeft className="size-4 shrink-0 text-muted-foreground" />
                 {tOr(t, "tableView__notes_label", "Notes")}
               </h3>
-              <div className="min-h-24 rounded-md border bg-background px-3 shadow-xs focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50">
-                <RichTextEditor
-                  value={draft.notes}
-                  onChange={(value) => set("notes", value)}
-                  placeholder={t("taskForm__notes_placeholder")}
-                />
-              </div>
+              <RichTextEditor
+                value={draft.notes}
+                onChange={(value) => set("notes", value)}
+                placeholder={t("taskForm__notes_placeholder")}
+              />
             </section>
           </div>
 
@@ -315,14 +320,20 @@ function PreviewBody({
           aria-labelledby="preview-activity-title"
           className="space-y-4 border-t bg-muted/30 px-5 py-5 lg:overflow-y-auto lg:border-t-0 lg:border-l"
         >
-          <h3
-            id="preview-activity-title"
-            className="flex items-center gap-2 text-sm font-semibold"
-          >
-            <MessageSquare className="size-4 text-muted-foreground" />
-            {t("tableView__comments_activity")}
-            <Badge variant="secondary">{comments.comments.length}</Badge>
-          </h3>
+          <div className="flex items-center justify-between gap-2">
+            <h3
+              id="preview-activity-title"
+              className="flex items-center gap-2 text-sm font-semibold"
+            >
+              <MessageSquare className="size-4 text-muted-foreground" />
+              {t("tableView__comments_activity")}
+              <Badge variant="secondary">{comments.comments.length}</Badge>
+            </h3>
+            <ActivityDetailsToggle
+              shown={showDetails}
+              onToggle={() => setShowDetails((v) => !v)}
+            />
+          </div>
           <CommentComposer
             userInitial={userInitial}
             assignees={assignees}
@@ -338,6 +349,7 @@ function PreviewBody({
               />
             </div>
           )}
+          {showDetails && <TaskActivityList entries={activity} />}
         </aside>
       </div>
     </>

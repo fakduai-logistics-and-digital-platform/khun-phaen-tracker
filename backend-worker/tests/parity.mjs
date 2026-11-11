@@ -89,6 +89,14 @@ try {
  const formUpdated=(await ok(`${p}/tasks/${formTask.id}`,'PUT',{title:'Form task',assignee_ids:[devWorker.id],due_date:null,end_date:null,links:null,checklist:null,sprint_id:null})).task;
  assert.deepEqual(formUpdated.assignee_ids,[devWorker.id]);
  assert.equal((await ok(`${p}/tasks/${formTask.id}`,'PUT',{assignee_ids:null})).task.assignee_ids,null);
+ const taskHistory=await ok(`${p}/tasks/${formTask.id}/history`);
+ assert.ok(taskHistory.some(h=>h.action==='create'),'creating a task is recorded');
+ const assigneeChanges=taskHistory.flatMap(h=>h.changes).filter(c=>c.field==='assignee_ids');
+ assert.ok(assigneeChanges.some(c=>c.from===''&&c.to==='Developer'),'assigning records readable names');
+ assert.ok(assigneeChanges.some(c=>c.from==='Developer'&&c.to===''),'clearing assignees is recorded');
+ assert.ok(taskHistory.every(h=>h.changes.every(c=>c.field!=='title'&&c.field!=='status')),'untouched fields are not listed');
+ assert.ok(taskHistory.every(h=>h.user_name),'history names who made the change');
+ assert.equal((await request(`${p}/tasks/${formTask.id}/history`,'GET',undefined,outsider.token)).status,403);
  await ok(`${p}/tasks/${formTask.id}`,'DELETE');
  // status=today: every unarchived unfinished task regardless of date, plus done tasks updated today (UTC), as in the legacy backend.
  const todayTask=title=>ok(`${p}/tasks`,'POST',{title,start_date:'2020-01-01',category:'today-check'}).then(r=>r.task);

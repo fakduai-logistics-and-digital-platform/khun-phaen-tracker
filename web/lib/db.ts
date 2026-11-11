@@ -11,6 +11,7 @@ import type {
   Assignee,
   AssigneeGroup,
   Sprint,
+  TaskActivityEntry,
   TaskComment,
   CommentImage,
   FilterOptions,
@@ -378,6 +379,14 @@ export async function getTaskComments(
     limit: data.limit || options.limit || 10,
     pages: data.pages || 0,
   };
+}
+
+export async function getTaskHistory(taskId: string | number): Promise<TaskActivityEntry[]> {
+  const task = await getTaskById(taskId);
+  const res = await api.data.taskHistory.list(resolveTaskWorkspaceId(task), String(taskId));
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Failed to fetch task history");
+  return Array.isArray(data) ? data : [];
 }
 
 export async function createTaskComment(

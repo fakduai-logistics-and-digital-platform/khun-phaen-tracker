@@ -22,6 +22,7 @@ mod realtime;
 mod records;
 mod s3_client;
 mod settings;
+mod task_history;
 mod statistics;
 mod storage;
 mod storage_admin;

@@ -96,6 +96,23 @@ export interface CommentReaction {
   reacted_at: string;
 }
 
+export interface TaskActivityChange {
+  field: string;
+  /** Readable value; "" when it was empty, null when the content is too large to list. */
+  from: string | number | boolean | null;
+  to: string | number | boolean | null;
+}
+
+export interface TaskActivityEntry {
+  id?: string;
+  task_id?: string;
+  user_id?: string;
+  user_name?: string;
+  action: "create" | "update";
+  changes: TaskActivityChange[];
+  at?: string;
+}
+
 export interface TaskComment {
   id?: string;
   workspace_id?: string;

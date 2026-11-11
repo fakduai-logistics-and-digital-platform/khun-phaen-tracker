@@ -670,6 +670,14 @@ export const api = {
       },
     },
 
+    taskHistory: {
+      list: (wsId: string, taskId: string): Promise<Response> => {
+        return fetch(`${API_BASE_URL}/workspaces/${wsId}/tasks/${taskId}/history`, {
+          headers: api.data._headers(),
+          credentials: "include",
+        });
+      },
+    },
     comments: {
       list: (wsId: string, taskId: string, params?: Record<string, string>): Promise<Response> => {
         const query = params ? "?" + new URLSearchParams(params).toString() : "";

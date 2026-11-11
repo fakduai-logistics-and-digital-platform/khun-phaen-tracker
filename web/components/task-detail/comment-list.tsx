@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { ChevronDown, MoreHorizontal, Trash2 } from "lucide-react";
 import {
   DropdownMenu,
@@ -15,75 +15,8 @@ import { useI18n } from "@/lib/i18n";
 import type { Assignee, CommentImage, TaskComment } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { ImageLightbox, type LightboxImage } from "./image-lightbox";
-import { findMentioned, MentionHoverCard, mentionPattern } from "./mentions";
-
-const URL_REGEX = /(https?:\/\/[^\s<>"']+)/g;
-
-function MentionText({
-  text,
-  pattern,
-  assignees,
-}: {
-  text: string;
-  pattern: RegExp | null;
-  assignees: Assignee[];
-}) {
-  if (!pattern) return <>{text}</>;
-  return (
-    <>
-      {text.split(pattern).map((part, i) =>
-        i % 2 === 1 ? (
-          <MentionHoverCard key={i} assignee={findMentioned(part, assignees)}>
-            <span className="rounded bg-primary/10 px-1 font-medium text-primary">
-              {part}
-            </span>
-          </MentionHoverCard>
-        ) : (
-          <Fragment key={i}>{part}</Fragment>
-        ),
-      )}
-    </>
-  );
-}
-
-function CommentText({
-  text,
-  pattern,
-  assignees,
-}: {
-  text: string;
-  pattern: RegExp | null;
-  assignees: Assignee[];
-}) {
-  const parts = text.split(URL_REGEX);
-  return (
-    <p className="whitespace-pre-wrap">
-      {parts.map((part, i) => {
-        if (i % 2 === 0)
-          return (
-            <MentionText
-              key={i}
-              text={part}
-              pattern={pattern}
-              assignees={assignees}
-            />
-          );
-        const display = part.length > 60 ? `${part.slice(0, 57)}…` : part;
-        return (
-          <a
-            key={i}
-            href={part}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="break-all text-primary underline underline-offset-2 hover:opacity-80"
-          >
-            {display}
-          </a>
-        );
-      })}
-    </p>
-  );
-}
+import { CommentMarkdown } from "./comment-markdown";
+import { mentionPattern } from "./mentions";
 
 interface CommentListProps {
   comments: TaskComment[];
@@ -233,7 +166,7 @@ export function CommentList({
             {!isCollapsed && (
               <div className="space-y-3 px-4 pb-3 text-sm leading-relaxed text-foreground/90">
                 {comment.content && (
-                  <CommentText
+                  <CommentMarkdown
                     text={comment.content}
                     pattern={pattern}
                     assignees={assignees}
