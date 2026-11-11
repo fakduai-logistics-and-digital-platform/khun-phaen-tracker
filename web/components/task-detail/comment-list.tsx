@@ -15,29 +15,29 @@ import { useI18n } from "@/lib/i18n";
 import type { Assignee, CommentImage, TaskComment } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { ImageLightbox, type LightboxImage } from "./image-lightbox";
+import { findMentioned, MentionHoverCard, mentionPattern } from "./mentions";
 
 const URL_REGEX = /(https?:\/\/[^\s<>"']+)/g;
 
-const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-/** Matches `@Name` for any known assignee name, longest names first so "@Big Boss" wins over "@Big". */
-function mentionPattern(names: string[]) {
-  const sorted = names
-    .map((n) => n.trim())
-    .filter(Boolean)
-    .sort((a, b) => b.length - a.length);
-  return sorted.length ? new RegExp(`(@(?:${sorted.map(escapeRegExp).join("|")}))`, "gi") : null;
-}
-
-function MentionText({ text, pattern }: { text: string; pattern: RegExp | null }) {
+function MentionText({
+  text,
+  pattern,
+  assignees,
+}: {
+  text: string;
+  pattern: RegExp | null;
+  assignees: Assignee[];
+}) {
   if (!pattern) return <>{text}</>;
   return (
     <>
       {text.split(pattern).map((part, i) =>
         i % 2 === 1 ? (
-          <span key={i} className="rounded bg-primary/10 px-1 font-medium text-primary">
-            {part}
-          </span>
+          <MentionHoverCard key={i} assignee={findMentioned(part, assignees)}>
+            <span className="rounded bg-primary/10 px-1 font-medium text-primary">
+              {part}
+            </span>
+          </MentionHoverCard>
         ) : (
           <Fragment key={i}>{part}</Fragment>
         ),
@@ -46,12 +46,28 @@ function MentionText({ text, pattern }: { text: string; pattern: RegExp | null }
   );
 }
 
-function CommentText({ text, pattern }: { text: string; pattern: RegExp | null }) {
+function CommentText({
+  text,
+  pattern,
+  assignees,
+}: {
+  text: string;
+  pattern: RegExp | null;
+  assignees: Assignee[];
+}) {
   const parts = text.split(URL_REGEX);
   return (
     <p className="whitespace-pre-wrap">
       {parts.map((part, i) => {
-        if (i % 2 === 0) return <MentionText key={i} text={part} pattern={pattern} />;
+        if (i % 2 === 0)
+          return (
+            <MentionText
+              key={i}
+              text={part}
+              pattern={pattern}
+              assignees={assignees}
+            />
+          );
         const display = part.length > 60 ? `${part.slice(0, 57)}…` : part;
         return (
           <a
@@ -76,22 +92,40 @@ interface CommentListProps {
   onDelete: (commentId: string) => void;
 }
 
-export function CommentList({ comments, loading, assignees, onDelete }: CommentListProps) {
+export function CommentList({
+  comments,
+  loading,
+  assignees,
+  onDelete,
+}: CommentListProps) {
   const { t } = useI18n();
   const { user } = useAuth();
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
-  const [lightbox, setLightbox] = useState<{ images: LightboxImage[]; index: number } | null>(null);
-  const pattern = useMemo(() => mentionPattern(assignees.map((a) => a.name)), [assignees]);
+  const [lightbox, setLightbox] = useState<{
+    images: LightboxImage[];
+    index: number;
+  } | null>(null);
+  const pattern = useMemo(
+    () => mentionPattern(assignees.map((a) => a.name)),
+    [assignees],
+  );
 
   function authorName(comment: TaskComment): string {
     if (comment.created_by_name) return comment.created_by_name;
     const uid = user?.id || user?.user_id;
     if (uid && comment.created_by === uid) {
       const profile = user?.profile;
-      const fullName = [profile?.first_name, profile?.last_name].filter(Boolean).join(" ").trim();
-      return profile?.nickname || fullName || user?.email?.split("@")[0] || "Unknown";
+      const fullName = [profile?.first_name, profile?.last_name]
+        .filter(Boolean)
+        .join(" ")
+        .trim();
+      return (
+        profile?.nickname || fullName || user?.email?.split("@")[0] || "Unknown"
+      );
     }
-    const matched = assignees.find((a) => a.user_id && a.user_id === comment.created_by);
+    const matched = assignees.find(
+      (a) => a.user_id && a.user_id === comment.created_by,
+    );
     if (matched) return matched.name;
     return comment.created_by || "Unknown";
   }
@@ -101,18 +135,26 @@ export function CommentList({ comments, loading, assignees, onDelete }: CommentL
     const date = new Date(dateStr);
     const diffMin = Math.floor((Date.now() - date.getTime()) / 60000);
     if (diffMin < 1) return t("taskForm__comments_time_just_now");
-    if (diffMin < 60) return t("taskForm__comments_time_min_ago", { count: diffMin });
+    if (diffMin < 60)
+      return t("taskForm__comments_time_min_ago", { count: diffMin });
     const diffHr = Math.floor(diffMin / 60);
-    if (diffHr < 24) return t("taskForm__comments_time_hour_ago", { count: diffHr });
+    if (diffHr < 24)
+      return t("taskForm__comments_time_hour_ago", { count: diffHr });
     const diffDay = Math.floor(diffHr / 24);
-    if (diffDay < 7) return t("taskForm__comments_time_day_ago", { count: diffDay });
+    if (diffDay < 7)
+      return t("taskForm__comments_time_day_ago", { count: diffDay });
     return date.toLocaleDateString();
   }
 
   async function openLightbox(images: CommentImage[], index: number) {
-    const urls = await Promise.all(images.map((img) => signedFileUrl(img.file_key)));
+    const urls = await Promise.all(
+      images.map((img) => signedFileUrl(img.file_key)),
+    );
     setLightbox({
-      images: images.map((img, i) => ({ src: urls[i] ?? "", alt: img.filename || "Image" })),
+      images: images.map((img, i) => ({
+        src: urls[i] ?? "",
+        alt: img.filename || "Image",
+      })),
       index,
     });
   }
@@ -122,7 +164,11 @@ export function CommentList({ comments, loading, assignees, onDelete }: CommentL
   }
 
   if (comments.length === 0) {
-    return <p className="text-sm text-muted-foreground">{t("taskForm__comments_empty") || "No activity yet."}</p>;
+    return (
+      <p className="text-sm text-muted-foreground">
+        {t("taskForm__comments_empty") || "No activity yet."}
+      </p>
+    );
   }
 
   return (
@@ -140,19 +186,26 @@ export function CommentList({ comments, loading, assignees, onDelete }: CommentL
                 aria-label="Toggle Comment"
                 aria-expanded={!isCollapsed}
                 className="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
-                onClick={() => setCollapsed((prev) => ({ ...prev, [cid]: !prev[cid] }))}
+                onClick={() =>
+                  setCollapsed((prev) => ({ ...prev, [cid]: !prev[cid] }))
+                }
               >
                 <ChevronDown
                   size={12}
                   strokeWidth={2.5}
-                  className={cn("transition-transform duration-150", isCollapsed && "-rotate-90")}
+                  className={cn(
+                    "transition-transform duration-150",
+                    isCollapsed && "-rotate-90",
+                  )}
                 />
               </button>
               <div className="flex size-6 shrink-0 select-none items-center justify-center rounded-full bg-brand-500 text-xs font-medium text-white">
                 {(name[0] ?? "?").toUpperCase()}
               </div>
               <span className="text-sm font-semibold">{displayName}</span>
-              <span className="text-xs text-muted-foreground">{relativeTime(comment.created_at)}</span>
+              <span className="text-xs text-muted-foreground">
+                {relativeTime(comment.created_at)}
+              </span>
               <div className="ml-auto">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -166,7 +219,10 @@ export function CommentList({ comments, loading, assignees, onDelete }: CommentL
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-40">
-                    <DropdownMenuItem variant="destructive" onSelect={() => onDelete(cid)}>
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onSelect={() => onDelete(cid)}
+                    >
                       <Trash2 size={13} />
                       <span>Delete comment</span>
                     </DropdownMenuItem>
@@ -176,7 +232,13 @@ export function CommentList({ comments, loading, assignees, onDelete }: CommentL
             </div>
             {!isCollapsed && (
               <div className="space-y-3 px-4 pb-3 text-sm leading-relaxed text-foreground/90">
-                {comment.content && <CommentText text={comment.content} pattern={pattern} />}
+                {comment.content && (
+                  <CommentText
+                    text={comment.content}
+                    pattern={pattern}
+                    assignees={assignees}
+                  />
+                )}
                 {comment.images && comment.images.length > 0 && (
                   <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
                     {comment.images.map((img, imgIdx) => (
@@ -202,7 +264,11 @@ export function CommentList({ comments, loading, assignees, onDelete }: CommentL
         );
       })}
       {lightbox && (
-        <ImageLightbox images={lightbox.images} startIndex={lightbox.index} onClose={() => setLightbox(null)} />
+        <ImageLightbox
+          images={lightbox.images}
+          startIndex={lightbox.index}
+          onClose={() => setLightbox(null)}
+        />
       )}
     </>
   );

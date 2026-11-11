@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { ChevronLeft, Trash2 } from "lucide-react";
 import { PropertySelect } from "@/components/task-detail/property-select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -9,6 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { useI18n } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { tOr } from "@/components/workspace/t-or";
+import { TcFailReasonDialog } from "./tc-fail-reason-dialog";
 import { RUN_CASE_STATUSES, RUN_ROW_TONE } from "./tc-options";
 import type { TestRunCaseDetail, TestRunDetail } from "./tc-types";
 
@@ -20,7 +22,7 @@ type TcRunViewProps = {
   onBack: () => void;
   onUpdateRunStatus: (status: string) => void;
   onDeleteRun: () => void;
-  onUpdateCaseStatus: (caseId: string, status: string) => void;
+  onUpdateCaseStatus: (caseId: string, status: string, note?: string) => void;
   onViewCase: (entry: TestRunCaseDetail) => void;
 };
 
@@ -80,6 +82,9 @@ export function TcRunView({
   onViewCase,
 }: TcRunViewProps) {
   const { t } = useI18n();
+  const [failingEntry, setFailingEntry] = useState<TestRunCaseDetail | null>(
+    null,
+  );
   const badge = detail
     ? (RUN_STATUS_BADGE[detail.status] ?? RUN_STATUS_BADGE.running)
     : null;
@@ -241,17 +246,28 @@ export function TcRunView({
                           )
                         : "—"}
                     </Badge>
-                    <span className="min-w-0 truncate text-sm font-medium text-foreground">
-                      {entry.test_case?.name ?? entry.test_case_id}
-                    </span>
+                    <div className="min-w-0">
+                      <span className="block truncate text-sm font-medium text-foreground">
+                        {entry.test_case?.name ?? entry.test_case_id}
+                      </span>
+                      {entry.status === "failed" && entry.note && (
+                        <span
+                          className="mt-0.5 block truncate text-xs text-muted-foreground"
+                          title={entry.note}
+                        >
+                          {entry.note}
+                        </span>
+                      )}
+                    </div>
                     <PropertySelect
                       id={`run-case-status-${entry.test_case_id}`}
                       value={entry.status}
                       options={RUN_CASE_STATUSES}
                       disabled={!isAuthorized || locked}
-                      onSelect={(v) =>
-                        onUpdateCaseStatus(entry.test_case_id, String(v))
-                      }
+                      onSelect={(v) => {
+                        if (v === "failed") setFailingEntry(entry);
+                        else onUpdateCaseStatus(entry.test_case_id, String(v));
+                      }}
                     />
                   </div>
                 );
@@ -260,6 +276,19 @@ export function TcRunView({
           </>
         ) : null}
       </div>
+
+      <TcFailReasonDialog
+        key={failingEntry?.test_case_id ?? "none"}
+        open={!!failingEntry}
+        caseLabel={`TC-${failingEntry?.test_case?.test_no ?? "?"}`}
+        initialReason={failingEntry?.note ?? ""}
+        onCancel={() => setFailingEntry(null)}
+        onConfirm={(reason) => {
+          if (failingEntry)
+            onUpdateCaseStatus(failingEntry.test_case_id, "failed", reason);
+          setFailingEntry(null);
+        }}
+      />
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { ContextMenu, ContextMenuTrigger } from "@/components/ui/context-menu";
 import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Checkbox } from "@/components/ui/checkbox";
 import { PriorityBadge } from "@/components/shared/priority-badge";
+import { AssigneeHoverCard } from "@/components/shared/assignee-hover-card";
 import { Tooltip } from "@/components/shared/tooltip";
 import { useI18n } from "@/lib/i18n";
 import type { Task } from "@/lib/types";
@@ -242,17 +243,10 @@ export function TableViewRow({
               <td className="px-3 py-2">
                 <div className="flex items-center -space-x-2 overflow-visible">
                   {assignees.length > 0 ? (
-                    <Tooltip
-                      content={assignees.map((assignee, i) => (
-                        <span key={`${assignee.id ?? i}`} className="block">
-                          {assignee.name}
-                        </span>
-                      ))}
-                    >
-                      <div className="flex items-center -space-x-2">
-                        {assignees.slice(0, 3).map((assignee, i) => (
+                    <div className="flex items-center -space-x-2">
+                      {assignees.slice(0, 3).map((assignee, i) => (
+                        <AssigneeHoverCard key={`${assignee.id ?? i}`} assignees={[assignee]}>
                           <div
-                            key={`${assignee.id ?? i}`}
                             className="flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-full text-xs font-medium text-white"
                             style={{ backgroundColor: assignee.color || "#6366f1" }}
                           >
@@ -262,14 +256,16 @@ export function TableViewRow({
                               assignee.name?.[0]?.toUpperCase() || "?"
                             )}
                           </div>
-                        ))}
-                        {assignees.length > 3 && (
+                        </AssigneeHoverCard>
+                      ))}
+                      {assignees.length > 3 && (
+                        <AssigneeHoverCard assignees={assignees.slice(3)}>
                           <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium">
                             +{assignees.length - 3}
                           </div>
-                        )}
-                      </div>
-                    </Tooltip>
+                        </AssigneeHoverCard>
+                      )}
+                    </div>
                   ) : (
                     <span className="text-sm text-muted-foreground">-</span>
                   )}

@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { FileText, Maximize2, Paperclip, Send, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { Assignee } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 import { processFilesForPreview, revokePreview } from "@/lib/utils/file";
+import { findMentioned, MentionHoverCard, mentionPattern } from "./mentions";
 
 interface AttachedFile {
   file: File;
@@ -23,15 +24,23 @@ interface CommentComposerProps {
 const MENTION_TRIGGER = /(^|\s)@([^\s@]*)$/;
 const MAX_SUGGESTIONS = 6;
 
-export function CommentComposer({ userInitial, assignees, onSubmit }: CommentComposerProps) {
+export function CommentComposer({
+  userInitial,
+  assignees,
+  onSubmit,
+}: CommentComposerProps) {
   const { t } = useI18n();
   const [content, setContent] = useState("");
   const [attached, setAttached] = useState<AttachedFile[]>([]);
   const [rows, setRows] = useState(3);
   const [submitting, setSubmitting] = useState(false);
-  const [mention, setMention] = useState<{ query: string; start: number } | null>(null);
+  const [mention, setMention] = useState<{
+    query: string;
+    start: number;
+  } | null>(null);
   const [activeSuggestion, setActiveSuggestion] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const attachedRef = useRef(attached);
   attachedRef.current = attached;
@@ -43,15 +52,26 @@ export function CommentComposer({ userInitial, assignees, onSubmit }: CommentCom
     [],
   );
 
+  const pattern = useMemo(
+    () => mentionPattern(assignees.map((a) => a.name)),
+    [assignees],
+  );
+
   const suggestions = mention
     ? assignees
-        .filter((a) => a.name && a.name.toLowerCase().includes(mention.query.toLowerCase()))
+        .filter(
+          (a) =>
+            a.name &&
+            a.name.toLowerCase().includes(mention.query.toLowerCase()),
+        )
         .slice(0, MAX_SUGGESTIONS)
     : [];
 
   function detectMention(value: string, caret: number) {
     const match = MENTION_TRIGGER.exec(value.slice(0, caret));
-    setMention(match ? { query: match[2], start: caret - match[2].length - 1 } : null);
+    setMention(
+      match ? { query: match[2], start: caret - match[2].length - 1 } : null,
+    );
     setActiveSuggestion(0);
   }
 
@@ -70,7 +90,8 @@ export function CommentComposer({ userInitial, assignees, onSubmit }: CommentCom
     });
   }
 
-  const canSubmit = (content.trim().length > 0 || attached.length > 0) && !submitting;
+  const canSubmit =
+    (content.trim().length > 0 || attached.length > 0) && !submitting;
 
   function addFiles(files: File[]) {
     if (files.length === 0) return;
@@ -137,13 +158,19 @@ export function CommentComposer({ userInitial, assignees, onSubmit }: CommentCom
                   className="group relative flex items-center gap-2 rounded-lg border bg-muted p-1 text-xs text-muted-foreground"
                 >
                   {af.preview ? (
-                    <img src={af.preview} alt="preview" className="size-8 rounded border object-cover shadow-sm" />
+                    <img
+                      src={af.preview}
+                      alt="preview"
+                      className="size-8 rounded border object-cover shadow-sm"
+                    />
                   ) : (
                     <div className="flex size-8 items-center justify-center rounded bg-accent text-muted-foreground">
                       <FileText size={12} />
                     </div>
                   )}
-                  <span className="max-w-[100px] truncate px-1">{af.file.name}</span>
+                  <span className="max-w-[100px] truncate px-1">
+                    {af.file.name}
+                  </span>
                   <button
                     type="button"
                     onClick={() => removeFile(i)}
@@ -156,45 +183,86 @@ export function CommentComposer({ userInitial, assignees, onSubmit }: CommentCom
               ))}
             </div>
           )}
-          <textarea
-            ref={textareaRef}
-            value={content}
-            onChange={(e) => {
-              setContent(e.target.value);
-              detectMention(e.target.value, e.target.selectionStart);
-            }}
-            onClick={(e) => detectMention(content, e.currentTarget.selectionStart)}
-            onBlur={() => setMention(null)}
-            placeholder={t("taskForm__comments_placeholder")}
-            rows={rows}
-            aria-label={t("taskForm__comments_placeholder")}
-            className="w-full resize-none bg-transparent px-4 pt-3 pb-10 text-sm text-foreground outline-none [scrollbar-width:none] placeholder:text-muted-foreground [&::-webkit-scrollbar]:hidden"
-            onPaste={handlePaste}
-            onKeyDown={(e) => {
-              if (mention && suggestions.length > 0) {
-                if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+          <div className="relative">
+            <textarea
+              ref={textareaRef}
+              value={content}
+              onChange={(e) => {
+                setContent(e.target.value);
+                detectMention(e.target.value, e.target.selectionStart);
+              }}
+              onClick={(e) =>
+                detectMention(content, e.currentTarget.selectionStart)
+              }
+              onBlur={() => setMention(null)}
+              placeholder={t("taskForm__comments_placeholder")}
+              rows={rows}
+              aria-label={t("taskForm__comments_placeholder")}
+              className="w-full resize-none bg-transparent px-4 pt-3 pb-10 text-sm text-foreground outline-none [scrollbar-width:none] placeholder:text-muted-foreground [&::-webkit-scrollbar]:hidden"
+              onScroll={(e) => {
+                if (overlayRef.current)
+                  overlayRef.current.scrollTop = e.currentTarget.scrollTop;
+              }}
+              onPaste={handlePaste}
+              onKeyDown={(e) => {
+                if (mention && suggestions.length > 0) {
+                  if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                    e.preventDefault();
+                    const step = e.key === "ArrowDown" ? 1 : -1;
+                    setActiveSuggestion(
+                      (i) =>
+                        (i + step + suggestions.length) % suggestions.length,
+                    );
+                    return;
+                  }
+                  if (e.key === "Enter" || e.key === "Tab") {
+                    e.preventDefault();
+                    pickMention(suggestions[activeSuggestion]);
+                    return;
+                  }
+                }
+                if (mention && e.key === "Escape") {
                   e.preventDefault();
-                  const step = e.key === "ArrowDown" ? 1 : -1;
-                  setActiveSuggestion((i) => (i + step + suggestions.length) % suggestions.length);
+                  setMention(null);
                   return;
                 }
-                if (e.key === "Enter" || e.key === "Tab") {
+                if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
                   e.preventDefault();
-                  pickMention(suggestions[activeSuggestion]);
-                  return;
+                  void submit();
                 }
-              }
-              if (mention && e.key === "Escape") {
-                e.preventDefault();
-                setMention(null);
-                return;
-              }
-              if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-                e.preventDefault();
-                void submit();
-              }
-            }}
-          />
+              }}
+            />
+            {pattern && (
+              <div
+                ref={overlayRef}
+                aria-hidden
+                className="pointer-events-none absolute inset-0 overflow-hidden px-4 pt-3 pb-10 text-sm leading-normal break-words whitespace-pre-wrap text-transparent"
+              >
+                {content.split(pattern).map((part, i) =>
+                  i % 2 === 1 ? (
+                    <MentionHoverCard
+                      key={i}
+                      assignee={findMentioned(part, assignees)}
+                    >
+                      <span
+                        role="presentation"
+                        className="pointer-events-auto cursor-default rounded-sm bg-primary/25"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          textareaRef.current?.focus();
+                        }}
+                      >
+                        {part}
+                      </span>
+                    </MentionHoverCard>
+                  ) : (
+                    <Fragment key={i}>{part}</Fragment>
+                  ),
+                )}
+                {"\u200b"}
+              </div>
+            )}
+          </div>
           {mention && suggestions.length > 0 && (
             <div
               role="listbox"
@@ -213,7 +281,9 @@ export function CommentComposer({ userInitial, assignees, onSubmit }: CommentCom
                   onClick={() => pickMention(a)}
                   className={cn(
                     "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-start text-sm",
-                    i === activeSuggestion ? "bg-accent text-accent-foreground" : "hover:bg-accent/50",
+                    i === activeSuggestion
+                      ? "bg-accent text-accent-foreground"
+                      : "hover:bg-accent/50",
                   )}
                 >
                   <span

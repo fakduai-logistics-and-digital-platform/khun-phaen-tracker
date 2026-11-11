@@ -1,6 +1,7 @@
 use crate::{auth::User, db, documents, http, qa_history, realtime, records, workspaces};
 use serde_json::{json, Value};
 use worker::*;
+const MAX_FAIL_NOTE_CHARS: usize = 1000;
 pub fn stats(cases: &Value) -> Value {
     let mut out =
         json!({"total":0,"pending":0,"passed":0,"failed":0,"blocked":0,"skipped":0,"invalid":0});
@@ -168,8 +169,14 @@ pub async fn handle(req: &mut Request, env: &Env, user: &User, parts: &[&str]) -
         let Some(case) = documents::get(env, ws, "test-cases", tc).await? else {
             return http::error(404, "Test case not found");
         };
+        let note = http::text(&input, "note").trim();
+        if note.chars().count() > MAX_FAIL_NOTE_CHARS {
+            return http::error(400, "Note too long");
+        }
+        // The note explains a failure; any other status clears it.
+        let note = (status == "failed" && !note.is_empty()).then_some(note);
         // Resolve the array position inside SQL so simultaneous case updates do not replace each other.
-        writes.push(db::statement(&db,"UPDATE documents SET payload=json_set(payload,'$.test_cases['||(SELECT key FROM json_each(json_extract(payload,'$.test_cases')) WHERE json_extract(value,'$.test_case_id')=? LIMIT 1)||'].status',?,'$.updated_at',?),updated_at=? WHERE id=? AND workspace_id=? AND kind='test-runs'",&[tc.into(),status.into(),db::timestamp().into(),db::timestamp().into(),id.into(),ws.into()])?);
+        writes.push(db::statement(&db,"UPDATE documents SET payload=json_set(payload,'$.test_cases['||(SELECT key FROM json_each(json_extract(payload,'$.test_cases')) WHERE json_extract(value,'$.test_case_id')=? LIMIT 1)||'].status',?,'$.test_cases['||(SELECT key FROM json_each(json_extract(payload,'$.test_cases')) WHERE json_extract(value,'$.test_case_id')=? LIMIT 1)||'].note',?,'$.updated_at',?),updated_at=? WHERE id=? AND workspace_id=? AND kind='test-runs'",&[tc.into(),status.into(),tc.into(),note.into(),db::timestamp().into(),db::timestamp().into(),id.into(),ws.into()])?);
         if ["passed", "failed"].contains(&status) {
             if http::text(&case, "status") != status {
                 writes.push(qa_history::entry_statement(

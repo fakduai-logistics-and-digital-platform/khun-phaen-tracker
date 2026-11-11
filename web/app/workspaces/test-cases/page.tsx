@@ -159,6 +159,14 @@ export default function TestCasesPage() {
     onQuickCreate: actions.quickCreate,
   };
 
+  // Runs after render so the list is mounted even when a run view was open.
+  const [scrollToSuiteId, setScrollToSuiteId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!scrollToSuiteId) return;
+    document.getElementById(`suite-${scrollToSuiteId}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    setScrollToSuiteId(null);
+  }, [scrollToSuiteId, data.filteredSuites]);
+
   // Project switch: the current list pushes out to the left, then the new one pushes in from the right.
   const [slide, setSlide] = useState<"idle" | "out" | "waiting" | "in">("idle");
   const slideTimer = useRef<number>(0);
@@ -214,6 +222,7 @@ export default function TestCasesPage() {
             onSelectSuite={(suite) => {
               data.setSelectedSuiteId(suite.id);
               runs.closeTestRun();
+              setScrollToSuiteId(suite.id);
             }}
             onAddSuite={() => suites.setShowCreateSuite(true)}
             onDeleteSuite={(suite) => suites.requestDeleteSuite(suite)}
@@ -243,7 +252,7 @@ export default function TestCasesPage() {
                 onDeleteRun={() =>
                   runs.selectedRunDetail && runs.requestDeleteRun({ _id: runs.selectedRunDetail.id } as never)
                 }
-                onUpdateCaseStatus={(caseId, status) => void runs.updateRunCaseStatus(caseId, status)}
+                onUpdateCaseStatus={(caseId, status, note) => void runs.updateRunCaseStatus(caseId, status, note)}
                 onViewCase={(entry) => {
                   const caseId = entry.test_case?.id;
                   if (!caseId) return;

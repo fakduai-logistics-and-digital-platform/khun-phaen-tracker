@@ -208,13 +208,16 @@ export function useTcRuns({ workspaceId, user, assignees, suites, setSuites, col
   }, [collapseSuites, newTestRunForm, openTestRun, selectedTestCaseIds, user, workspaceId]);
 
   const updateRunCaseStatus = useCallback(
-    async (tcId: string, status: string) => {
+    async (tcId: string, status: string, note?: string) => {
       if (!workspaceId || !selectedRunDetail) return;
       setUpdatingCaseId(tcId);
       try {
-        const res = await api.testRuns.updateCaseStatus(workspaceId, selectedRunDetail.id, tcId, status);
+        const res = await api.testRuns.updateCaseStatus(workspaceId, selectedRunDetail.id, tcId, status, note);
         if (res.ok) {
-          const testCases = selectedRunDetail.test_cases.map((c) => (c.test_case_id === tcId ? { ...c, status } : c));
+          const savedNote = status === "failed" ? note?.trim() || null : null;
+          const testCases = selectedRunDetail.test_cases.map((c) =>
+            c.test_case_id === tcId ? { ...c, status, note: savedNote } : c,
+          );
           const counts = { pending: 0, passed: 0, failed: 0, blocked: 0, skipped: 0, invalid: 0 };
           for (const c of testCases) {
             const k = c.status as keyof typeof counts;

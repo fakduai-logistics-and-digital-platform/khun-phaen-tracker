@@ -2,14 +2,38 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Eye, EyeOff, Loader2 } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group";
+import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/lib/api/apis";
 import { useAuth } from "@/lib/auth/auth-provider";
 import { useI18n } from "@/lib/i18n";
-import { TURNSTILE_SITE_KEY, TurnstileWidget, type TurnstileHandle } from "./turnstile-widget";
+import {
+  TURNSTILE_SITE_KEY,
+  TurnstileWidget,
+  type TurnstileHandle,
+} from "./turnstile-widget";
 
 export function LoginForm() {
   const { t } = useI18n();
@@ -51,74 +75,97 @@ export function LoginForm() {
     }
   }
 
+  const passwordToggleLabel = showPassword
+    ? t("login__hide_password")
+    : t("login__show_password");
+
   return (
-    <div className="rounded-xl border bg-card p-6 sm:p-8">
-      <p className="text-sm text-muted-foreground">{t("login__subtitle")}</p>
-      <h2 className="mt-1 text-3xl font-bold">{t("login__title")}</h2>
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-2xl">{t("login__title")}</CardTitle>
+        <CardDescription>{t("login__subtitle")}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit}>
+          <FieldGroup>
+            <Field data-invalid={!!error}>
+              <FieldLabel htmlFor="email">{t("login__email_label")}</FieldLabel>
+              <Input
+                id="email"
+                type="email"
+                required
+                autoComplete="email"
+                aria-invalid={!!error}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder={t("login__email_placeholder")}
+              />
+            </Field>
 
-      <form onSubmit={handleSubmit} className="mt-8 space-y-5">
-        <div className="space-y-2">
-          <Label htmlFor="email">{t("login__email_label")}</Label>
-          <Input
-            id="email"
-            type="email"
-            required
-            autoComplete="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder={t("login__email_placeholder")}
-            className="h-11"
-          />
-        </div>
+            <Field data-invalid={!!error}>
+              <FieldLabel htmlFor="password">
+                {t("login__password_label")}
+              </FieldLabel>
+              <InputGroup>
+                <InputGroupInput
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  required
+                  autoComplete="current-password"
+                  aria-invalid={!!error}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+                <InputGroupAddon align="inline-end">
+                  <InputGroupButton
+                    size="icon-xs"
+                    aria-label={passwordToggleLabel}
+                    title={passwordToggleLabel}
+                    onClick={() => setShowPassword((v) => !v)}
+                  >
+                    {showPassword ? (
+                      <EyeOff
+                        key="hide"
+                        className="animate-in zoom-in-75 fade-in duration-150 motion-reduce:animate-none"
+                      />
+                    ) : (
+                      <Eye
+                        key="show"
+                        className="animate-in zoom-in-75 fade-in duration-150 motion-reduce:animate-none"
+                      />
+                    )}
+                  </InputGroupButton>
+                </InputGroupAddon>
+              </InputGroup>
+            </Field>
 
-        <div className="space-y-2">
-          <Label htmlFor="password">{t("login__password_label")}</Label>
-          <div className="relative">
-            <Input
-              id="password"
-              type={showPassword ? "text" : "password"}
-              required
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="h-11 pe-11"
-            />
-            <button
-              type="button"
-              className="absolute inset-y-0 end-0 grid w-11 place-items-center rounded-e-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              aria-label={showPassword ? "Hide password" : "Show password"}
-              onClick={() => setShowPassword((v) => !v)}
-            >
-              {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-            </button>
-          </div>
-        </div>
+            <TurnstileWidget ref={turnstile} onToken={setTurnstileToken} />
 
-        <TurnstileWidget ref={turnstile} onToken={setTurnstileToken} />
+            {error && (
+              <Alert
+                variant="destructive"
+                className="animate-in fade-in slide-in-from-top-1 duration-200 motion-reduce:animate-none"
+              >
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
 
-        {error && (
-          <p role="alert" className="rounded-md border border-destructive/40 px-3 py-2 text-sm text-destructive">
-            {error}
-          </p>
-        )}
-
-        <Button
-          type="submit"
-          disabled={loading || (!!TURNSTILE_SITE_KEY && !turnstileToken)}
-          className="h-11 w-full gap-2"
-        >
-          {loading ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : (
-            <>
-              {t("login__btn_submit")}
-              <ArrowRight className="size-4" />
-            </>
-          )}
-        </Button>
-      </form>
-
-      <p className="mt-6 border-t pt-6 text-center text-sm text-muted-foreground">{t("login__invitation_only")}</p>
-    </div>
+            <Field>
+              <Button
+                type="submit"
+                className="transition-[color,background-color,transform] duration-150 active:scale-[0.98]"
+                disabled={loading || (!!TURNSTILE_SITE_KEY && !turnstileToken)}
+              >
+                {loading && <Spinner data-icon="inline-start" />}
+                {t("login__btn_submit")}
+              </Button>
+              <FieldDescription className="text-center">
+                {t("login__invitation_only")}
+              </FieldDescription>
+            </Field>
+          </FieldGroup>
+        </form>
+      </CardContent>
+    </Card>
   );
 }

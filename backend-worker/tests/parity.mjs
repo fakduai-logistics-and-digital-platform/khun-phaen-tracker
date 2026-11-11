@@ -104,6 +104,9 @@ try {
  // The worker form resends an unchanged user_id; only a real link change needs the owner.
  await ok(`${p}/assignees/${devWorker.id}`,'PUT',{name:'Developer',color:'#123456',user_id:dev.id},dev.token);
  assert.equal((await request(`${p}/assignees/${devWorker.id}`,'PUT',{name:'Developer',user_id:outsider.id},dev.token)).status,403);
+ const directory=(await ok(`/api/auth/users/profiles?workspace_id=${ws1.id}`,'GET',undefined,dev.token)).profiles;
+ const directoryIds=directory.map(x=>x.user_id);assert.ok(directoryIds.includes(dev.id),'linked assignee is listed');assert.ok(!directoryIds.includes(outsider.id),'users not linked as assignees stay hidden');assert.equal(typeof directory.find(x=>x.user_id===dev.id).email,'string');
+ assert.equal((await request(`/api/auth/users/profiles?workspace_id=${ws1.id}`,'GET',undefined,outsider.token)).status,403);
  console.log('PASS: metadata, My Tasks, combined filters, pagination, archive, numbering and concurrent patches');
 
  // Persistent backend-owned assignment notifications, personal DO delivery and reconnect catch-up.
@@ -234,10 +237,12 @@ try {
  assert.equal((await request(`${p}/test-runs`,'POST',{name:'Bad run',test_case_ids:[elsewhere.id]})).status,400);
  const run=await ok(`${p}/test-runs`,'POST',{name:'Run',test_case_ids:[tc.id,unassigned.id]},qa.token,201);
  const listing=await ok(`${p}/test-runs`);assert.equal(listing.total,1);assert.ok(Array.isArray(listing.data));
- await Promise.all([ok(`${p}/test-runs/${run.id}/cases/${tc.id}/status`,'PATCH',{status:'passed'},qa.token),ok(`${p}/test-runs/${run.id}/cases/${unassigned.id}/status`,'PATCH',{status:'failed'},qa.token)]);
+ await Promise.all([ok(`${p}/test-runs/${run.id}/cases/${tc.id}/status`,'PATCH',{status:'passed'},qa.token),ok(`${p}/test-runs/${run.id}/cases/${unassigned.id}/status`,'PATCH',{status:'failed',note:'  Login button unresponsive  '},qa.token)]);
  const passedCase=await ok(`/api/test-cases/${tc.id}`);assert.ok(passedCase.passed_at&&passedCase.status_changed_at,'passed time recorded');
  const failedCase=await ok(`/api/test-cases/${unassigned.id}`);assert.equal(failedCase.passed_at,null);assert.ok(failedCase.status_changed_at);
  const runDetail=await ok(`${p}/test-runs/${run.id}`);assert.equal(runDetail.stats.passed,1);assert.equal(runDetail.stats.failed,1);assert.equal(runDetail.test_cases[0].test_case.id,tc.id);
+ assert.equal(runDetail.test_cases.find(c=>c.test_case_id===unassigned.id).note,'Login button unresponsive');assert.equal(runDetail.test_cases.find(c=>c.test_case_id===tc.id).note??null,null);
+ assert.equal((await request(`${p}/test-runs/${run.id}/cases/${tc.id}/status`,'PATCH',{status:'failed',note:'x'.repeat(1001)},qa.token)).status,400);
  await ok(`${p}/test-runs/${run.id}/status`,'PATCH',{status:'completed'},qa.token);
  assert.equal((await ok(`/api/public/workspaces/${ws1.id}/test-runs/latest`,'GET',undefined,null)).status,'completed');
  const publicSummary=await ok(`/api/public/workspaces/${ws1.id}/summary`,'GET',undefined,null);assert.equal(publicSummary.test_cases,2);assert.equal(publicSummary.latest_run.stats.total,2);

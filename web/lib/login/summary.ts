@@ -17,7 +17,7 @@ export type LoginSummary = {
   sampleCases: PreviewCase[];
 };
 
-export const FALLBACK_SUMMARY: LoginSummary = {
+const FALLBACK_SUMMARY: LoginSummary = {
   activeTasks: 128,
   testCases: 42,
   teammates: 8,

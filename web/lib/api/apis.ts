@@ -109,6 +109,21 @@ export const api = {
         credentials: "include",
       });
     },
+    listUserProfiles: async (workspaceId: string): Promise<Response> => {
+      let token = "";
+      if (typeof document !== "undefined") {
+        const match = document.cookie.match(new RegExp("(^| )_khun_ph_token=([^;]+)"));
+        if (match) token = match[2];
+      }
+
+      const headers: Record<string, string> = { Accept: "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      return fetch(`${API_BASE_URL}/auth/users/profiles?workspace_id=${encodeURIComponent(workspaceId)}`, {
+        headers,
+        credentials: "include",
+      });
+    },
     deleteUser: async (id: string): Promise<Response> => {
       let token = "";
       if (typeof document !== "undefined") {
@@ -1199,12 +1214,12 @@ export const api = {
         body: JSON.stringify({ status }),
       });
     },
-    updateCaseStatus: (wsId: string, runId: string, tcId: string, status: string): Promise<Response> => {
+    updateCaseStatus: (wsId: string, runId: string, tcId: string, status: string, note?: string): Promise<Response> => {
       return fetch(`${API_BASE_URL}/workspaces/${wsId}/test-runs/${runId}/cases/${tcId}/status`, {
         method: "PATCH",
         headers: { ...api.data._headers(), "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ status, note }),
       });
     },
     delete: (wsId: string, runId: string): Promise<Response> => {

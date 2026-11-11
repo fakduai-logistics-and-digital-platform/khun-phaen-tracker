@@ -85,7 +85,7 @@ export function TcRunList({
                   {isAuthorized && (
                     <TcRowMenu
                       triggerLabel={`Run actions: ${run.name}`}
-                      deleteLabel="Delete run"
+                      deleteLabel={t("tc__title_delete_run")}
                       onDelete={() => onDeleteRun(run)}
                     />
                   )}

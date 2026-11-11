@@ -238,6 +238,9 @@ pub(crate) async fn route(req: &mut Request, env: &Env) -> Result<Response> {
     if path == "/api/auth/me" && req.method() == Method::Get {
         return http::ok(user.public());
     }
+    if path == "/api/auth/users/profiles" && req.method() == Method::Get {
+        return users::profiles(req, env, &user).await;
+    }
     if path == "/api/auth/users" && req.method() == Method::Get {
         return users::list(req, env, &user).await;
     }

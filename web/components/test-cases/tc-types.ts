@@ -78,6 +78,7 @@ export type TestRun = {
 export type TestRunCaseDetail = {
   test_case_id: string;
   status: string;
+  note?: string | null;
   test_case: {
     id: string;
     test_no: number;

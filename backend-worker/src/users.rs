@@ -1,6 +1,6 @@
 use crate::{
     auth::{self, User},
-    db, http, workspaces,
+    db, http, records, workspaces,
 };
 use serde_json::{json, Value};
 use worker::*;
@@ -21,6 +21,47 @@ pub async fn list(req: &Request, env: &Env, user: &User) -> Result<Response> {
     let users: Vec<User> =
         db::all(&env.d1("DB")?, "SELECT * FROM users ORDER BY email", &[]).await?;
     http::ok(json!({"success":true,"users":users.iter().map(User::public).collect::<Vec<_>>()}))
+}
+/// Names and email of the users linked as assignees in one workspace, for any member of that workspace.
+/// The full user list stays admin/owner only; this is limited to people the member already works with.
+pub async fn profiles(req: &Request, env: &Env, user: &User) -> Result<Response> {
+    let q = records::query(req)?;
+    let requested = q
+        .get("workspace_id")
+        .map(String::as_str)
+        .unwrap_or_default();
+    let Some(workspace) = workspaces::access(env, user, requested).await? else {
+        return http::error(403, "Workspace access required");
+    };
+    let linked: Vec<String> = records::values(env, &workspace.id, "assignees")
+        .await?
+        .iter()
+        .filter_map(|a| a["user_id"].as_str().map(str::to_owned))
+        .collect();
+    if linked.is_empty() {
+        return http::ok(json!({"success":true,"profiles":[]}));
+    }
+    let users: Vec<User> = db::all(
+        &env.d1("DB")?,
+        "SELECT * FROM users WHERE id IN(SELECT value FROM json_each(?))",
+        &[json!(linked).to_string().into()],
+    )
+    .await?;
+    let profiles: Vec<Value> = users
+        .iter()
+        .map(|u| {
+            let profile = serde_json::from_str::<Value>(&u.profile).unwrap_or(json!({}));
+            json!({
+                "user_id": u.id,
+                "email": u.email,
+                "first_name": profile["first_name"],
+                "last_name": profile["last_name"],
+                "nickname": profile["nickname"],
+                "position": profile["position"],
+            })
+        })
+        .collect();
+    http::ok(json!({"success":true,"profiles":profiles}))
 }
 /// Called inside AuthService so password hashing uses the DO CPU allowance.
 pub async fn edit(req: &Request, env: &Env, input: &Value) -> Result<Response> {
