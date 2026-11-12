@@ -33,6 +33,7 @@ export interface Sprint {
   name: string;
   start_date: string;
   end_date: string;
+  scope?: string;
   status: "active" | "completed" | "planned";
   created_at?: string;
   completed_at?: string; // วันที่จบ Sprint จริง

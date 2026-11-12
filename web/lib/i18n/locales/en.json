@@ -1142,6 +1142,8 @@
   "sprintManager__tasks_done": "tasks done",
   "sprintManager__label_name": "Sprint Name",
   "sprintManager__placeholder_name": "e.g. Sprint 1, Week 1...",
+  "sprintManager__label_scope": "Scope",
+  "sprintManager__placeholder_scope": "What this sprint covers, e.g. goals or features to deliver",
   "sprintManager__label_start": "Start Date",
   "sprintManager__label_end": "End Date",
   "sprintManager__duration_label": "Duration:",

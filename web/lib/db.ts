@@ -249,6 +249,7 @@ function docToSprint(doc: any): Sprint {
     name: doc.name || "",
     start_date: doc.start_date || "",
     end_date: doc.end_date || "",
+    scope: doc.scope || "",
     status: doc.status || "planned",
     completed_at: doc.completed_at || undefined,
     archived_count: doc.archived_count || undefined,
@@ -903,6 +904,7 @@ export async function addSprint(sprint: Omit<Sprint, "id" | "created_at">): Prom
     name: sprint.name,
     start_date: sprint.start_date,
     end_date: sprint.end_date,
+    scope: sprint.scope || "",
     status: sprint.status || "planned",
   });
   const data = await res.json();
@@ -917,6 +919,7 @@ export async function updateSprint(id: string | number, updates: Partial<Sprint>
   if (updates.name !== undefined) payload.name = updates.name;
   if (updates.start_date !== undefined) payload.start_date = updates.start_date;
   if (updates.end_date !== undefined) payload.end_date = updates.end_date;
+  if (updates.scope !== undefined) payload.scope = updates.scope;
   if (updates.status !== undefined) payload.status = updates.status;
   if (updates.completed_at !== undefined) payload.completed_at = updates.completed_at || null;
   if (updates.archived_count !== undefined) payload.archived_count = updates.archived_count;

@@ -26,11 +26,11 @@ import {
   getTodayString,
 } from "./sprint-utils";
 
-type PendingSprint = { name: string; start_date: string; end_date: string };
+type PendingSprint = { name: string; start_date: string; end_date: string; scope: string };
 
 function defaultForm(): SprintFormValues {
   const today = getTodayString();
-  return { name: "", start: today, end: getDateAfterDays(today, 14) };
+  return { name: "", start: today, end: getDateAfterDays(today, 14), scope: "" };
 }
 
 export function SprintManager({
@@ -86,13 +86,13 @@ export function SprintManager({
     const today = getTodayString();
     setShowAddForm(true);
     setEditingSprint(null);
-    setForm({ name: getNextSprintName(sprintList), start: today, end: getDateAfterDays(today, 14) });
+    setForm({ name: getNextSprintName(sprintList), start: today, end: getDateAfterDays(today, 14), scope: "" });
   }
 
   function startEdit(sprint: Sprint) {
     setEditingSprint(sprint);
     setShowAddForm(true);
-    setForm({ name: sprint.name, start: sprint.start_date, end: sprint.end_date });
+    setForm({ name: sprint.name, start: sprint.start_date, end: sprint.end_date, scope: sprint.scope || "" });
   }
 
   function cancelEdit() {
@@ -109,6 +109,7 @@ export function SprintManager({
         name: form.name.trim(),
         start_date: form.start,
         end_date: form.end,
+        scope: form.scope.trim(),
       });
       cancelEdit();
       return;
@@ -119,7 +120,7 @@ export function SprintManager({
       return;
     }
 
-    const pending = { name: form.name.trim(), start_date: form.start, end_date: form.end };
+    const pending = { name: form.name.trim(), start_date: form.start, end_date: form.end, scope: form.scope.trim() };
     if (getTasksToMoveToNewSprint(tasks, sprintList).length > 0) {
       setPendingSprintData(pending);
     } else {

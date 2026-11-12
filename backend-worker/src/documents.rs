@@ -41,6 +41,7 @@ pub fn fields(kind: &str) -> Option<&'static [&'static str]> {
             "name",
             "start_date",
             "end_date",
+            "scope",
             "status",
             "completed_at",
             "archived_count",

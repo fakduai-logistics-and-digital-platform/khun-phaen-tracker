@@ -109,6 +109,10 @@ export function SprintCard({
             )}
           </p>
 
+          {sprint.scope && (
+            <p className="mt-2 line-clamp-3 text-sm whitespace-pre-line text-muted-foreground">{sprint.scope}</p>
+          )}
+
           {sprint.status === "completed" ? (
             <p className="mt-2 text-sm">
               <Archive size={14} className="mr-1 inline text-muted-foreground" />

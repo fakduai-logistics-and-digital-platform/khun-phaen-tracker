@@ -5,10 +5,11 @@ import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { useI18n } from "@/lib/i18n";
 import { formatDuration, getDateAfterDays } from "./sprint-utils";
 
-export type SprintFormValues = { name: string; start: string; end: string };
+export type SprintFormValues = { name: string; start: string; end: string; scope: string };
 
 export function SprintForm({
   values,
@@ -24,7 +25,7 @@ export function SprintForm({
   onCancel: () => void;
 }) {
   const { t } = useI18n();
-  const { name, start, end } = values;
+  const { name, start, end, scope } = values;
 
   return (
     <form
@@ -67,6 +68,18 @@ export function SprintForm({
             {t("sprintManager__duration_label")} {formatDuration(t, start, end)}
           </p>
         )}
+      </div>
+
+      <div className="space-y-1">
+        <Label htmlFor="sprint-scope-input">{t("sprintManager__label_scope")}</Label>
+        <Textarea
+          id="sprint-scope-input"
+          value={scope}
+          rows={3}
+          maxLength={2000}
+          onChange={(e) => onChange({ ...values, scope: e.target.value })}
+          placeholder={t("sprintManager__placeholder_scope")}
+        />
       </div>
 
       <div className="flex gap-2">

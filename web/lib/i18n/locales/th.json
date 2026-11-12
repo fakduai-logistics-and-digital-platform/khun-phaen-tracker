@@ -1181,6 +1181,8 @@
   "sprintManager__tasks_done": "งานเสร็จแล้ว",
   "sprintManager__label_name": "ชื่อ Sprint",
   "sprintManager__placeholder_name": "เช่น Sprint 1, สัปดาห์ที่ 1...",
+  "sprintManager__label_scope": "ขอบเขต",
+  "sprintManager__placeholder_scope": "ขอบเขตงานของ Sprint นี้ เช่น เป้าหมายหรือฟีเจอร์ที่จะส่งมอบ",
   "sprintManager__label_start": "วันเริ่มต้น",
   "sprintManager__label_end": "วันสิ้นสุด",
   "sprintManager__duration_label": "ระยะเวลา:",
