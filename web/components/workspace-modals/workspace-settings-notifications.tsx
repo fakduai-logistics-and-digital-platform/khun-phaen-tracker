@@ -19,7 +19,7 @@ export type NotificationSettings = {
 
 const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0];
-const STATUSES = ["todo", "in-progress", "in-test", "tested", "done"];
+const STATUSES = ["todo", "in-progress", "done", "in-test", "tested"];
 
 export function WorkspaceSettingsNotifications({
   value,

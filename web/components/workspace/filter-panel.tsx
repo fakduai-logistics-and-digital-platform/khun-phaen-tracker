@@ -141,6 +141,13 @@ export function FilterPanel({
         iconClass: "text-amber-400",
       },
       {
+        value: "done",
+        label: t("page__filter_status_done"),
+        count: live("done"),
+        icon: CheckCircle2,
+        iconClass: "text-blue-400",
+      },
+      {
         value: "in-test",
         label: t("page__filter_status_in_test"),
         count: live("in-test"),
@@ -153,13 +160,6 @@ export function FilterPanel({
         count: live("tested"),
         icon: BadgeCheck,
         iconClass: "text-teal-500",
-      },
-      {
-        value: "done",
-        label: t("page__filter_status_done"),
-        count: live("done"),
-        icon: CheckCircle2,
-        iconClass: "text-blue-400",
       },
       {
         value: "archived",

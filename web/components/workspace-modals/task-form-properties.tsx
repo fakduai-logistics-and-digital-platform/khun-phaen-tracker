@@ -37,9 +37,9 @@ export function TaskFormProperties({
     { value: "pending", label: t("taskForm__status_pending"), icon: CircleDashed, iconClass: "text-muted-foreground" },
     { value: "todo", label: t("taskForm__status_todo"), icon: Circle, iconClass: "text-muted-foreground" },
     { value: "in-progress", label: t("taskForm__status_in_progress"), icon: CircleDot, iconClass: "text-yellow-500" },
+    { value: "done", label: t("taskForm__status_done"), icon: CheckCircle2, iconClass: "text-blue-500" },
     { value: "in-test", label: t("taskForm__status_in_test"), icon: CircleDot, iconClass: "text-success" },
     { value: "tested", label: t("taskForm__status_tested"), icon: BadgeCheck, iconClass: "text-teal-500" },
-    { value: "done", label: t("taskForm__status_done"), icon: CheckCircle2, iconClass: "text-blue-500" },
   ];
 
   const typeOptions: SelectOption[] = TASK_TYPES.map((type) => ({

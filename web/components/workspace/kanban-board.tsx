@@ -30,7 +30,7 @@ import { useFlipLayout } from "./use-flip-layout";
 type ColumnStatus = "todo" | "in-progress" | "in-test" | "tested" | "done";
 type Columns = Record<ColumnStatus, Task[]>;
 
-const COLUMN_ORDER: ColumnStatus[] = ["todo", "in-progress", "in-test", "tested", "done"];
+const COLUMN_ORDER: ColumnStatus[] = ["todo", "in-progress", "done", "in-test", "tested"];
 
 const COLUMN_STYLE: Record<ColumnStatus, { labelKey: string; dotClass: string }> = {
   todo: { labelKey: "kanbanBoard__column_todo", dotClass: "border-2 border-muted-foreground/60" },

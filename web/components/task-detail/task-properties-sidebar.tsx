@@ -77,9 +77,9 @@ export function TaskPropertiesSidebar({ task, projects, assignees, sprints, onUp
       { value: "pending", label: t("taskForm__status_pending"), icon: CircleDashed },
       { value: "todo", label: t("taskForm__status_todo"), icon: Circle },
       { value: "in-progress", label: t("taskForm__status_in_progress"), icon: CircleDot },
+      { value: "done", label: t("taskForm__status_done"), icon: CheckCircle2 },
       { value: "in-test", label: t("taskForm__status_in_test"), icon: CircleDot },
       { value: "tested", label: t("taskForm__status_tested"), icon: BadgeCheck },
-      { value: "done", label: t("taskForm__status_done"), icon: CheckCircle2 },
     ],
     [t],
   );

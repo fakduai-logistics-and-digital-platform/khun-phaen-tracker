@@ -28,9 +28,9 @@ export const PRIORITY_OPTIONS: { value: PriorityValue; label: string; icon: Luci
 export const STATUS_OPTIONS: { value: Task["status"]; labelKey: string; icon: LucideIcon; colorClass: string }[] = [
   { value: "pending", labelKey: "page__filter_status_pending", icon: Circle, colorClass: "text-slate-500" },
   { value: "in-progress", labelKey: "page__filter_status_in_progress", icon: PlayCircle, colorClass: "text-blue-500" },
+  { value: "done", labelKey: "page__filter_status_done", icon: CheckCircle2, colorClass: "text-green-500" },
   { value: "in-test", labelKey: "page__filter_status_in_test", icon: FlaskConical, colorClass: "text-purple-500" },
   { value: "tested", labelKey: "page__filter_status_tested", icon: BadgeCheck, colorClass: "text-teal-500" },
-  { value: "done", labelKey: "page__filter_status_done", icon: CheckCircle2, colorClass: "text-green-500" },
 ];
 
 export type SortColumn =

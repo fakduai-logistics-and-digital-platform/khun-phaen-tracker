@@ -90,9 +90,9 @@ const CARDS: { status: StatusFilter; labelKey: string; valueKey: keyof Workspace
   { status: "pending", labelKey: "statsPanel__pending", valueKey: "pending", Icon: PauseCircle },
   { status: "todo", labelKey: "statsPanel__todo", valueKey: "todo", Icon: Circle },
   { status: "in-progress", labelKey: "statsPanel__in_progress", valueKey: "in_progress", Icon: Loader2 },
+  { status: "done", labelKey: "statsPanel__done", valueKey: "done", Icon: CheckCircle2 },
   { status: "in-test", labelKey: "statsPanel__in_test", valueKey: "in_test", Icon: FlaskConical },
   { status: "tested", labelKey: "statsPanel__tested", valueKey: "tested", Icon: BadgeCheck },
-  { status: "done", labelKey: "statsPanel__done", valueKey: "done", Icon: CheckCircle2 },
 ];
 
 export function StatsPanel({
