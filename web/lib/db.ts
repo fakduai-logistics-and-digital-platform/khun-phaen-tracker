@@ -1089,6 +1089,10 @@ function parseCSV(content: string): Record<string, string[][]> {
   return sections;
 }
 
+// One bulk request per chunk keeps CSV imports from spending a Worker request per row.
+const IMPORT_TASK_CHUNK = 100;
+const MAX_IMPORT_TASKS = 1000;
+
 export async function importAllData(
   csvContent: string,
   _options?: any,
@@ -1198,6 +1202,10 @@ export async function importAllData(
   if (sections["TASKS"] && sections["TASKS"].length > 1) {
     const headers = sections["TASKS"][0];
     const data = sections["TASKS"].slice(1);
+    if (data.length > MAX_IMPORT_TASKS) {
+      throw new Error(`Too many tasks to import (max ${MAX_IMPORT_TASKS})`);
+    }
+    const payloads: Record<string, any>[] = [];
     for (const row of data) {
       const t: any = {};
       headers.forEach((h, i) => (t[h] = row[i]));
@@ -1221,10 +1229,13 @@ export async function importAllData(
         payload.sprint_id = sprintMap.get(String(t.sprint_id));
       }
 
-      const resp = await api.data.tasks.create(workspaceId, payload);
-      if (resp.ok) {
-        tasksCount++;
-      }
+      payloads.push(payload);
+    }
+    for (let i = 0; i < payloads.length; i += IMPORT_TASK_CHUNK) {
+      const resp = await api.data.tasks.createBulk(workspaceId, payloads.slice(i, i + IMPORT_TASK_CHUNK));
+      if (!resp.ok) continue;
+      const body = await resp.json();
+      tasksCount += Number(body.created) || 0;
     }
   }
 

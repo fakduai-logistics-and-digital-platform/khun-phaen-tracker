@@ -97,6 +97,16 @@ try {
  assert.ok(taskHistory.every(h=>h.changes.every(c=>c.field!=='title'&&c.field!=='status')),'untouched fields are not listed');
  assert.ok(taskHistory.every(h=>h.user_name),'history names who made the change');
  assert.equal((await request(`${p}/tasks/${formTask.id}/history`,'GET',undefined,outsider.token)).status,403);
+ const bulkRows=[{title:'Bulk 1',date:today,status:'tested'},{title:'Bulk 2',date:today,assignee_ids:[devWorker.id]},{title:'No date'},{title:'Bad status',date:today,status:'nope'},{title:'Foreign assignee',date:today,assignee_ids:[otherWorker.id]}];
+ const bulk=await ok(`${p}/tasks/bulk`,'POST',{tasks:bulkRows});
+ assert.equal(bulk.created,2,'valid rows are created together');
+ assert.deepEqual(bulk.failed.map(f=>f.index),[2,3,4],'invalid rows are reported by index');
+ const bulkTasks=(await ok(`${p}/tasks?search=Bulk`)).tasks.filter(t=>t.title.startsWith('Bulk '));
+ assert.equal(bulkTasks.length,2);
+ assert.equal(new Set(bulkTasks.map(t=>t.task_number)).size,2,'bulk tasks get distinct task numbers');
+ assert.equal((await request(`${p}/tasks/bulk`,'POST',{tasks:Array.from({length:101},(_,i)=>({title:`T${i}`,date:today}))})).status,400,'bulk size is capped');
+ assert.equal((await request(`${p}/tasks/bulk`,'POST',{tasks:bulkRows},outsider.token)).status,403,'outsiders cannot bulk create');
+ for(const t of bulkTasks)await ok(`${p}/tasks/${t.id}`,'DELETE');
  await ok(`${p}/tasks/${formTask.id}`,'DELETE');
  // status=today: every unarchived unfinished task regardless of date, plus done tasks updated today (UTC), as in the legacy backend.
  const todayTask=title=>ok(`${p}/tasks`,'POST',{title,start_date:'2020-01-01',category:'today-check'}).then(r=>r.task);

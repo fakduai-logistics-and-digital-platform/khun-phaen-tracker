@@ -641,6 +641,14 @@ export const api = {
           body: JSON.stringify(task),
         });
       },
+      createBulk: (wsId: string, tasks: Record<string, any>[]): Promise<Response> => {
+        return fetch(`${API_BASE_URL}/workspaces/${wsId}/tasks/bulk`, {
+          method: "POST",
+          headers: api.data._headers(true),
+          credentials: "include",
+          body: JSON.stringify({ tasks }),
+        });
+      },
       get: (wsId: string, taskId: string): Promise<Response> => {
         return fetch(`${API_BASE_URL}/workspaces/${wsId}/tasks/${taskId}`, {
           headers: api.data._headers(),

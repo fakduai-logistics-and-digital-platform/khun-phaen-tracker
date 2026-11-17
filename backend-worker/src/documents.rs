@@ -102,6 +102,9 @@ pub async fn handle(req: &mut Request, env: &Env, user: &User, parts: &[&str]) -
             json!({"success":true,"next_task_number":count.map(|v|v.total).unwrap_or(1)}),
         );
     }
+    if method == Method::Post && kind == "tasks" && item == Some("bulk") {
+        return crate::bulk::create_tasks(req, env, &w, user).await;
+    }
     if method == Method::Get && kind == "tasks" && parts.get(5) == Some(&"history") {
         let task_id = item.unwrap_or_default();
         if get(env, &w.id, kind, task_id).await?.is_none() {

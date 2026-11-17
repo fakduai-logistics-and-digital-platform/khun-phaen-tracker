@@ -45,35 +45,31 @@ pub async fn delete(env: &Env, workspace: &str, kind: &str, id: &str, old: &Valu
     db.batch(stmts).await?;
     Ok(())
 }
-pub async fn validate_task(
-    env: &Env,
-    workspace: &str,
-    value: &Value,
-) -> Result<Option<&'static str>> {
+/// Checks that need no database lookups. Shared by single and bulk task writes.
+pub fn validate_task_shape(value: &Value) -> Option<&'static str> {
     if !value["title"]
         .as_str()
         .is_some_and(|s| !s.trim().is_empty() && s.len() <= 1000)
     {
-        return Ok(Some("A nonempty task title is required (max 1000 bytes)"));
+        return Some("A nonempty task title is required (max 1000 bytes)");
     }
-    if !value["status"]
-        .as_str()
-        .is_some_and(|s| ["pending", "todo", "in-progress", "in-test", "tested", "done"].contains(&s))
-    {
-        return Ok(Some("Invalid task status"));
+    if !value["status"].as_str().is_some_and(|s| {
+        ["pending", "todo", "in-progress", "in-test", "tested", "done"].contains(&s)
+    }) {
+        return Some("Invalid task status");
     }
     if !value["priority"]
         .as_str()
         .is_some_and(|s| ["none", "low", "medium", "high", "urgent"].contains(&s))
     {
-        return Ok(Some("Invalid task priority"));
+        return Some("Invalid task priority");
     }
     if !value["duration_minutes"]
         .as_i64()
         .is_some_and(|v| (0..=100_000_000).contains(&v))
         || !value["is_archived"].is_boolean()
     {
-        return Ok(Some("Invalid task duration or archive flag"));
+        return Some("Invalid task duration or archive flag");
     }
     for key in ["start_date", "date", "due_date", "end_date"] {
         if let Some(v) = value.get(key).filter(|v| !v.is_null()) {
@@ -82,17 +78,40 @@ pub async fn validate_task(
                     || chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d").is_ok()
                     || chrono::DateTime::parse_from_rfc3339(s).is_ok()
             }) {
-                return Ok(Some("Invalid task date"));
+                return Some("Invalid task date");
             }
         }
     }
     if let Some(array) = value.get("assignee_ids").filter(|v| !v.is_null()) {
         let Some(ids) = array.as_array() else {
-            return Ok(Some("assignee_ids must be an array"));
+            return Some("assignee_ids must be an array");
         };
         if ids.len() > 100 {
-            return Ok(Some("Too many assignees"));
+            return Some("Too many assignees");
         }
+    }
+    for key in ["links", "checklist"] {
+        if value
+            .get(key)
+            .is_some_and(|v| !v.is_null() && !v.is_array())
+        {
+            return Some("Invalid task collection field");
+        }
+    }
+    None
+}
+pub async fn validate_task(
+    env: &Env,
+    workspace: &str,
+    value: &Value,
+) -> Result<Option<&'static str>> {
+    if let Some(error) = validate_task_shape(value) {
+        return Ok(Some(error));
+    }
+    if let Some(ids) = value
+        .get("assignee_ids")
+        .and_then(Value::as_array)
+    {
         let known = records::values(env, workspace, "assignees").await?;
         if ids
             .iter()
@@ -107,14 +126,6 @@ pub async fn validate_task(
             .is_none()
         {
             return Ok(Some("Sprint does not belong to this workspace"));
-        }
-    }
-    for key in ["links", "checklist"] {
-        if value
-            .get(key)
-            .is_some_and(|v| !v.is_null() && !v.is_array())
-        {
-            return Ok(Some("Invalid task collection field"));
         }
     }
     Ok(None)

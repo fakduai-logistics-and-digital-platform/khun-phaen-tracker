@@ -2,6 +2,7 @@ mod ai;
 mod api_keys;
 mod auth;
 mod background;
+mod bulk;
 mod cache;
 mod schedules;
 pub use ai::AiGateway;
