@@ -10,7 +10,7 @@ import { PriorityBadge } from "@/components/shared/priority-badge";
 import { AssigneeHoverCard } from "@/components/shared/assignee-hover-card";
 import { Tooltip } from "@/components/shared/tooltip";
 import { useI18n } from "@/lib/i18n";
-import type { Task } from "@/lib/types";
+import type { Sprint, Task } from "@/lib/types";
 import type { TaskType } from "@/lib/utils/branch-name";
 import { TASK_TYPE_BADGE } from "@/lib/utils/task-type-style";
 import { cn } from "@/lib/utils";
@@ -64,6 +64,8 @@ export interface TableViewRowProps {
   onEdit: (task: Task) => void;
   onDelete: (id: string | number) => void;
   onDuplicate: (task: Task) => void;
+  sprints: Sprint[];
+  onMoveToSprint: (task: Task, sprintId: string | number | null) => void;
   onPreview: (task: Task) => void;
   onChecklistToggle: (detail: { taskId: string | number; checklistItemId: string }) => void;
   onOpenPriority: (id: string | number, anchor: HTMLElement) => void;
@@ -84,6 +86,8 @@ export function TableViewRow({
   onEdit,
   onDelete,
   onDuplicate,
+  sprints,
+  onMoveToSprint,
   onPreview,
   onChecklistToggle,
   onOpenPriority,
@@ -104,6 +108,8 @@ export function TableViewRow({
     onPreview,
     onEdit,
     onDuplicate,
+    sprints,
+    onMoveToSprint,
     onDelete: () => onDelete(id),
   };
 

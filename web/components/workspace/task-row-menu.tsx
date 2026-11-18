@@ -1,6 +1,6 @@
 "use client";
 
-import { ClipboardCopy, Copy, Edit2, Eye, Hash, Link2, Trash2, Type } from "lucide-react";
+import { ClipboardCopy, Copy, Edit2, Eye, Flag, Hash, Link2, Trash2, Type } from "lucide-react";
 import { toast } from "sonner";
 import {
   ContextMenuContent,
@@ -21,7 +21,7 @@ import {
 import { withBase } from "@/lib/base-path";
 import { useI18n } from "@/lib/i18n";
 import { taskPath } from "@/lib/routes";
-import type { Task } from "@/lib/types";
+import type { Sprint, Task } from "@/lib/types";
 import { tOr } from "./t-or";
 
 export type TaskRowMenuHandlers = {
@@ -30,6 +30,8 @@ export type TaskRowMenuHandlers = {
   onPreview: (task: Task) => void;
   onEdit: (task: Task) => void;
   onDuplicate: (task: Task) => void;
+  sprints: Sprint[];
+  onMoveToSprint: (task: Task, sprintId: string | number | null) => void;
   onDelete: () => void;
 };
 
@@ -74,6 +76,8 @@ function TaskRowMenuItems({
   onPreview,
   onEdit,
   onDuplicate,
+  sprints,
+  onMoveToSprint,
   onDelete,
 }: TaskRowMenuHandlers & { ui: Primitives }) {
   const { t } = useI18n();
@@ -111,6 +115,29 @@ function TaskRowMenuItems({
         <Copy />
         {t("taskMenu__duplicate")}
       </Item>
+      <Sub>
+        <SubTrigger>
+          <Flag />
+          {t("taskMenu__move_to_sprint")}
+        </SubTrigger>
+        <SubContent>
+          {sprints.map((sprint) => (
+            <Item
+              key={String(sprint.id)}
+              disabled={String(sprint.id) === String(task.sprint_id)}
+              onSelect={() => onMoveToSprint(task, sprint.id ?? null)}
+            >
+              {sprint.name}
+            </Item>
+          ))}
+          {task.sprint_id ? (
+            <>
+              <Separator />
+              <Item onSelect={() => onMoveToSprint(task, null)}>{t("taskMenu__no_sprint")}</Item>
+            </>
+          ) : null}
+        </SubContent>
+      </Sub>
       <Sub>
         <SubTrigger>
           <ClipboardCopy />

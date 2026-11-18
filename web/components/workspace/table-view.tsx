@@ -36,9 +36,6 @@ export interface TableViewProps {
   onStatusChange?: (detail: { id: Id; status: Task["status"] }) => void;
   onPriorityChange?: (detail: { id: Id; priority: Task["priority"] }) => void;
   onChecklistToggle?: (detail: { taskId: Id; checklistItemId: string }) => void;
-  onChangeSprint?: (ids: Id[]) => void;
-  onChangeStatus?: (ids: Id[]) => void;
-  onChangeProject?: (ids: Id[]) => void;
   onExportQR?: (ids: Id[]) => void;
 }
 
@@ -62,9 +59,6 @@ export function TableView({
   onStatusChange,
   onPriorityChange,
   onChecklistToggle,
-  onChangeSprint,
-  onChangeStatus,
-  onChangeProject,
   onExportQR,
 }: TableViewProps) {
   const { t } = useI18n();
@@ -148,6 +142,9 @@ export function TableView({
   const allOnPageSelected = sortedTaskIds.length > 0 && selectedOnPage === sortedTaskIds.length;
   const someOnPageSelected = selectedOnPage > 0 && !allOnPageSelected;
   const selectedIds = [...selected];
+  function applyToSelected(updates: Partial<Task>) {
+    for (const id of selectedIds) onTaskUpdate?.({ id, updates });
+  }
 
   function toggleSort(column: SortColumn) {
     const current = query.sorts[0];
@@ -233,9 +230,9 @@ export function TableView({
           <TableViewBulkBar
             count={selected.size}
             onClear={() => setSelected(new Set())}
-            onChangeStatus={() => onChangeStatus?.(selectedIds)}
-            onChangeProject={() => onChangeProject?.(selectedIds)}
-            onChangeSprint={() => onChangeSprint?.(selectedIds)}
+            sprints={sprints}
+            projects={projects}
+            onApply={applyToSelected}
             onExportQR={() => onExportQR?.(selectedIds)}
             onDelete={() => onDeleteSelected?.(selectedIds)}
           />
@@ -286,6 +283,8 @@ export function TableView({
                     onEdit={(item) => onEdit?.(item)}
                     onDelete={(id) => onDelete?.(id)}
                     onDuplicate={(item) => onDuplicate?.(item)}
+                    sprints={sprints}
+                    onMoveToSprint={(item, sprintId) => onTaskUpdate?.({ id: item.id!, updates: { sprint_id: sprintId } })}
                     onPreview={(item) => setPreviewId(item.id ?? null)}
                     onChecklistToggle={(detail) => onChecklistToggle?.(detail)}
                     onOpenPriority={openPriority}

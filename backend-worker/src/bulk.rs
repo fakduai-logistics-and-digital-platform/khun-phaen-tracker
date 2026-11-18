@@ -6,6 +6,8 @@ use std::collections::HashSet;
 use worker::*;
 
 pub const MAX_BULK_TASKS: usize = 100;
+/// Imports per workspace per UTC day; beyond it imports stop until the next day so D1 stays available to everyone else.
+pub const MAX_DAILY_IMPORT_TASKS: i64 = 1000;
 
 #[derive(Deserialize)]
 struct Counter {
@@ -99,11 +101,30 @@ pub async fn create_tasks(
             Err(error) => failed.push(json!({"index":index,"error":error})),
         }
     }
+    let db = env.d1("DB")?;
     if valid.is_empty() {
         return http::ok(json!({"success":true,"created":0,"failed":failed}));
     }
-    let db = env.d1("DB")?;
     let count = valid.len() as i64;
+    let day = db::timestamp();
+    let kind = format!("import:{}", day.get(..10).unwrap_or_default());
+    let used: Option<Counter> = db::first(&db,"INSERT INTO counters(workspace_id,kind,value) VALUES(?,?,?) ON CONFLICT(workspace_id,kind) DO UPDATE SET value=value+excluded.value RETURNING value AS total",&[w.id.clone().into(),kind.clone().into(),(count as f64).into()]).await?;
+    let used = used
+        .ok_or_else(|| Error::RustError("Import quota update failed".into()))?
+        .total;
+    if used > MAX_DAILY_IMPORT_TASKS {
+        db.prepare("UPDATE counters SET value=value-? WHERE workspace_id=? AND kind=?")
+            .bind(&[(count as f64).into(), w.id.clone().into(), kind.into()])?
+            .run()
+            .await?;
+        return http::error(429, "Daily import limit reached (1000 tasks per workspace). Try again tomorrow");
+    }
+    if used == count {
+        db.prepare("DELETE FROM counters WHERE workspace_id=? AND kind LIKE 'import:%' AND kind<>?")
+            .bind(&[w.id.clone().into(), kind.into()])?
+            .run()
+            .await?;
+    }
     let counter: Option<Counter> = db::first(&db,"INSERT INTO counters(workspace_id,kind,value) VALUES(?,'tasks',?) ON CONFLICT(workspace_id,kind) DO UPDATE SET value=value+excluded.value RETURNING value AS total",&[w.id.clone().into(),(count as f64).into()]).await?;
     let last = counter
         .ok_or_else(|| Error::RustError("Task number allocation failed".into()))?

@@ -1,19 +1,29 @@
 "use client";
 
 import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { CheckCircle2, Flag, Folder, QrCode, Trash2, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useI18n } from "@/lib/i18n";
+import type { Project, Sprint, Task } from "@/lib/types";
+import { STATUS_OPTIONS } from "./table-view-config";
 
 export interface TableViewBulkBarProps {
   count: number;
   onClear: () => void;
-  onChangeStatus: () => void;
-  onChangeProject: () => void;
-  onChangeSprint: () => void;
+  sprints: Sprint[];
+  projects: Project[];
+  onApply: (updates: Partial<Task>) => void;
   onExportQR: () => void;
   onDelete: () => void;
 }
@@ -23,26 +33,39 @@ function BulkAction({
   label,
   onClick,
   destructive,
+  menu,
 }: {
   icon: LucideIcon;
   label: string;
-  onClick: () => void;
+  onClick?: () => void;
   destructive?: boolean;
+  menu?: ReactNode;
 }) {
+  const button = (
+    <Button
+      type="button"
+      size="icon"
+      variant={destructive ? "destructive" : "outline"}
+      className="size-8"
+      onClick={onClick}
+      aria-label={label}
+    >
+      <Icon />
+    </Button>
+  );
+  const trigger = menu ? (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>{button}</DropdownMenuTrigger>
+      <DropdownMenuContent side="top" align="center" className="max-h-72 overflow-y-auto">
+        {menu}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  ) : (
+    button
+  );
   return (
     <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          type="button"
-          size="icon"
-          variant={destructive ? "destructive" : "outline"}
-          className="size-8"
-          onClick={onClick}
-          aria-label={label}
-        >
-          <Icon />
-        </Button>
-      </TooltipTrigger>
+      <TooltipTrigger asChild>{trigger}</TooltipTrigger>
       <TooltipContent side="top">{label}</TooltipContent>
     </Tooltip>
   );
@@ -52,9 +75,9 @@ function BulkAction({
 export function TableViewBulkBar({
   count,
   onClear,
-  onChangeStatus,
-  onChangeProject,
-  onChangeSprint,
+  sprints,
+  projects,
+  onApply,
   onExportQR,
   onDelete,
 }: TableViewBulkBarProps) {
@@ -79,9 +102,46 @@ export function TableViewBulkBar({
         {count}
       </Badge>
       <span className="pe-1 text-sm font-medium">{t("tableView__selected_label")}</span>
-      <BulkAction icon={CheckCircle2} label={t("tableView__btn_change_status")} onClick={onChangeStatus} />
-      <BulkAction icon={Folder} label={t("tableView__btn_change_project")} onClick={onChangeProject} />
-      <BulkAction icon={Flag} label={t("tableView__btn_change_sprint")} onClick={onChangeSprint} />
+      <BulkAction
+        icon={CheckCircle2}
+        label={t("tableView__btn_change_status")}
+        menu={STATUS_OPTIONS.map(({ value, labelKey, icon: StatusIcon, colorClass }) => (
+          <DropdownMenuItem key={value} onSelect={() => onApply({ status: value })}>
+            <StatusIcon className={colorClass} />
+            {t(labelKey)}
+          </DropdownMenuItem>
+        ))}
+      />
+      <BulkAction
+        icon={Folder}
+        label={t("tableView__btn_change_project")}
+        menu={
+          <>
+            {projects.map((project) => (
+              <DropdownMenuItem key={String(project.id)} onSelect={() => onApply({ project: project.name })}>
+                {project.name}
+              </DropdownMenuItem>
+            ))}
+            {projects.length > 0 && <DropdownMenuSeparator />}
+            <DropdownMenuItem onSelect={() => onApply({ project: "" })}>{t("tableView__bulk_no_project")}</DropdownMenuItem>
+          </>
+        }
+      />
+      <BulkAction
+        icon={Flag}
+        label={t("tableView__btn_change_sprint")}
+        menu={
+          <>
+            {sprints.map((sprint) => (
+              <DropdownMenuItem key={String(sprint.id)} onSelect={() => onApply({ sprint_id: sprint.id ?? null })}>
+                {sprint.name}
+              </DropdownMenuItem>
+            ))}
+            {sprints.length > 0 && <DropdownMenuSeparator />}
+            <DropdownMenuItem onSelect={() => onApply({ sprint_id: null })}>{t("taskMenu__no_sprint")}</DropdownMenuItem>
+          </>
+        }
+      />
       <BulkAction icon={QrCode} label={t("tableView__btn_qr_export")} onClick={onExportQR} />
       <BulkAction icon={Trash2} label={t("tableView__btn_delete_selected")} onClick={onDelete} destructive />
     </div>,

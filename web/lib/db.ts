@@ -1233,8 +1233,9 @@ export async function importAllData(
     }
     for (let i = 0; i < payloads.length; i += IMPORT_TASK_CHUNK) {
       const resp = await api.data.tasks.createBulk(workspaceId, payloads.slice(i, i + IMPORT_TASK_CHUNK));
+      const body = await resp.json().catch(() => ({}));
+      if (resp.status === 429) throw new Error(body.error || "Daily import limit reached");
       if (!resp.ok) continue;
-      const body = await resp.json();
       tasksCount += Number(body.created) || 0;
     }
   }
